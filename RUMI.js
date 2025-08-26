@@ -30,6 +30,73 @@
         }
     };
 
+    // Function to load field visibility state from localStorage
+    function loadFieldVisibilityState() {
+        const savedState = localStorage.getItem('zendesk_field_visibility_state');
+        if (savedState && (savedState === 'all' || savedState === 'minimal')) {
+            fieldVisibilityState = savedState;
+            console.log(`🔐 Field visibility state loaded from storage: ${fieldVisibilityState}`);
+        } else {
+            fieldVisibilityState = 'all'; // Default state
+            console.log(`🔐 Using default field visibility state: ${fieldVisibilityState}`);
+        }
+    }
+
+    // Function to save field visibility state to localStorage
+    function saveFieldVisibilityState() {
+        localStorage.setItem('zendesk_field_visibility_state', fieldVisibilityState);
+        console.log(`💾 Field visibility state saved: ${fieldVisibilityState}`);
+    }
+
+    // Function to apply the current field visibility state to forms
+    function applyFieldVisibilityState() {
+        const allForms = DOMCache.get('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', true, 2000);
+
+        if (allForms.length === 0) {
+            return;
+        }
+
+        console.log(`🔄 Applying field visibility state: ${fieldVisibilityState}`);
+
+        requestAnimationFrame(() => {
+            allForms.forEach(form => {
+                if (!form || !form.children || !form.isConnected) return;
+
+                const fields = Array.from(form.children).filter(field =>
+                    field.nodeType === Node.ELEMENT_NODE && field.isConnected
+                );
+
+                // Batch DOM operations
+                const fieldsToHide = [];
+                const fieldsToShow = [];
+
+                fields.forEach(field => {
+                    try {
+                        if (fieldVisibilityState === 'all') {
+                            // Show all fields
+                            fieldsToShow.push(field);
+                        } else if (isTargetField(field)) {
+                            // This is a target field for minimal state, show it
+                            fieldsToShow.push(field);
+                        } else {
+                            // This is not a target field for minimal state, hide it
+                            fieldsToHide.push(field);
+                        }
+                    } catch (e) {
+                        // Silent error handling
+                    }
+                });
+
+                // Apply changes in batches to minimize reflows
+                fieldsToHide.forEach(field => field.classList.add('hidden-form-field'));
+                fieldsToShow.forEach(field => field.classList.remove('hidden-form-field'));
+            });
+
+            // Update button state to reflect current state
+            updateToggleButtonState();
+        });
+    }
+
     // Enhanced DOM cache system
     const DOMCache = {
         _staticCache: new Map(),
@@ -117,6 +184,35 @@
             .form-toggle-icon {
                 width: 26px;
                 height: 26px;
+            }
+            
+            /* Views toggle functionality styles */
+            .hidden-view-item {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* Views toggle button protection */
+            .views-toggle-btn,
+            #views-toggle-button,
+            #views-toggle-wrapper {
+                pointer-events: auto !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                display: inline-block !important;
+                position: relative !important;
+                z-index: 100 !important;
+            }
+            
+            #views-header-left-container {
+                pointer-events: auto !important;
+                visibility: visible !important;
+                display: flex !important;
             }
             
             /* Navigation button container styling */
@@ -368,13 +464,13 @@
                 }
                 fieldFound = true;
 
-                // Check if field is already filled
+                // Check if field is already set to the target value
                 const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
-                if (currentValue && currentValue !== 'Select an option...' && currentValue !== '-') {
-                    console.log(`✅ SSOC Reason already set to: "${currentValue}", skipping`);
+                if (currentValue === 'Escalated to Uber') {
+                    console.log(`✅ SSOC Reason already set to target value: "${currentValue}", skipping`);
                     return true;
                 }
 
@@ -408,13 +504,13 @@
                 }
                 fieldFound = true;
 
-                // Check if field is already filled
+                // Check if field is already set to the target value
                 const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
-                if (currentValue && currentValue !== 'Select an option...' && currentValue !== '-') {
-                    console.log(`✅ Action Taken - Consumer already set to: "${currentValue}", skipping`);
+                if (currentValue === 'Resolved - Escalated to Uber') {
+                    console.log(`✅ Action Taken - Consumer already set to target value: "${currentValue}", skipping`);
                     return true;
                 }
 
@@ -472,7 +568,7 @@
         return promises.length === 0 || successCount > 0;
     }
 
-    // Set Action Taken - Consumer to "No action - Duplicated tickets/emails"
+    // Set Action Taken - Consumer to "Resolved - Escalated to Uber"
     async function setActionTakenConsumerDuplicate(container) {
         const fields = container.children;
         let fieldFound = false;
@@ -486,19 +582,19 @@
                 }
                 fieldFound = true;
 
-                // Check if field is already filled
+                // Check if field is already set to the target value
                 const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
-                if (currentValue && currentValue !== 'Select an option...' && currentValue !== '-') {
-                    console.log(`✅ Action Taken - Consumer already set to: "${currentValue}", skipping`);
+                if (currentValue === 'Resolved - Escalated to Uber') {
+                    console.log(`✅ Action Taken - Consumer already set to target value: "${currentValue}", skipping`);
                     return true;
                 }
 
                 try {
-                    console.log('📝 Setting Action Taken - Consumer to "No action - Duplicated tickets/emails"...');
-                    const success = await setDropdownFieldValueInstant(field, 'No action - Duplicated tickets/emails');
+                    console.log('📝 Setting Action Taken - Consumer to "Resolved - Escalated to Uber"...');
+                    const success = await setDropdownFieldValueInstant(field, 'Resolved - Escalated to Uber');
                     console.log(`✅ Action Taken - Consumer result: ${success ? 'SUCCESS' : 'FAILED'}`);
                     return success;
                 } catch (error) {
@@ -512,7 +608,7 @@
         return true;
     }
 
-    // Set SSOC Reason to "SSOC - No action required - Duplicate Ticket"
+    // Set SSOC Reason to "Escalated to Uber"
     async function setSSOCReasonToDuplicate(container) {
         const fields = container.children;
         let fieldFound = false;
@@ -526,19 +622,19 @@
                 }
                 fieldFound = true;
 
-                // Check if field is already filled
+                // Check if field is already set to the target value
                 const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
-                if (currentValue && currentValue !== 'Select an option...' && currentValue !== '-') {
-                    console.log(`✅ SSOC Reason already set to: "${currentValue}", skipping`);
+                if (currentValue === 'Escalated to Uber') {
+                    console.log(`✅ SSOC Reason already set to target value: "${currentValue}", skipping`);
                     return true;
                 }
 
                 try {
-                    console.log('📝 Setting SSOC Reason to "SSOC - No action required - Duplicate Ticket"...');
-                    const success = await setDropdownFieldValueInstant(field, 'SSOC - No action required - Duplicate Ticket');
+                    console.log('📝 Setting SSOC Reason to "Escalated to Uber"...');
+                    const success = await setDropdownFieldValueInstant(field, 'Escalated to Uber');
                     console.log(`✅ SSOC Reason result: ${success ? 'SUCCESS' : 'FAILED'}`);
                     return success;
                 } catch (error) {
@@ -800,7 +896,7 @@
             // Minimal delay between operations
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Set Action Taken - Consumer to "No action - Duplicated tickets/emails"
+            // Set Action Taken - Consumer to "Resolved - Escalated to Uber"
             console.log('📝 Step 2: Setting Action Taken - Consumer...');
             const actionTakenSuccess = await setActionTakenConsumerDuplicate(form);
             console.log(`✅ Action Taken - Consumer result: ${actionTakenSuccess ? 'SUCCESS' : 'FAILED'}`);
@@ -808,7 +904,7 @@
             // Minimal delay between operations
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Set SSOC Reason to "SSOC - No action required - Duplicate Ticket"
+            // Set SSOC Reason to "Escalated to Uber"
             console.log('📝 Step 3: Setting SSOC Reason...');
             const ssocReasonSuccess = await setSSOCReasonToDuplicate(form);
             console.log(`✅ SSOC Reason result: ${ssocReasonSuccess ? 'SUCCESS' : 'FAILED'}`);
@@ -1449,6 +1545,9 @@ ${customerWordsLine}`;
 
             // Toggle between 'all' and 'minimal' states
             fieldVisibilityState = (fieldVisibilityState === 'all') ? 'minimal' : 'all';
+            
+            // Save the new state to localStorage
+            saveFieldVisibilityState();
 
             // Use requestAnimationFrame for better performance
             requestAnimationFrame(() => {
@@ -1646,10 +1745,425 @@ ${customerWordsLine}`;
             insertRumiButton();
             tryAddToggleButton();
             
+            // Apply the saved field visibility state
+            setTimeout(() => {
+                applyFieldVisibilityState();
+            }, 100);
+            
             // Check for HALA provider tag after additional delay to ensure tags are loaded
             setTimeout(() => {
                 checkForHalaProviderTag();
             }, 1000);
+        }, 500);
+    }
+
+    // Views filter functionality
+    let viewsAreHidden = false;
+    const essentialViews = [
+        'SSOC - Open - Urgent',
+        'SSOC - Pending - Urgent',
+        'SSOC - GCC & EM Open',
+        'SSOC - GCC & EM Pending',
+        'SSOC - Egypt Urgent',
+        'SSOC - Egypt Open',
+        'SSOC - Egypt Pending',
+        'SSOC_JOD_from ZD only',
+        'KSA Safety & Security Tickets',
+        'KSA Safety & Security Tickets - New & Open',
+        'KSA Safety & Security Tickets - On-hold & Pending',
+        'Non-Uber Tickets routing to L1',
+        'Autoclosure of warning sent - uber tickets',
+        'UAE Safety & Security Tickets'
+    ];
+
+    function createViewsToggleButton() {
+        // Find the Views header
+        const viewsHeader = document.querySelector('[data-test-id="views_views-list_header"] h3');
+        if (!viewsHeader) return false;
+
+        // Check if already converted to clickable
+        if (viewsHeader.querySelector('#views-toggle-wrapper')) return true;
+
+        // Save the original text content
+        const originalText = viewsHeader.textContent.trim();
+        
+        // Clear the h3 content and create a wrapper for just the "Views" text
+        viewsHeader.innerHTML = '';
+        
+        // Create a clickable wrapper for just the "Views" text
+        const clickableWrapper = document.createElement('span');
+        clickableWrapper.id = 'views-toggle-wrapper';
+        clickableWrapper.setAttribute('data-views-toggle', 'true');
+        clickableWrapper.setAttribute('role', 'button');
+        clickableWrapper.setAttribute('tabindex', '0');
+        clickableWrapper.title = 'Click to hide/show non-essential views';
+        
+        // Style the clickable wrapper to only affect the text area
+        clickableWrapper.style.cssText = `
+            cursor: pointer !important;
+            user-select: none !important;
+            transition: all 0.2s ease !important;
+            padding: 2px 6px !important;
+            border-radius: 4px !important;
+            display: inline-block !important;
+            background: transparent !important;
+            border: none !important;
+            font: inherit !important;
+            color: inherit !important;
+        `;
+
+        // Add the "Views" text (no icon)
+        const textSpan = document.createElement('span');
+        textSpan.textContent = originalText;
+        clickableWrapper.appendChild(textSpan);
+        
+        // Add the clickable wrapper to the h3
+        viewsHeader.appendChild(clickableWrapper);
+
+        // Add hover effects only to the wrapper
+        const handleMouseEnter = (e) => {
+            e.stopPropagation();
+            clickableWrapper.style.backgroundColor = '#f8f9fa';
+        };
+        
+        const handleMouseLeave = (e) => {
+            e.stopPropagation();
+            clickableWrapper.style.backgroundColor = 'transparent';
+        };
+
+        clickableWrapper.addEventListener('mouseenter', handleMouseEnter);
+        clickableWrapper.addEventListener('mouseleave', handleMouseLeave);
+
+        // Add click handler with debouncing
+        let isClicking = false;
+        const handleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (isClicking) {
+                console.log('⚠️ Click ignored - Views text is processing');
+                return;
+            }
+            
+            isClicking = true;
+            console.log('🖱️ Views text clicked');
+            
+            // Add visual feedback
+            clickableWrapper.style.opacity = '0.8';
+            
+            try {
+                toggleNonEssentialViews();
+            } catch (error) {
+                console.error('❌ Error in toggle function:', error);
+            }
+            
+            // Reset visual feedback and debounce flag
+            setTimeout(() => {
+                clickableWrapper.style.opacity = '1';
+                isClicking = false;
+            }, 300);
+        };
+
+        // Add keyboard support
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleClick(e);
+            }
+        };
+
+        clickableWrapper.addEventListener('click', handleClick);
+        clickableWrapper.addEventListener('keydown', handleKeyDown);
+
+        // Set up refresh button monitoring
+        setupRefreshButtonMonitoring();
+        
+        console.log('✅ Views text converted to clickable toggle (refresh button unaffected)');
+        return true;
+    }
+
+    function setupRefreshButtonMonitoring() {
+        // Find and monitor the refresh button
+        const refreshButton = document.querySelector('[data-test-id="views_views-list_header-refresh"]');
+        if (refreshButton) {
+            // Add event listener to detect refresh clicks
+            refreshButton.addEventListener('click', () => {
+                if (viewsAreHidden) {
+                    console.log('🔄 Refresh button clicked - will re-apply view hiding after refresh completes');
+                    
+                    // Wait for refresh to complete, then re-apply hiding
+                    setTimeout(() => {
+                        if (viewsAreHidden) {
+                            console.log('🔄 Re-applying view hiding after refresh button click');
+                            hideNonEssentialViews();
+                        }
+                    }, 1000); // Give more time for refresh to fully complete
+                }
+            });
+            
+            console.log('👀 Refresh button monitoring set up');
+        } else {
+            // If button not found now, try again later
+            setTimeout(setupRefreshButtonMonitoring, 1000);
+        }
+    }
+
+    function toggleNonEssentialViews() {
+        console.log(`🔀 Toggling views. Current state: ${viewsAreHidden ? 'hidden' : 'shown'}`);
+        
+        viewsAreHidden = !viewsAreHidden;
+        const toggleWrapper = document.getElementById('views-toggle-wrapper');
+        
+        if (viewsAreHidden) {
+            console.log('🙈 Hiding non-essential views...');
+            if (toggleWrapper) {
+                toggleWrapper.title = 'Click to show all views';
+            }
+            hideNonEssentialViews();
+        } else {
+            console.log('👁️ Showing all views...');
+            if (toggleWrapper) {
+                toggleWrapper.title = 'Click to hide non-essential views';
+            }
+            showAllViews();
+        }
+
+        // Save the state
+        localStorage.setItem('viewsAreHidden', viewsAreHidden.toString());
+        console.log(`💾 State saved: viewsAreHidden = ${viewsAreHidden}`);
+    }
+
+    function hideNonEssentialViews() {
+        // Find all view list items - use a more specific selector to avoid duplicates
+        const viewItems = document.querySelectorAll('[data-test-id*="views_views-list_item"]:not([data-test-id*="tooltip"])');
+        
+        if (viewItems.length === 0) {
+            console.log('⚠️ No view items found');
+            return;
+        }
+        
+        console.log(`✅ Found ${viewItems.length} view items`);
+        
+        let hiddenCount = 0;
+        let keptCount = 0;
+        const processedItems = new Set(); // Track processed items to avoid duplicates
+        
+        viewItems.forEach(item => {
+            // Skip if already processed or is a button/refresh element or our toggle button
+            if (item.getAttribute('aria-label') === 'Refresh views pane' || 
+                item.id === 'views-toggle-button' ||
+                item.getAttribute('data-views-toggle') === 'true' ||
+                item.className?.includes('views-toggle-btn') ||
+                processedItems.has(item)) {
+                return;
+            }
+            
+            // Get the view name - try to find the most reliable text source
+            let viewName = '';
+            
+            // Look for the main text element that contains the view name
+            const titleElement = item.querySelector('[data-garden-id="typography.ellipsis"]') ||
+                                item.querySelector('.StyledEllipsis-sc-1u4umy-0') ||
+                                item.querySelector('span[title]') ||
+                                item.querySelector('span:not([class*="count"]):not([class*="number"])');
+                                
+            if (titleElement) {
+                viewName = titleElement.getAttribute('title')?.trim() || 
+                          titleElement.textContent?.trim() || '';
+            }
+            
+            // Fallback to item's direct text content, but clean it up
+            if (!viewName) {
+                const fullText = item.textContent?.trim() || '';
+                // Remove trailing numbers that might be counts (like "5", "162", "6.6K")
+                viewName = fullText.replace(/\d+(?:\.\d+)?[KMB]?$/, '').trim();
+            }
+            
+            // Skip if we couldn't get a clean view name or it's too short/generic
+            if (!viewName || 
+                viewName.length < 3 || 
+                viewName.toLowerCase().includes('refresh') ||
+                /^\d+$/.test(viewName) || // Skip pure numbers
+                viewName === 'Views') {
+                return;
+            }
+            
+            processedItems.add(item);
+            console.log(`🔍 Checking view: "${viewName}"`);
+            
+            // Check if this view is essential (exact match)
+            const isEssential = essentialViews.includes(viewName);
+            
+            if (!isEssential) {
+                item.classList.add('hidden-view-item');
+                item.setAttribute('data-hidden-by-toggle', 'true');
+                item.setAttribute('data-view-name', viewName);
+                hiddenCount++;
+                console.log(`🙈 Hidden view: "${viewName}"`);
+            } else {
+                // Ensure essential views are visible
+                item.classList.remove('hidden-view-item');
+                item.removeAttribute('data-hidden-by-toggle');
+                keptCount++;
+                console.log(`👁️ Keeping essential view: "${viewName}"`);
+            }
+        });
+
+        console.log(`🔍 Non-essential views hidden: ${hiddenCount} hidden, ${keptCount} kept visible`);
+        
+        // Set up observer to handle React re-renders, but with better filtering
+        setupViewsObserver();
+    }
+
+    function showAllViews() {
+        // Show all hidden view items
+        const hiddenItems = document.querySelectorAll('[data-hidden-by-toggle="true"]');
+        
+        hiddenItems.forEach(item => {
+            item.classList.remove('hidden-view-item');
+            item.removeAttribute('data-hidden-by-toggle');
+        });
+
+        console.log(`👁️ All views shown: ${hiddenItems.length} items restored`);
+        
+        // Stop the views observer when showing all views
+        if (window.viewsObserver) {
+            window.viewsObserver.disconnect();
+            window.viewsObserver = null;
+        }
+    }
+
+    function setupViewsObserver() {
+        // Disconnect existing observer if any
+        if (window.viewsObserver) {
+            window.viewsObserver.disconnect();
+        }
+        
+        // Create a new observer to handle React re-renders and refresh events
+        let isReapplying = false; // Prevent infinite loops
+        
+        window.viewsObserver = new MutationObserver((mutations) => {
+            if (!viewsAreHidden || isReapplying) return;
+            
+            let needsReapply = false;
+            let refreshDetected = false;
+            
+            // Check for specific changes that would affect view visibility
+            mutations.forEach(mutation => {
+                // Skip changes to our toggle button, wrapper, or container
+                if (mutation.target.id === 'views-toggle-button' ||
+                    mutation.target.id === 'views-toggle-wrapper' ||
+                    mutation.target.id === 'views-header-left-container' ||
+                    mutation.target.getAttribute('data-views-toggle') === 'true' ||
+                    mutation.target.className?.includes('views-toggle-btn')) {
+                    return;
+                }
+                
+                // Detect if new view items have been added (refresh scenario)
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === 1) { // Element node
+                            // Check if this looks like view items being re-added
+                            if (node.matches && node.matches('[data-test-id*="views_views-list_item"]')) {
+                                console.log('🔄 Detected new view items - likely refresh event');
+                                refreshDetected = true;
+                            } else if (node.querySelector && node.querySelector('[data-test-id*="views_views-list_item"]')) {
+                                console.log('🔄 Detected container with new view items - likely refresh event');
+                                refreshDetected = true;
+                            }
+                        }
+                    });
+                }
+                
+                // Also check for previously hidden items being restored
+                if (mutation.target.hasAttribute && mutation.target.hasAttribute('data-hidden-by-toggle')) {
+                    if (mutation.type === 'attributes' && 
+                        (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                        // Check if the hidden class was removed
+                        if (!mutation.target.classList.contains('hidden-view-item')) {
+                            needsReapply = true;
+                        }
+                    }
+                }
+            });
+            
+            if (refreshDetected || needsReapply) {
+                console.log('🔄 Re-applying view hiding due to refresh or React override...');
+                isReapplying = true;
+                
+                // Wait a bit for the refresh to complete, then re-apply hiding
+                setTimeout(() => {
+                    if (viewsAreHidden) {
+                        console.log('🔄 Re-running hideNonEssentialViews after refresh...');
+                        hideNonEssentialViews();
+                    }
+                    
+                    // Reset the flag
+                    isReapplying = false;
+                }, 500); // Give time for the refresh to complete
+            }
+        });
+        
+        // Observe the entire views container to catch refresh events
+        const viewsContainer = document.querySelector('[data-test-id="views_views-pane_content"]');
+        if (viewsContainer) {
+            window.viewsObserver.observe(viewsContainer, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+            console.log('👀 Views observer set up to monitor refresh events');
+        }
+        
+        // Also observe specific hidden items for direct style changes
+        const hiddenItems = document.querySelectorAll('[data-hidden-by-toggle="true"]');
+        hiddenItems.forEach(item => {
+            window.viewsObserver.observe(item, {
+                attributes: true,
+                attributeFilter: ['style', 'class']
+            });
+        });
+        
+        console.log(`👀 Views observer set up for refresh detection and ${hiddenItems.length} hidden items`);
+    }
+
+    function loadViewsToggleState() {
+        const saved = localStorage.getItem('viewsAreHidden');
+        if (saved === 'true') {
+            viewsAreHidden = true;
+            setTimeout(() => {
+                const toggleWrapper = document.getElementById('views-toggle-wrapper');
+                
+                if (toggleWrapper) {
+                    toggleWrapper.title = 'Click to show all views';
+                    
+                    // Apply hiding directly
+                    hideNonEssentialViews();
+                }
+            }, 500);
+        }
+    }
+
+    function isViewsPage() {
+        return window.location.pathname.includes('/agent/filters/') || 
+               document.querySelector('[data-test-id="views_views-pane-div"]');
+    }
+
+    function handleViewsPage() {
+        if (!isViewsPage()) return;
+        
+        // Check if toggle wrapper already exists to prevent duplicates
+        if (document.getElementById('views-toggle-wrapper')) {
+            console.log('✅ Views toggle already exists');
+            return;
+        }
+        
+        setTimeout(() => {
+            if (!document.getElementById('views-toggle-wrapper')) {
+                createViewsToggleButton();
+                loadViewsToggleState();
+            }
         }, 500);
     }
 
@@ -1661,10 +2175,15 @@ ${customerWordsLine}`;
         injectCSS();
         promptForUsername();
         
+        // Load the saved field visibility state
+        loadFieldVisibilityState();
+        
         // Set up observer for dynamic content and URL changes
         const observer = new MutationObserver(() => {
             // Check for ticket view whenever DOM changes
             handleTicketView();
+            // Check for views page whenever DOM changes
+            handleViewsPage();
         });
 
         // Start observing (always, not just on ticket pages)
@@ -1678,8 +2197,9 @@ ${customerWordsLine}`;
         const urlCheckInterval = setInterval(() => {
             if (window.location.href !== currentUrl) {
                 currentUrl = window.location.href;
-                // URL changed, check if we need to handle ticket view
+                // URL changed, check if we need to handle ticket view or views page
                 setTimeout(handleTicketView, 300);
+                setTimeout(handleViewsPage, 300);
             }
         }, 500);
 
@@ -1689,14 +2209,27 @@ ${customerWordsLine}`;
                 insertRumiButton();
                 tryAddToggleButton();
                 
+                // Apply the saved field visibility state
+                setTimeout(() => {
+                    applyFieldVisibilityState();
+                }, 100);
+                
                 // Check for HALA provider tag after additional delay to ensure tags are loaded
                 setTimeout(() => {
                     checkForHalaProviderTag();
                 }, 1000);
             }, 1000);
         }
+
+        // Initial attempt if already on a views page
+        if (isViewsPage()) {
+            setTimeout(() => {
+                createViewsToggleButton();
+                loadViewsToggleState();
+            }, 1000);
+        }
         
-        console.log('✅ RUMI script initialized and waiting for ticket pages');
+        console.log('✅ RUMI script initialized and waiting for ticket and views pages');
     }
 
     // Wait for page to load and then initialize
