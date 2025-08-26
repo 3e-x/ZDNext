@@ -473,6 +473,7 @@
 
     // Field sets for different visibility states
     const standardFields = [
+        'Tags',
         'Reason (Quality/GO/Billing)*',
         'Captain ID',
         'Booking ID',
@@ -493,6 +494,7 @@
     ];
 
     const minimalFields = [
+        'Tags',
         'Reason (Quality/GO/Billing)*',
         'SSOC Reason',
         'Action Taken - Consumer',
@@ -4353,7 +4355,7 @@ ${blockHistoryText}
         return true; // Return true to not fail the overall process
     }
 
-    // Set Action Taken - Consumer to "On hold - Escalated to Uber"
+    // Set Action Taken - Consumer to "Resolved - Escalated to Uber"
     async function setActionTakenConsumer(container) {
         const fields = container.children;
         let fieldFound = false;
@@ -4368,8 +4370,8 @@ ${blockHistoryText}
                 fieldFound = true;
 
                 try {
-                    console.log('📝 Setting Action Taken - Consumer to "On hold - Escalated to Uber"...');
-                    const success = await setDropdownFieldValueInstant(field, 'On hold - Escalated to Uber');
+                    console.log('📝 Setting Action Taken - Consumer to "Resolved - Escalated to Uber"...');
+                    const success = await setDropdownFieldValueInstant(field, 'Resolved - Escalated to Uber');
                     console.log(`✅ Action Taken - Consumer result: ${success ? 'SUCCESS' : 'FAILED'}`);
                     return success;
                 } catch (error) {
@@ -4586,7 +4588,7 @@ ${blockHistoryText}
             // Minimal delay between operations
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Set Action Taken - Consumer to "On hold - Escalated to Uber"
+            // Set Action Taken - Consumer to "Resolved - Escalated to Uber"
             console.log('📝 Step 2: Setting Action Taken - Consumer...');
             const actionTakenSuccess = await setActionTakenConsumer(form);
             console.log(`✅ Action Taken - Consumer result: ${actionTakenSuccess ? 'SUCCESS' : 'FAILED'}`);
