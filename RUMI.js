@@ -308,6 +308,7 @@
         'Tags',
         'Priority',
         'Reason (Quality/GO/Billing)*',
+		'Reason (Quality/GO/Billing)',
         'SSOC Reason',
         'Action Taken - Consumer',
         'SSOC incident source'
