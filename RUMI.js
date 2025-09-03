@@ -539,7 +539,7 @@
 
         Array.from(fields).forEach(field => {
             const label = field.querySelector('label');
-            if (label && label.textContent.trim() === 'Reason (Quality/GO/Billing)*') {
+            if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*'||label.textContent.trim() === 'Reason (Quality/GO/Billing)*')) {
                 // Prevent processing multiple identical fields
                 if (fieldFound) {
                     console.log('⚠️ Skipping duplicate Reason field');
@@ -978,7 +978,7 @@
             const fields = Array.from(form.children);
             for (const field of fields) {
                 const label = field.querySelector('label');
-                if (label && label.textContent.trim() === 'Reason (Quality/GO/Billing)*') {
+                if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*'||label.textContent.trim() === 'Reason (Quality/GO/Billing)*')) {
                     const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                         field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                         field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
