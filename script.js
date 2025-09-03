@@ -475,6 +475,7 @@
     const standardFields = [
         'Tags',
         'Reason (Quality/GO/Billing)*',
+		'Reason (Quality/GO/Billing)',
         'Captain ID',
         'Booking ID',
         'Parent Ticket Source',
@@ -496,6 +497,7 @@
     const minimalFields = [
         'Tags',
         'Reason (Quality/GO/Billing)*',
+		'Reason (Quality/GO/Billing)',
         'SSOC Reason',
         'Action Taken - Consumer',
         'SSOC incident source'
@@ -1355,7 +1357,7 @@
 
         Array.from(fields).forEach(field => {
             const label = field.querySelector('label');
-            if (label && label.textContent.trim() === 'Reason (Quality/GO/Billing)*') {
+            if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' ||label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
                 // Prevent processing multiple identical fields
                 if (fieldFound) {
                     console.log('⚠️ Skipping duplicate Reason field');
@@ -4617,7 +4619,7 @@ ${blockHistoryText}
             const fields = Array.from(form.children);
             for (const field of fields) {
                 const label = field.querySelector('label');
-                if (label && label.textContent.trim() === 'Reason (Quality/GO/Billing)*') {
+                if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' ||label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
                     const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
                                         field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
                                         field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
