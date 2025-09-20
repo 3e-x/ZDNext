@@ -49,7 +49,6 @@
             "We have directed this matter to the most appropriate support team, who will be reaching out to you as soon as possible. In the meantime, if you feel more information could be helpful, please reply to this message.",
 			"We have escalated this matter to a specialized support team, who will be reaching out to you as soon as possible.",
             "We have escalated this to a specialized support team who will be reaching out to you as soon as possible.",
-			"In order to be able to take the right action, we want you to provide us with more information about what happened.",
             "We have escalated this to a specialised support team who will be reaching out to you as soon as possible.",
             "I would like to reassure you that we are treating this with the utmost seriousness. A member of our team will be in touch with you shortly.",
 			"In the meantime, if you feel additional information could be helpful, please reply to this message. We'll be sure to follow-up.",
@@ -69,7 +68,8 @@ Updated safety reported by to RIDER`,
 
 - FP Blocked
 
--Set Reported by / Reported against`
+-Set Reported by / Reported against`,
+"In order to be able to take the right action, we want you to provide us with more information about what happened"
 			
         ]
     };
