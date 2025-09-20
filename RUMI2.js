@@ -60,6 +60,7 @@
 			"علمًا بأن أي تفاصيل إضافية ستساعدنا في مراجعتنا للرحلة وأخذ الإجراء الداخلي المناسب",
 			"Awaiting your reply.",
             "Waiting for your reply.",
+		"- Asking for more info.",
 			`-More info needed
 
 -FB Blocked
