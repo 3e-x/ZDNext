@@ -55,6 +55,7 @@
 			"In the meantime, if you feel additional information could be helpful, please reply to this message. We'll be sure to follow-up.",
 			"In the meantime, this contact thread will say “Waiting for your reply,” but there is nothing else needed from you right now.",
 			"Will be waiting for your reply",
+			"لمساعدتنا في اتخاذ الإجراء اللازم، يُرجى توضيح مزيد من التفاصيل عن ما حدث معك أثناء الرحلة.",
             "لقد قمنا بتصعيد هذا الأمر إلى الفريق المختص، والذي سيقوم بالتواصل معك في أقرب وقت ممكن.",
             "في انتظار ردك.",
 			"ننتظر ردك",
