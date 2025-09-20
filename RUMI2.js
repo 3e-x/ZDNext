@@ -70,7 +70,9 @@ Updated safety reported by to RIDER`,
 - FP Blocked
 
 -Set Reported by / Reported against`,
-"In order to be able to take the right action, we want you to provide us with more information about what happened"
+"In order to be able to take the right action, we want you to provide us with more information about what happened",
+"-More info needed",
+"- More info needed"
 			
         ]
     };
