@@ -51,6 +51,7 @@
             "We have escalated this to a specialized support team who will be reaching out to you as soon as possible.",
             "We have escalated this to a specialised support team who will be reaching out to you as soon as possible.",
             "I would like to reassure you that we are treating this with the utmost seriousness. A member of our team will be in touch with you shortly.",
+			"In order to be able to take the right action, we want you to provide us with more information about what happened.",
 			"In the meantime, if you feel additional information could be helpful, please reply to this message. We'll be sure to follow-up.",
             "لقد قمنا بتصعيد هذا الأمر إلى الفريق المختص، والذي سيقوم بالتواصل معك في أقرب وقت ممكن.",
             "في انتظار ردك.",
