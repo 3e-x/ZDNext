@@ -17,7 +17,7 @@
     let observerDisconnected = false;
     let fieldVisibilityState = 'all'; // 'all' or 'minimal'
     let globalButton = null;
-    let halaToastShownForTicket = null; // Track which ticket ID had the toast shown
+    // Hala functionality now handles automatic group assignment instead of toast
 
     // Performance optimization variables
     let domCache = new Map();
@@ -30,13 +30,23 @@
         processedTickets: new Set(),
         baselineTickets: new Map(), // view_id -> Set of ticket IDs
         processedHistory: [],
+        pendingTickets: [],
+        solvedTickets: [],
+        rtaTickets: [],
         lastCheckTime: null,
         checkInterval: null,
         consecutiveErrors: 0,
         apiCallCount: 0,
         lastApiReset: Date.now(),
-        isDryRun: false,
+        isDryRun: true,
         currentLogLevel: 2, // 0=ERROR, 1=WARN, 2=INFO, 3=DEBUG
+        operationModes: {
+            pending: true,
+            solved: true,
+            rta: true
+        },
+        enabledPendingPhrases: null, // Will be initialized to all enabled
+        enabledSolvedPhrases: null, // Will be initialized to all enabled
         config: {
             CHECK_INTERVAL: 10000,       // 10 seconds like notify extension
             MIN_INTERVAL: 10000,         // Minimum 10 seconds
@@ -45,7 +55,7 @@
             RATE_LIMIT: 600,             // Back to higher limit since we'll be more efficient
             CIRCUIT_BREAKER_THRESHOLD: 5 // More tolerant of 429 errors
         },
-        triggerPhrases: [
+        pendingTriggerPhrases: [
             // ===============================================================
             // ESCALATION PHRASES (English)
             // ===============================================================
@@ -68,6 +78,8 @@
             "In order to be able to take the right action, we want you to provide us with more information about what happened",
             "In the meantime, if you feel additional information could be helpful, please reply to this message. We'll be sure to follow-up.",
             "In the meantime, this contact thread will say \"Waiting for your reply,\" but there is nothing else needed from you right now.",
+            "Any additional information would be beneficial to our investigation.",
+            "We’ll keep an eye out for your reply",
 
             // ===============================================================
             // WAITING FOR REPLY PHRASES (English)
@@ -87,6 +99,8 @@
             "-Asking for more info.",
             "- More Info needed - FP Blocked -Set Reported by / Reported against",
             "-More info needed -FB Blocked Updated safety reported by to RIDER",
+            "MORE INFO NEEDED",
+            "MORE INFO",
 
             // ===============================================================
             // ESCALATION PHRASES (Arabic)
@@ -98,6 +112,8 @@
             // ===============================================================
             "لمساعدتنا في اتخاذ الإجراء اللازم، يُرجى توضيح مزيد من التفاصيل عن ما حدث معك أثناء الرحلة.",
             "علمًا بأن أي تفاصيل إضافية ستساعدنا في مراجعتنا للرحلة وأخذ الإجراء الداخلي المناسب",
+            "إذا كنتِ تعتقدين أن المزيد من المعلومات قد يفيدكِ، يُرجى الرد على هذه الرسالة.",
+            "إذا كنت تعتقد أن أي معلومات إضافية قد تكون مفيدة، يُرجى الرد على هذه الرسالة.",
 
             // ===============================================================
             // WAITING FOR REPLY PHRASES (Arabic)
@@ -106,6 +122,37 @@
             "في انتظار ردكِ",
             "ننتظر ردك",
             "ننتظر ردكِ"
+        ],
+
+        solvedTriggerPhrases: [
+            "Rest assured, we take these kinds of allegations very seriously and we will be taking the appropriate actions with the partner driver involved. As of this message, we have also made some changes in the application to reduce the chance of you being paired with this partner driver in the future. If you are ever matched again, please cancel the trip and reach out to us through the application.",
+            "Thanks for your understanding",
+            "وقد اتخذنا بالفعل الإجراء المناسب داخلياً بشأن حساب السائق",
+"نود إعلامكِ أننا قد تلقينا رسالتكِ، وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معكِ من خلال رسالة أخرى بخصوص استفساركِ في أقرب وقت ممكن",
+"نود إعلامك أننا قد تلقينا رسالتك، وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى بخصوص استفسارك في أقرب وقت ممكن",
+"فإننا نأخذ مثل هذه الادِّعاءات على محمل الجد، وسنتَّخذ الإجراءات الداخلية الملائمة بحق السائق المتورط في الأمر",
+"قد أجرينا أيضاً بعض التغييرات في التطبيق للتقليل من فرص",
+"وسوف نقوم بمتابعة التحقيق واتخاذ الإجراءات اللازمة داخليًا",
+"لقد انتهزنا الفرصة لمراجعة مشكلتك، ويمكننا ملاحظة أنك قد تواصلت معنا بشأنها من قبل. ومن ثمَّ، سنغلق تذكرة الدعم الحالية لتسهيل التواصل وتجنُّب أي التباس",
+"وسنتابع الأمر مع الشريك السائق المعني ، لمحاولة ضمان عدم تكرار التجربة التي وصفتها",
+"نحن نأخذ هذه الأنواع من الادعاءات على محمل الجد وسوف نتخذ الإجراءات المناسبة مع الشريك السائق المعني",
+"إذا تمت مطابقتكِ مرة أخرى، يرجى إلغاء الرحلة والتواصل معنا من خلال التطبيق",
+"سنتابع الأمر مع السائق من أجل اتخاذ الإجراءات المناسبة داخلياً",
+
+
+"We will be following up with ‍Partner-driver, to try to ensure the experience you describe can’t happen again.",
+"We will be following up with the driver and taking the appropriate actions",
+"Rest assured that we have taken the necessary internal actions.",
+"We have already taken all the appropriate actions internally.",
+"to try to ensure the experience you describe can’t happen again.",
+"It looks like you’ve already raised a similar concern for this trip that our Support team has resolved.",
+"-PB",
+"- PB",
+"-Pushback",
+"-Push back",
+"- Pushback",
+"- Push back",
+"LERT@uber.com"
         ]
     };
 
@@ -334,33 +381,7 @@
                 border-radius: 1px;
             }
 
-            /* Toast notification styling */
-            .hala-toast {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                background-color: #2f3941;
-                color: white;
-                padding: 20px 40px;
-                border-radius: 8px;
-                font-size: 18px;
-                font-weight: bold;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                animation: hala-toast-fade-in 0.3s ease-in-out;
-            }
-
-            @keyframes hala-toast-fade-in {
-                from {
-                    opacity: 0;
-                    transform: translate(-50%, -50%) scale(0.8);
-                }
-                to {
-                    opacity: 1;
-                    transform: translate(-50%, -50%) scale(1);
-                }
-            }
+            /* Toast notification styling for export notifications */
 
             /* RUMI Enhancement Control Panel Styles - Professional Admin Interface */
             .rumi-enhancement-overlay {
@@ -605,6 +626,70 @@
                 transform: none !important;
             }
 
+            /* Tab Styles */
+            .rumi-tabs {
+                border: 1px solid #E0E0E0 !important;
+                border-radius: 4px !important;
+                background: white !important;
+            }
+
+            .rumi-tab-headers {
+                display: flex !important;
+                border-bottom: 1px solid #E0E0E0 !important;
+                background: #F8F9FA !important;
+                border-radius: 4px 4px 0 0 !important;
+            }
+
+            .rumi-tab-header {
+                flex: 1 !important;
+                padding: 10px 16px !important;
+                border: none !important;
+                background: transparent !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                color: #666 !important;
+                border-bottom: 2px solid transparent !important;
+                transition: all 0.2s ease !important;
+            }
+
+            .rumi-tab-header:hover {
+                background: #E9ECEF !important;
+                color: #333 !important;
+            }
+
+            .rumi-tab-header.active {
+                background: white !important;
+                color: #0066CC !important;
+                border-bottom-color: #0066CC !important;
+                margin-bottom: -1px !important;
+            }
+
+            .rumi-tab-content {
+                position: relative !important;
+            }
+
+            .rumi-tab-panel {
+                display: none !important;
+                padding: 16px !important;
+            }
+
+            .rumi-tab-panel.active {
+                display: block !important;
+            }
+
+            /* Result Card Styles */
+            .rumi-result-card:hover {
+                transform: translateY(-2px) !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+                border-color: #0066CC !important;
+            }
+
+            .rumi-result-card.selected {
+                border-color: #0066CC !important;
+                box-shadow: 0 2px 8px rgba(0,102,204,0.2) !important;
+            }
+
             .rumi-view-info {
                 flex: 1 !important;
                 display: flex !important;
@@ -704,6 +789,31 @@
             .rumi-status-dot.inactive {
                 background: #DC3545 !important;
             }
+
+            /* CSV Export Button Styles */
+            .rumi-view-actions {
+                opacity: 1 !important;
+            }
+
+            .rumi-csv-download-btn {
+                min-width: 28px !important;
+                height: 24px !important;
+                padding: 4px !important;
+                margin-right: 0 !important;
+                margin-bottom: 0 !important;
+                font-size: 14px !important;
+                line-height: 1 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            .rumi-csv-download-btn svg {
+                width: 16px !important;
+                height: 16px !important;
+                display: block !important;
+            }
+
         `;
         document.head.appendChild(style);
     }
@@ -717,6 +827,9 @@
 
     // Duplicate/Copy icon SVG
     const duplicateIconSVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" fill="currentColor"/></svg>`;
+
+    // Download icon SVG
+    const downloadIconSVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="currentColor"/></svg>`;
 
     // Debounce function
     function debounce(func, delay, key) {
@@ -906,6 +1019,100 @@
             }
         },
 
+        async getViewTickets(viewId, options = {}) {
+            try {
+                const {
+                    per_page = 100,
+                    page = 1,
+                    sort_by = 'created_at',
+                    sort_order = 'desc',
+                    include = 'via_id'
+                } = options;
+
+                const endpoint = `/api/v2/views/${viewId}/execute.json?per_page=${per_page}&page=${page}&sort_by=${sort_by}&sort_order=${sort_order}&group_by=+&include=${include}`;
+                const data = await RUMIAPIManager.makeRequestWithRetry(endpoint);
+
+                RUMILogger.debug('ZENDESK', `Retrieved ${data.rows?.length || 0} tickets from view ${viewId}`);
+                return data.rows || [];
+            } catch (error) {
+                RUMILogger.error('ZENDESK', `Failed to retrieve tickets for view ${viewId}`, error);
+                throw error;
+            }
+        },
+
+        async exportViewAsCSV(viewId, viewName = null) {
+            try {
+                RUMILogger.info('ZENDESK', `Starting CSV export for view ${viewId} (${viewName})`);
+
+                const endpoint = `/api/v2/views/${viewId}/export`;
+                const data = await RUMIAPIManager.makeRequestWithRetry(endpoint);
+
+                RUMILogger.info('ZENDESK', `CSV export response for view ${viewId}:`, {
+                    status: data.export?.status,
+                    viewName: viewName
+                });
+
+                return {
+                    status: data.export?.status || 'unknown',
+                    message: data.export?.message || null,
+                    viewId: viewId,
+                    viewName: viewName
+                };
+            } catch (error) {
+                RUMILogger.error('ZENDESK', `Failed to export CSV for view ${viewId}`, error);
+                throw error;
+            }
+        },
+
+        async getViewTicketsForDirectCSV(viewId, viewName = null) {
+            try {
+                RUMILogger.info('ZENDESK', `Fetching all tickets for direct CSV export: view ${viewId} (${viewName})`);
+
+                // Get first page to determine total count
+                const firstPageData = await RUMIAPIManager.makeRequestWithRetry(
+                    `/api/v2/views/${viewId}/execute.json?per_page=100&page=1&sort_by=created_at&sort_order=desc&group_by=+&include=via_id`
+                );
+
+                let allTickets = firstPageData.rows || [];
+                const totalCount = firstPageData.count || 0;
+                const totalPages = Math.ceil(totalCount / 100);
+
+                RUMILogger.info('ZENDESK', `View ${viewId} has ${totalCount} tickets across ${totalPages} pages`);
+
+                // If there are more pages, fetch them concurrently
+                if (totalPages > 1) {
+                    const pagePromises = [];
+                    for (let page = 2; page <= Math.min(totalPages, 10); page++) { // Limit to 10 pages (1000 tickets) for performance
+                        pagePromises.push(
+                            RUMIAPIManager.makeRequestWithRetry(
+                                `/api/v2/views/${viewId}/execute.json?per_page=100&page=${page}&sort_by=created_at&sort_order=desc&group_by=+&include=via_id`
+                            )
+                        );
+                    }
+
+                    const additionalPages = await Promise.all(pagePromises);
+                    additionalPages.forEach(pageData => {
+                        if (pageData.rows) {
+                            allTickets = allTickets.concat(pageData.rows);
+                        }
+                    });
+                }
+
+                RUMILogger.info('ZENDESK', `Fetched ${allTickets.length} tickets for direct CSV export`);
+
+                return {
+                    tickets: allTickets,
+                    users: firstPageData.users || [],
+                    count: totalCount,
+                    viewId: viewId,
+                    viewName: viewName
+                };
+            } catch (error) {
+                RUMILogger.error('ZENDESK', `Failed to fetch tickets for direct CSV export: view ${viewId}`, error);
+                throw error;
+            }
+        },
+
 
 
         async getTicketComments(ticketId) {
@@ -937,7 +1144,19 @@
         },
 
         async updateTicketStatus(ticketId, status = 'pending', viewName = null) {
-            return this.updateTicket(ticketId, { status }, viewName);
+            // When setting to pending, also assign to user 34980896869267
+            const updates = { status };
+            if (status === 'pending') {
+                updates.assignee_id = 34980896869267;
+                RUMILogger.info('ZENDESK', `Setting ticket ${ticketId} to pending and assigning to user 34980896869267`);
+            }
+            return this.updateTicket(ticketId, updates, viewName);
+        },
+
+        async updateTicketWithAssignee(ticketId, status, assigneeId, viewName = null) {
+            const updates = { status, assignee_id: assigneeId };
+            RUMILogger.info('ZENDESK', `Setting ticket ${ticketId} to ${status} and assigning to user ${assigneeId}`);
+            return this.updateTicket(ticketId, updates, viewName);
         },
 
         async updateTicket(ticketId, updates, viewName = null) {
@@ -1048,6 +1267,42 @@
     };
 
     // ============================================================================
+    // RUMI ENHANCEMENT - CSV UTILITIES
+    // ============================================================================
+
+    const RUMICSVUtils = {
+        generateTicketIDsCSV(viewData) {
+            const { tickets } = viewData;
+
+            RUMILogger.info('CSV', `Extracting ticket IDs from ${tickets.length} tickets`);
+
+            // Extract ticket IDs only
+            const ticketIds = tickets.map(ticketRow => {
+                const ticket = ticketRow.ticket || ticketRow;
+                return ticket.id;
+            }).filter(id => id); // Remove any undefined/null IDs
+
+            // Create comma-separated string
+            const csvContent = ticketIds.join(',');
+
+            RUMILogger.info('CSV', `Generated CSV with ${ticketIds.length} ticket IDs: ${csvContent}`);
+
+            return csvContent;
+        },
+
+        async copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                RUMILogger.info('CSV', `Successfully copied to clipboard: ${text}`);
+                return true;
+            } catch (error) {
+                RUMILogger.error('CSV', 'Failed to copy to clipboard', error);
+                return false;
+            }
+        }
+    };
+
+    // ============================================================================
     // RUMI ENHANCEMENT - COMMENT ANALYSIS
     // ============================================================================
     //
@@ -1070,12 +1325,14 @@
             // Get latest comment (first in desc order)
             const latestComment = comments[0];
             const commentBody = latestComment.body || '';
+            const htmlBody = latestComment.html_body || '';
 
             RUMILogger.debug('COMMENT', `Analyzing latest comment from ticket`, {
                 commentId: latestComment.id,
                 author: latestComment.author_id,
                 created: latestComment.created_at,
-                bodyLength: commentBody.length
+                bodyLength: commentBody.length,
+                htmlBodyLength: htmlBody.length
             });
 
             try {
@@ -1091,7 +1348,7 @@
 
                 // If latest comment is from an agent, check for trigger phrases directly
                 if (authorRole === 'agent' || authorRole === 'admin') {
-                    return this.checkTriggerPhrases(commentBody, latestComment);
+                    return this.checkTriggerPhrases(commentBody, htmlBody, latestComment);
                 }
 
                 // If latest comment is from end-user, traverse backwards to find the last agent comment
@@ -1117,7 +1374,7 @@
                             // If we find an agent comment, check it for trigger phrases
                             if (commentAuthorRole === 'agent' || commentAuthorRole === 'admin') {
                                 RUMILogger.info('COMMENT', `Found previous agent comment at index ${i}, checking for trigger phrases`);
-                                const result = this.checkTriggerPhrases(comment.body || '', comment);
+                                const result = this.checkTriggerPhrases(comment.body || '', comment.html_body || '', comment);
 
                                 if (result.matches) {
                                     RUMILogger.info('COMMENT', `Agent comment contains trigger phrase - ticket should be set to pending due to end-user reply chain`);
@@ -1154,37 +1411,146 @@
 
                 // For any other roles, check trigger phrases directly
                 RUMILogger.debug('COMMENT', `Comment author has role "${authorRole}", checking trigger phrases directly`);
-                return this.checkTriggerPhrases(commentBody, latestComment);
+                return this.checkTriggerPhrases(commentBody, htmlBody, latestComment);
 
             } catch (error) {
                 RUMILogger.error('COMMENT', `Failed to get user details for latest comment author ${latestComment.author_id}`, error);
                 // Fallback to original behavior if we can't get user details
                 RUMILogger.warn('COMMENT', 'Falling back to original trigger phrase checking behavior');
-                return this.checkTriggerPhrases(commentBody, latestComment);
+                return this.checkTriggerPhrases(commentBody, htmlBody, latestComment);
             }
         },
 
-        checkTriggerPhrases(commentBody, comment) {
-            if (!commentBody) {
+        checkTriggerPhrases(commentBody, htmlBody, comment) {
+            if (!commentBody && !htmlBody) {
                 return { matches: false, phrase: null, comment };
             }
 
+            // Enhanced debugging: Log the actual comment body structure
+            RUMILogger.debug('COMMENT', 'Checking comment bodies:', {
+                bodyLength: commentBody ? commentBody.length : 0,
+                htmlBodyLength: htmlBody ? htmlBody.length : 0,
+                bodyPreview: commentBody ? commentBody.substring(0, 200) + '...' : '[no plain body]',
+                htmlBodyPreview: htmlBody ? htmlBody.substring(0, 300) + '...' : '[no html body]',
+                authorId: comment.author_id
+            });
+
             // Check for trigger phrases (case-insensitive exact match)
-            for (const phrase of rumiEnhancement.triggerPhrases) {
-                if (commentBody.toLowerCase().includes(phrase.toLowerCase())) {
+            for (const phrase of rumiEnhancement.pendingTriggerPhrases) {
+                let foundMatch = false;
+                let matchType = '';
+                let matchDetails = '';
+
+                // Method 1: Check in plain text content (existing behavior)
+                if (commentBody && commentBody.toLowerCase().includes(phrase.toLowerCase())) {
+                    foundMatch = true;
+                    matchType = 'text';
+                    matchDetails = 'Direct text match in plain body';
+                }
+
+                // Method 1b: Check in HTML body content
+                if (!foundMatch && htmlBody && htmlBody.toLowerCase().includes(phrase.toLowerCase())) {
+                    foundMatch = true;
+                    matchType = 'html-text';
+                    matchDetails = 'Direct text match in HTML body';
+                }
+
+                // For URL phrases, try multiple HTML matching strategies
+                if (!foundMatch && phrase.startsWith('http')) {
+                    const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                    // Method 2: Check for URLs embedded in HTML hyperlinks in HTML body
+                    // Pattern: href="URL" or href='URL'
+                    if (htmlBody) {
+                        const hrefPattern = new RegExp(`href=['"]([^'"]*${escapedPhrase}[^'"]*?)['"]`, 'i');
+                        const hrefMatch = htmlBody.match(hrefPattern);
+
+                        if (hrefMatch) {
+                            foundMatch = true;
+                            matchType = 'href';
+                            matchDetails = `Found in href: ${hrefMatch[1]}`;
+                        }
+                    }
+
+                    // Method 3: Check for URLs with @ prefix (like @https://...)
+                    if (!foundMatch) {
+                        const atPrefixPattern = new RegExp(`@${escapedPhrase}`, 'i');
+                        if ((commentBody && commentBody.match(atPrefixPattern)) || (htmlBody && htmlBody.match(atPrefixPattern))) {
+                            foundMatch = true;
+                            matchType = '@prefix';
+                            matchDetails = 'Found with @ prefix';
+                        }
+                    }
+
+                    // Method 4: Check for URLs in any HTML attribute
+                    if (!foundMatch && htmlBody) {
+                        const attrPattern = new RegExp(`\\w+=['"]([^'"]*${escapedPhrase}[^'"]*?)['"]`, 'i');
+                        const attrMatch = htmlBody.match(attrPattern);
+
+                        if (attrMatch) {
+                            foundMatch = true;
+                            matchType = 'attribute';
+                            matchDetails = `Found in attribute: ${attrMatch[1]}`;
+                        }
+                    }
+
+                    // Method 5: Check for URL in data attributes or other non-standard attributes
+                    if (!foundMatch && htmlBody) {
+                        const dataAttrPattern = new RegExp(`data-[\\w-]+=['"]([^'"]*${escapedPhrase}[^'"]*?)['"]`, 'i');
+                        const dataAttrMatch = htmlBody.match(dataAttrPattern);
+
+                        if (dataAttrMatch) {
+                            foundMatch = true;
+                            matchType = 'data-attribute';
+                            matchDetails = `Found in data attribute: ${dataAttrMatch[1]}`;
+                        }
+                    }
+
+                    // Method 6: Partial domain matching for cases where full URL might be truncated
+                    if (!foundMatch) {
+                        // Extract domain from phrase for partial matching
+                        const urlMatch = phrase.match(/https?:\/\/([^\/]+)/);
+                        if (urlMatch) {
+                            const domain = urlMatch[1];
+                            const domainPattern = new RegExp(domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                            if ((commentBody && commentBody.match(domainPattern)) || (htmlBody && htmlBody.match(domainPattern))) {
+                                foundMatch = true;
+                                matchType = 'domain';
+                                matchDetails = `Found domain match: ${domain}`;
+                            }
+                        }
+                    }
+
+                    // Debug logging for URL phrases
+                    if (phrase === 'https://uber.lighthouse-cloud.com') {
+                        RUMILogger.info('COMMENT', `Detailed URL matching for lighthouse-cloud.com:`, {
+                            foundMatch,
+                            matchType,
+                            matchDetails,
+                            commentBodySnippet: commentBody ? commentBody.substring(0, 300) : '[no plain body]',
+                            htmlBodySnippet: htmlBody ? htmlBody.substring(0, 500) : '[no html body]'
+                        });
+                    }
+                }
+
+                if (foundMatch) {
                     // Check if the comment is from the required author (34980896869267)
-                    if (comment.author_id !== 34980896869267) {
-                        RUMILogger.info('COMMENT', `Found matching phrase but author ${comment.author_id} is not the required author (34980896869267) - skipping`, {
+                    if (comment.author_id != 34980896869267) {
+                        RUMILogger.info('COMMENT', `Found matching phrase (${matchType}) but author ${comment.author_id} is not the required author (34980896869267) - skipping`, {
                             phrase: phrase.substring(0, 50) + '...',
                             commentId: comment.id,
-                            authorId: comment.author_id
+                            authorId: comment.author_id,
+                            matchType: matchType,
+                            matchDetails: matchDetails
                         });
                         continue; // Continue checking other phrases
                     }
 
-                    RUMILogger.info('COMMENT', `Found matching phrase from required author: "${phrase.substring(0, 50)}..."`, {
+                    RUMILogger.info('COMMENT', `Found matching phrase (${matchType}) from required author: "${phrase.substring(0, 50)}..."`, {
                         authorId: comment.author_id,
-                        commentId: comment.id
+                        commentId: comment.id,
+                        matchType: matchType,
+                        matchDetails: matchDetails
                     });
                     return { matches: true, phrase, comment };
                 }
@@ -1192,6 +1558,144 @@
 
             RUMILogger.debug('COMMENT', 'No matching phrases found from required author');
             return { matches: false, phrase: null, comment };
+        }
+    };
+
+    // ============================================================================
+    // RUMI ENHANCEMENT - SOLVED TICKET ANALYSIS
+    // ============================================================================
+    //
+    // Handles specific logic for tickets with the solved message pattern:
+    // 1. If latest comment is from 34980896869267 with solved message: Set to solved, assign to 41942034052755
+    // 2. If latest comment is from end-user and previous agent comment (from 34980896869267) contains solved message: Set to pending, assign to 34980896869267
+    //
+    const RUMISolvedAnalyzer = {
+
+        async analyzeSolvedPattern(comments) {
+            if (!comments || comments.length === 0) {
+                RUMILogger.debug('SOLVED', 'No comments to analyze for solved pattern');
+                return { matches: false, action: null };
+            }
+
+            // Get latest comment (first in desc order)
+            const latestComment = comments[0];
+            const commentBody = latestComment.body || '';
+            const htmlBody = latestComment.html_body || '';
+
+            RUMILogger.debug('SOLVED', `Analyzing latest comment for solved pattern`, {
+                commentId: latestComment.id,
+                author: latestComment.author_id,
+                created: latestComment.created_at
+            });
+
+            try {
+                // Get the author details to check their role
+                const authorDetails = await RUMIZendeskAPI.getUserDetails(latestComment.author_id);
+                const authorRole = authorDetails.role;
+
+                RUMILogger.debug('SOLVED', `Latest comment author role: ${authorRole}`, {
+                    userId: latestComment.author_id,
+                    userName: authorDetails.name,
+                    role: authorRole
+                });
+
+                // Case 1: Latest comment is from 34980896869267 with solved message
+                if (latestComment.author_id == 34980896869267) {
+                    const matchedPhrase = this.containsSolvedMessage(commentBody) || this.containsSolvedMessage(htmlBody);
+                    if (matchedPhrase) {
+                        RUMILogger.info('SOLVED', `Found solved message from user 34980896869267 - ticket should be set to solved and assigned to 41942034052755`);
+                        return {
+                            matches: true,
+                            action: 'set_solved',
+                            assignee: 41942034052755,
+                            status: 'solved',
+                            reason: 'Agent posted solved message',
+                            phrase: matchedPhrase
+                        };
+                    }
+                }
+
+                // Case 2: Latest comment is from end-user, check previous agent comments
+                if (authorRole === 'end-user') {
+                    RUMILogger.info('SOLVED', 'Latest comment is from end-user, checking previous agent comments for solved message');
+
+                    // Start from index 1 (skip the latest end-user comment)
+                    for (let i = 1; i < comments.length; i++) {
+                        const comment = comments[i];
+
+                        try {
+                            // Get this comment author's role
+                            const commentAuthor = await RUMIZendeskAPI.getUserDetails(comment.author_id);
+                            const commentAuthorRole = commentAuthor.role;
+
+                            RUMILogger.debug('SOLVED', `Checking comment ${i + 1} from ${commentAuthorRole}`, {
+                                commentId: comment.id,
+                                authorId: comment.author_id,
+                                authorName: commentAuthor.name,
+                                role: commentAuthorRole
+                            });
+
+                            // If it's from user 34980896869267 (agent), check for solved message
+                            if (comment.author_id == 34980896869267 && (commentAuthorRole === 'agent' || commentAuthorRole === 'admin')) {
+                                const prevCommentBody = comment.body || '';
+                                const prevHtmlBody = comment.html_body || '';
+
+                                const matchedPhrase = this.containsSolvedMessage(prevCommentBody) || this.containsSolvedMessage(prevHtmlBody);
+                                if (matchedPhrase) {
+                                    RUMILogger.info('SOLVED', `Found solved message in previous agent comment - ticket should be set to pending and assigned to 34980896869267 due to end-user reply`);
+                                    return {
+                                        matches: true,
+                                        action: 'set_pending_after_solved',
+                                        assignee: 34980896869267,
+                                        status: 'pending',
+                                        reason: 'End-user replied to solved message',
+                                        agentCommentId: comment.id,
+                                        phrase: matchedPhrase
+                                    };
+                                }
+
+                                // Found an agent comment without solved message, stop searching
+                                RUMILogger.debug('SOLVED', `Found agent comment without solved message, stopping search`);
+                                break;
+                            }
+
+                            // If it's another end-user comment, continue searching backwards
+                            if (commentAuthorRole === 'end-user') {
+                                RUMILogger.debug('SOLVED', `Comment ${i + 1} is also from end-user, continuing search`);
+                                continue;
+                            }
+
+                            // If it's from a different agent, stop searching
+                            if (commentAuthorRole === 'agent' || commentAuthorRole === 'admin') {
+                                RUMILogger.debug('SOLVED', `Found comment from different agent (${comment.author_id}), stopping search`);
+                                break;
+                            }
+                        } catch (userError) {
+                            RUMILogger.warn('SOLVED', `Failed to get user details for comment author ${comment.author_id}`, userError);
+                            continue;
+                        }
+                    }
+                }
+
+                RUMILogger.debug('SOLVED', 'No solved message pattern found');
+                return { matches: false, action: null };
+
+            } catch (error) {
+                RUMILogger.error('SOLVED', `Failed to analyze solved pattern for latest comment author ${latestComment.author_id}`, error);
+                return { matches: false, action: null };
+            }
+        },
+
+        containsSolvedMessage(text) {
+            if (!text) return false;
+            // Check if the text contains any of the solved trigger phrases (case-insensitive)
+            const textLower = text.toLowerCase();
+            for (const phrase of rumiEnhancement.solvedTriggerPhrases) {
+                if (textLower.includes(phrase.toLowerCase())) {
+                    return phrase; // Return the matched phrase instead of just true
+                }
+            }
+            return false;
         }
     };
 
@@ -1214,15 +1718,109 @@
             RUMILogger.info('PROCESS', `Processing ticket ${ticketId} from view "${viewName}"`);
 
             try {
-                // Get ticket comments
+                // First check for HALA provider tag (highest priority)
+                const halaCheck = await checkTicketForHalaTag(ticketId);
+                if (halaCheck.hasHalaTag) {
+                    RUMILogger.info('PROCESS', `Ticket ${ticketId} has HALA provider tag - assigning to RTA group`);
+
+                    try {
+                        await assignHalaTicketToGroup(ticketId);
+
+                        const ticketData = {
+                            id: ticketId,
+                            action: 'RTA Assignment',
+                            status: 'rta',
+                            assignee: '34980896869267',
+                            reason: 'HALA provider tag detected',
+                            viewName: viewName,
+                            timestamp: new Date().toISOString(),
+                            previousStatus: halaCheck.ticketData.status
+                        };
+
+                        rumiEnhancement.processedHistory.push(ticketData);
+                        rumiEnhancement.rtaTickets.push(ticketData);
+                        rumiEnhancement.processedTickets.add(ticketId);
+
+                        updateProcessedTicketsDisplay();
+
+                        return {
+                            processed: true,
+                            reason: 'HALA provider tag - assigned to RTA group',
+                            action: 'RTA Assignment'
+                        };
+                    } catch (assignError) {
+                        RUMILogger.error('PROCESS', `Failed to assign HALA ticket ${ticketId} to RTA group`, assignError);
+                        return {
+                            processed: false,
+                            reason: 'HALA assignment failed',
+                            error: assignError.message
+                        };
+                    }
+                }
+
+                // Get ticket comments for regular processing
                 const comments = await RUMIZendeskAPI.getTicketComments(ticketId);
 
-                // Analyze latest comment
+                // First check for solved message patterns (higher priority)
+                const solvedAnalysis = await RUMISolvedAnalyzer.analyzeSolvedPattern(comments);
+
+                if (solvedAnalysis.matches) {
+                    RUMILogger.info('PROCESS', `Ticket ${ticketId} matches solved pattern - processing action: ${solvedAnalysis.action}`);
+
+                    // Get current ticket status before updating
+                    let currentStatus = 'unknown';
+                    try {
+                        const ticketDetails = await RUMIAPIManager.makeRequest(`/api/v2/tickets/${ticketId}.json`);
+                        currentStatus = ticketDetails.ticket?.status || 'unknown';
+                        RUMILogger.debug('PROCESS', `Current ticket status: ${currentStatus}`);
+                    } catch (error) {
+                        RUMILogger.warn('PROCESS', `Could not fetch ticket status for ${ticketId}, proceeding anyway`, error);
+                    }
+
+                    // Handle the solved pattern action
+                    const result = await RUMIZendeskAPI.updateTicketWithAssignee(
+                        ticketId,
+                        solvedAnalysis.status,
+                        solvedAnalysis.assignee,
+                        viewName
+                    );
+
+                    // Track processed ticket
+                    rumiEnhancement.processedTickets.add(ticketId);
+
+                    const ticketData = {
+                        id: ticketId,
+                        action: solvedAnalysis.action,
+                        status: solvedAnalysis.status,
+                        assignee: solvedAnalysis.assignee,
+                        reason: solvedAnalysis.reason,
+                        viewName: viewName,
+                        timestamp: new Date().toISOString(),
+                        previousStatus: currentStatus
+                    };
+
+                    rumiEnhancement.processedHistory.push(ticketData);
+
+                    // Add to appropriate category
+                    if (solvedAnalysis.status === 'solved') {
+                        rumiEnhancement.solvedTickets.push(ticketData);
+                    } else if (solvedAnalysis.assignee === '34980896869267') {
+                        // RTA (Hala taxi rides) - assigned to specific user
+                        rumiEnhancement.rtaTickets.push(ticketData);
+                    } else {
+                        rumiEnhancement.pendingTickets.push(ticketData);
+                    }
+
+                    RUMILogger.info('PROCESS', `Successfully processed solved pattern for ticket ${ticketId} - ${solvedAnalysis.action}`);
+                    return { processed: true, action: solvedAnalysis.action, result };
+                }
+
+                // Fall back to regular pending analysis
                 const analysis = await RUMICommentAnalyzer.analyzeLatestComment(comments);
 
                 if (!analysis.matches) {
-                    RUMILogger.debug('PROCESS', `Ticket ${ticketId} does not match criteria - skipping`);
-                    return { processed: false, reason: 'No matching comment' };
+                    RUMILogger.debug('PROCESS', `Ticket ${ticketId} does not match any criteria - skipping`);
+                    return { processed: false, reason: 'No matching comment or solved pattern' };
                 }
 
                 // Get current ticket status before updating
@@ -1248,16 +1846,21 @@
 
                 // Track processed ticket
                 rumiEnhancement.processedTickets.add(ticketId);
-                rumiEnhancement.processedHistory.push({
-                    ticketId,
+
+                const ticketData = {
+                    id: ticketId,
                     timestamp: new Date().toISOString(),
                     viewName,
                     phrase: analysis.phrase, // Store full phrase without truncation
                     previousStatus: currentStatus,
                     triggerReason: analysis.triggerReason || 'direct-match',
                     triggerCommentId: analysis.comment?.id,
-                    latestCommentId: analysis.latestComment?.id
-                });
+                    latestCommentId: analysis.latestComment?.id,
+                    status: 'pending'
+                };
+
+                rumiEnhancement.processedHistory.push(ticketData);
+                rumiEnhancement.pendingTickets.push(ticketData);
 
                 // Update the UI to show the new processed ticket
                 updateProcessedTicketsDisplay();
@@ -1321,11 +1924,8 @@
                     if (rumiEnhancement.isMonitoring) {
                         RUMILogger.info('MONITOR', 'Attempting to resume monitoring after circuit breaker pause');
                         rumiEnhancement.consecutiveErrors = 0;
-                        rumiEnhancement.config.CHECK_INTERVAL = Math.min(
-                            rumiEnhancement.config.CHECK_INTERVAL * 1.5,
-                            rumiEnhancement.config.MAX_INTERVAL
-                        );
-                        RUMILogger.info('MONITOR', `Increased check interval to ${rumiEnhancement.config.CHECK_INTERVAL / 1000}s`);
+                        // Removed auto-increase of check interval - user controls this manually
+                        RUMILogger.info('MONITOR', 'Resuming monitoring with current interval setting');
                     }
                 }, 120000);
                 return;
@@ -1614,14 +2214,10 @@
                 }
             }
 
-            // Fallback to prompt if automatic extraction fails
-            const name = prompt('Please enter your full name (for RUMI functionality):');
-            if (name && name.trim()) {
-                username = name.trim();
-                localStorage.setItem('zendesk_agent_username', username);
-                console.log(`🔐 Agent name set: ${username}`);
-            }
-            resolve(username || '');
+            // Set default username if automatic extraction fails (no prompt needed)
+            username = 'Agent';
+            console.log(`🔐 Using default agent name: ${username}`);
+            resolve(username);
         });
     }
 
@@ -2514,11 +3110,41 @@ ${customerWordsLine}`;
         }
     }
 
-    // Function to check for "ghc_provider_hala-rides" tag and show HALA Taxi toast
-    function checkForHalaProviderTag() {
+    // Function to check if a ticket has HALA provider tag (integrated into ticket processing)
+    async function checkTicketForHalaTag(ticketId) {
+        try {
+            // Get ticket details to check tags
+            const ticketResponse = await RUMIAPIManager.makeRequestWithRetry(`/api/v2/tickets/${ticketId}.json`);
+            const ticket = ticketResponse.ticket;
+
+            if (!ticket || !ticket.tags) {
+                return { hasHalaTag: false, reason: 'No ticket data or tags found' };
+            }
+
+            // Check if ticket has the HALA provider tag
+            const hasHalaTag = ticket.tags.includes('ghc_provider_hala-rides');
+
+            if (hasHalaTag) {
+                RUMILogger.info('HALA', `Found ghc_provider_hala-rides tag for ticket ${ticketId}`);
+                return {
+                    hasHalaTag: true,
+                    ticketData: ticket,
+                    action: 'RTA Assignment'
+                };
+            }
+
+            return { hasHalaTag: false, reason: 'HALA tag not found' };
+        } catch (error) {
+            RUMILogger.error('HALA', `Failed to check HALA tag for ticket ${ticketId}`, error);
+            return { hasHalaTag: false, reason: 'Error checking ticket', error: error.message };
+        }
+    }
+
+    // Legacy function kept for compatibility but not called continuously anymore
+    async function checkForHalaProviderTag() {
         console.log('🔍 Checking for ghc_provider_hala-rides tag...');
 
-        // Get current ticket ID to track if toast was already shown
+        // Get current ticket ID to track if assignment was already done
         const currentTicketId = getCurrentTicketId();
         if (!currentTicketId) {
             console.log('⚠️ Could not determine ticket ID - skipping HALA provider check');
@@ -2536,12 +3162,6 @@ ${customerWordsLine}`;
 
         // Periodically clean up old checked tickets
         cleanupHalaCheckedTickets();
-
-        // Check if toast was already shown for this ticket
-        if (halaToastShownForTicket === currentTicketId) {
-            console.log(`✅ HALA toast already shown for ticket ${currentTicketId} - skipping`);
-            return;
-        }
 
         // Look for individual tag elements instead of input field
         const tagElements = document.querySelectorAll('.garden-tag-item, [data-test-id="ticket-system-field-tags-item-selected"] .garden-tag-item');
@@ -2563,41 +3183,121 @@ ${customerWordsLine}`;
         );
 
         if (hasHalaProviderTag) {
-            console.log(`🎯 Found ghc_provider_hala-rides tag for ticket ${currentTicketId} - showing HALA Taxi toast`);
-            showHalaToast();
-            // Mark this ticket as having shown the toast
-            halaToastShownForTicket = currentTicketId;
-            console.log(`✅ Marked ticket ${currentTicketId} as having shown HALA toast`);
+            console.log(`🎯 Found ghc_provider_hala-rides tag for ticket ${currentTicketId} - checking conditions for group assignment`);
+
+            try {
+                // Get ticket comments to check latest comment author
+                const comments = await RUMIZendeskAPI.getTicketComments(currentTicketId);
+
+                if (!comments || comments.length === 0) {
+                    console.log('⚠️ No comments found for ticket - skipping HALA assignment');
+                    return;
+                }
+
+                // Get the latest comment (first one since we sort by desc)
+                const latestComment = comments[0];
+
+                // Get the author details to check their role
+                const authorDetails = await RUMIZendeskAPI.getUserDetails(latestComment.author_id);
+                const authorRole = authorDetails.role;
+
+                console.log(`📋 Latest comment author role: ${authorRole} (User: ${authorDetails.name})`);
+
+                // Check if the author role is end-user
+                if (authorRole !== 'end-user') {
+                    console.log(`⚠️ Latest comment is from ${authorRole}, not end-user - skipping HALA assignment`);
+                    return;
+                }
+
+                // Check if the latest comment is from end-user (which we already confirmed above)
+                console.log(`✅ Latest comment is from end-user - proceeding with HALA ticket assignment`);
+
+                // Assign the ticket to RTA JV group
+                await assignHalaTicketToGroup(currentTicketId);
+
+                console.log(`✅ Successfully processed HALA ticket ${currentTicketId}`);
+
+            } catch (error) {
+                console.error(`❌ Error processing HALA ticket ${currentTicketId}:`, error);
+            }
         } else {
             console.log('⚠️ ghc_provider_hala-rides tag not found in tags');
         }
     }
 
-    // Function to show HALA Taxi toast notification
-    function showHalaToast() {
-        // Remove any existing toast
-        const existingToast = document.querySelector('.hala-toast');
+    // Function to assign HALA ticket to RTA JV group
+    async function assignHalaTicketToGroup(ticketId) {
+        try {
+            console.log(`🎯 Assigning HALA ticket ${ticketId} to RTA JV group (360003368353)`);
+
+            // Use the existing updateTicket function to assign to group
+            const result = await RUMIZendeskAPI.updateTicket(ticketId, {
+                group_id: 360003368353  // RTA JV group ID
+            });
+
+            console.log(`✅ Successfully assigned HALA ticket ${ticketId} to RTA JV group`);
+            return result;
+        } catch (error) {
+            console.error(`❌ Failed to assign HALA ticket ${ticketId} to group:`, error);
+            throw error;
+        }
+    }
+
+    // Function to show simple export toast notification
+    function showExportToast(message = 'Exported') {
+        // Remove any existing export toast
+        const existingToast = document.querySelector('.export-toast');
         if (existingToast) {
             existingToast.remove();
         }
 
         // Create toast element
         const toast = document.createElement('div');
-        toast.className = 'hala-toast';
-        toast.textContent = 'HALA Taxi';
+        toast.className = 'export-toast';
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #333333;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            animation: exportToastSlide 0.3s ease-out;
+        `;
+
+        // Add CSS animation if not already added
+        if (!document.getElementById('export-toast-styles')) {
+            const style = document.createElement('style');
+            style.id = 'export-toast-styles';
+            style.textContent = `
+                @keyframes exportToastSlide {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100%);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         // Add toast to body
         document.body.appendChild(toast);
 
-        console.log('🍞 HALA Taxi toast displayed');
-
-        // Auto-remove toast after 3 seconds
+        // Auto-remove toast after 2 seconds
         setTimeout(() => {
             if (toast && toast.parentElement) {
-                toast.remove();
-                console.log('🍞 HALA Taxi toast removed automatically');
+                toast.style.animation = 'exportToastSlide 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
             }
-        }, 3000);
+        }, 2000);
     }
 
     // Function to find and click the "take it" button
@@ -3106,7 +3806,7 @@ ${customerWordsLine}`;
         const originalTitle = zendeskIcon.getAttribute('title') || 'Zendesk';
         zendeskIcon.setAttribute('title', `${originalTitle} - Right-click for RUMI Enhancement`);
 
-        // Add visual indicator (small robot emoji in corner)
+        // Add visual indicator (small robot emoji in corner) - made invisible
         const indicator = document.createElement('div');
         indicator.innerHTML = '🤖';
         indicator.style.cssText = `
@@ -3116,7 +3816,8 @@ ${customerWordsLine}`;
             font-size: 8px !important;
             z-index: 10000 !important;
             pointer-events: none !important;
-            opacity: 0.8 !important;
+            opacity: 0 !important;
+            display: none !important;
         `;
 
         zendeskIcon.style.position = 'relative';
@@ -3193,6 +3894,9 @@ ${customerWordsLine}`;
                                     <div class="rumi-view-info">
                                         <div class="rumi-view-title">${view.title}</div>
                                     </div>
+                                    <div class="rumi-view-actions" style="display: flex; gap: 4px; margin-left: 8px;">
+                                        <button class="rumi-csv-download-btn rumi-enhancement-button" data-view-id="${view.id}" data-view-name="${view.title}" title="Copy ticket IDs">${downloadIconSVG}</button>
+                                    </div>
                                 </div>
                             `;
                         }).join('')}
@@ -3206,7 +3910,7 @@ ${customerWordsLine}`;
         panel.innerHTML = `
             <!-- Top Bar -->
             <div class="rumi-enhancement-top-bar">
-                <h2>RUMI Enhancement System</h2>
+                <h2>RUMI Automation System</h2>
                 <button id="rumi-close-panel" class="rumi-enhancement-button">CLOSE</button>
             </div>
 
@@ -3215,20 +3919,16 @@ ${customerWordsLine}`;
                 <!-- Metrics Row -->
                 <div class="rumi-metrics-row">
                     <div class="rumi-metric-box">
-                        <span class="rumi-metric-value" id="metric-processed">${rumiEnhancement.processedHistory.length}</span>
-                        <div class="rumi-metric-label">Processed</div>
+                        <span class="rumi-metric-value" id="metric-solved">${rumiEnhancement.solvedTickets.length}</span>
+                        <div class="rumi-metric-label">Solved</div>
                     </div>
                     <div class="rumi-metric-box">
-                        <span class="rumi-metric-value" id="metric-api-calls">${rumiEnhancement.apiCallCount}</span>
-                        <div class="rumi-metric-label">API Calls</div>
+                        <span class="rumi-metric-value" id="metric-pending">${rumiEnhancement.pendingTickets.length}</span>
+                        <div class="rumi-metric-label">Pending</div>
                     </div>
                     <div class="rumi-metric-box">
-                        <span class="rumi-metric-value" id="metric-errors">${rumiEnhancement.consecutiveErrors}</span>
-                        <div class="rumi-metric-label">Errors</div>
-                    </div>
-                    <div class="rumi-metric-box">
-                        <span class="rumi-metric-value" id="metric-views">${rumiEnhancement.selectedViews.size}</span>
-                        <div class="rumi-metric-label">Views</div>
+                        <span class="rumi-metric-value" id="metric-rta">${rumiEnhancement.rtaTickets.length}</span>
+                        <div class="rumi-metric-label">RTA</div>
                     </div>
                 </div>
 
@@ -3272,9 +3972,26 @@ ${customerWordsLine}`;
                 <div class="rumi-enhancement-section">
                     <h3>Configuration</h3>
                     <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 6px;">Operation Modes:</label>
+                        <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid #E0E0E0; border-radius: 2px; background: white;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" id="rumi-operation-solved" ${rumiEnhancement.operationModes.solved ? 'checked' : ''}>
+                                Solved Operations
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" id="rumi-operation-pending" ${rumiEnhancement.operationModes.pending ? 'checked' : ''}>
+                                Pending Operations
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                                <input type="checkbox" id="rumi-operation-rta" ${rumiEnhancement.operationModes.rta ? 'checked' : ''}>
+                                RTA Operations
+                            </label>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px;">
                         <label style="display: block; margin-bottom: 6px;">Check Interval:</label>
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <input type="range" id="rumi-interval-slider" min="10" max="60" value="${rumiEnhancement.config.CHECK_INTERVAL / 1000}" style="flex: 1;">
+                            <input type="range" id="rumi-interval-slider" min="10" max="60" value="${rumiEnhancement.config.CHECK_INTERVAL / 1000}" style="flex: 1; margin: 0; width: 100%;">
                             <span id="rumi-interval-display" style="min-width: 40px; color: #333333; font-weight: bold; font-size: 13px;">${rumiEnhancement.config.CHECK_INTERVAL / 1000}s</span>
                         </div>
                     </div>
@@ -3283,8 +4000,41 @@ ${customerWordsLine}`;
                 <!-- Processed Tickets Panel -->
                 <div class="rumi-enhancement-section">
                     <h3>Processed Tickets</h3>
-                    <div id="rumi-processed-tickets" style="max-height: 200px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
-                        ${rumiEnhancement.processedHistory.length === 0 ? '<div style="text-align: center; color: #666666; padding: 20px;">No tickets processed yet</div>' : ''}
+                    <div class="rumi-tabs">
+                        <div class="rumi-tab-headers">
+                            <button class="rumi-tab-header active" data-tab="solved">Solved</button>
+                            <button class="rumi-tab-header" data-tab="pending">Pending</button>
+                            <button class="rumi-tab-header" data-tab="rta">RTA</button>
+                        </div>
+                        <div class="rumi-tab-content">
+                            <div class="rumi-tab-panel active" id="rumi-solved-tab">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; color: #666;">Solved Tickets (${rumiEnhancement.solvedTickets.length})</span>
+                                    <button id="copy-solved-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
+                                </div>
+                                <div id="rumi-solved-tickets" style="max-height: 160px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
+                                    ${rumiEnhancement.solvedTickets.length === 0 ? '<div style="text-align: center; color: #666666; padding: 20px;">No solved tickets yet</div>' : ''}
+                                </div>
+                            </div>
+                            <div class="rumi-tab-panel" id="rumi-pending-tab">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; color: #666;">Pending Tickets (${rumiEnhancement.pendingTickets.length})</span>
+                                    <button id="copy-pending-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
+                                </div>
+                                <div id="rumi-pending-tickets" style="max-height: 160px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
+                                    ${rumiEnhancement.pendingTickets.length === 0 ? '<div style="text-align: center; color: #666666; padding: 20px;">No pending tickets yet</div>' : ''}
+                                </div>
+                            </div>
+                            <div class="rumi-tab-panel" id="rumi-rta-tab">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; color: #666;">RTA Tickets (${rumiEnhancement.rtaTickets.length})</span>
+                                    <button id="copy-rta-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
+                                </div>
+                                <div id="rumi-rta-tickets" style="max-height: 160px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
+                                    ${rumiEnhancement.rtaTickets.length === 0 ? '<div style="text-align: center; color: #666666; padding: 20px;">No RTA tickets yet</div>' : ''}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -3294,6 +4044,17 @@ ${customerWordsLine}`;
                         <summary>Advanced Settings & Debugging</summary>
 
                         <div style="margin: 16px 0; border-top: 1px solid #E0E0E0; padding-top: 16px;">
+                            <h4>System Statistics</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                                <div style="padding: 8px; border: 1px solid #E0E0E0; border-radius: 2px; text-align: center; background: white;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #007BFF;" id="metric-api-calls">${rumiEnhancement.apiCallCount}</div>
+                                    <div style="font-size: 11px; color: #666;">API Calls</div>
+                                </div>
+                                <div style="padding: 8px; border: 1px solid #E0E0E0; border-radius: 2px; text-align: center; background: white;">
+                                    <div style="font-size: 18px; font-weight: bold; color: #DC3545;" id="metric-errors">${rumiEnhancement.consecutiveErrors}</div>
+                                    <div style="font-size: 11px; color: #666;">Errors</div>
+                                </div>
+                            </div>
                             <h4>Testing & Debugging</h4>
                             <div style="margin-bottom: 12px;">
                                 <label style="display: block; margin-bottom: 6px;">Test Ticket IDs (comma-separated):</label>
@@ -3302,7 +4063,7 @@ ${customerWordsLine}`;
                                     <button id="rumi-test-ticket" class="rumi-enhancement-button rumi-enhancement-button-primary">TEST</button>
                                 </div>
                                 <div style="font-size: 11px; color: #666; margin-top: 4px;">
-                                    <strong>Performance:</strong> Multiple tickets are processed concurrently for speed
+                                    <strong>System Status:</strong> Monitoring active views for new tickets
                                 </div>
                             </div>
                             <div id="rumi-test-result" style="margin-top: 12px; padding: 12px; border-radius: 2px; font-size: 13px; display: none; border: 1px solid #E0E0E0; background: white;"></div>
@@ -3314,19 +4075,42 @@ ${customerWordsLine}`;
 
                         <div style="margin: 16px 0; border-top: 1px solid #E0E0E0; padding-top: 16px;">
                             <h4>Data Management</h4>
-                            <div style="display: flex; gap: 8px;">
-                                <button id="rumi-clear-history" class="rumi-enhancement-button">CLEAR HISTORY</button>
-                                <button id="rumi-export-data" class="rumi-enhancement-button">EXPORT DATA</button>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button id="rumi-export-config" class="rumi-enhancement-button">EXPORT CONFIG</button>
+                                <button id="rumi-export-unprocessed" class="rumi-enhancement-button">EXPORT UNPROCESSED</button>
+                                </div>
+                                <button id="rumi-clear-history" class="rumi-enhancement-button" style="background: #dc3545 !important; border-color: #dc3545 !important; color: white !important;">CLEAR HISTORY</button>
                             </div>
                         </div>
 
                         <div style="margin: 16px 0; border-top: 1px solid #E0E0E0; padding-top: 16px;">
                             <details>
-                                <summary style="font-size: 13px;">Trigger Phrases (${rumiEnhancement.triggerPhrases.length} total)</summary>
+                                <summary style="font-size: 13px;">Pending Trigger Phrases (${rumiEnhancement.pendingTriggerPhrases.length} total)</summary>
                                 <div style="margin-top: 12px; max-height: 200px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 2px; background: white;">
-                                    ${rumiEnhancement.triggerPhrases.map((phrase, index) =>
+                                    ${rumiEnhancement.pendingTriggerPhrases.map((phrase, index) =>
             `<div style="margin-bottom: 0; padding: 8px 12px; border-bottom: 1px solid #F0F0F0; font-size: 12px; line-height: 1.4;">
-                                            <div style="color: #666666; font-weight: bold; margin-bottom: 4px;">Phrase ${index + 1}:</div>
+                                            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                                                <input type="checkbox" id="pending-phrase-${index}" checked style="margin-right: 8px;">
+                                                <div style="color: #666666; font-weight: bold;">Phrase ${index + 1}:</div>
+                                            </div>
+                                            <div style="color: #333333; word-wrap: break-word;">"${phrase}"</div>
+                                        </div>`
+        ).join('')}
+                                </div>
+                            </details>
+                        </div>
+
+                        <div style="margin: 16px 0; border-top: 1px solid #E0E0E0; padding-top: 16px;">
+                            <details>
+                                <summary style="font-size: 13px;">Solved Trigger Phrases (${rumiEnhancement.solvedTriggerPhrases.length} total)</summary>
+                                <div style="margin-top: 12px; max-height: 200px; overflow-y: auto; border: 1px solid #E0E0E0; border-radius: 2px; background: white;">
+                                    ${rumiEnhancement.solvedTriggerPhrases.map((phrase, index) =>
+            `<div style="margin-bottom: 0; padding: 8px 12px; border-bottom: 1px solid #F0F0F0; font-size: 12px; line-height: 1.4;">
+                                            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+                                                <input type="checkbox" id="solved-phrase-${index}" checked style="margin-right: 8px;">
+                                                <div style="color: #666666; font-weight: bold;">Phrase ${index + 1}:</div>
+                                            </div>
                                             <div style="color: #333333; word-wrap: break-word;">"${phrase}"</div>
                                         </div>`
         ).join('')}
@@ -3502,14 +4286,83 @@ ${customerWordsLine}`;
             RUMILogger.info('SETTINGS', `Dry run mode: ${rumiEnhancement.isDryRun ? 'ON' : 'OFF'}`);
         });
 
+        // Operation modes checkboxes
+        document.getElementById('rumi-operation-pending')?.addEventListener('change', (e) => {
+            rumiEnhancement.operationModes.pending = e.target.checked;
+            RUMILogger.info('SETTINGS', `Pending operations ${e.target.checked ? 'enabled' : 'disabled'}`);
+        });
+        document.getElementById('rumi-operation-solved')?.addEventListener('change', (e) => {
+            rumiEnhancement.operationModes.solved = e.target.checked;
+            RUMILogger.info('SETTINGS', `Solved operations ${e.target.checked ? 'enabled' : 'disabled'}`);
+        });
+        document.getElementById('rumi-operation-rta')?.addEventListener('change', (e) => {
+            rumiEnhancement.operationModes.rta = e.target.checked;
+            RUMILogger.info('SETTINGS', `RTA operations ${e.target.checked ? 'enabled' : 'disabled'}`);
+        });
+
+        // Tab functionality
+        document.querySelectorAll('.rumi-tab-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                const targetTab = e.target.dataset.tab;
+
+                // Remove active class from all headers and panels
+                document.querySelectorAll('.rumi-tab-header').forEach(h => h.classList.remove('active'));
+                document.querySelectorAll('.rumi-tab-panel').forEach(p => p.classList.remove('active'));
+
+                // Add active class to clicked header and corresponding panel
+                e.target.classList.add('active');
+                document.getElementById(`rumi-${targetTab}-tab`).classList.add('active');
+            });
+        });
+
+        // Copy ticket IDs functionality
+        document.getElementById('copy-pending-ids')?.addEventListener('click', () => {
+            copyTicketIds(rumiEnhancement.pendingTickets, 'pending');
+        });
+        document.getElementById('copy-solved-ids')?.addEventListener('click', () => {
+            copyTicketIds(rumiEnhancement.solvedTickets, 'solved');
+        });
+        document.getElementById('copy-rta-ids')?.addEventListener('click', () => {
+            copyTicketIds(rumiEnhancement.rtaTickets, 'RTA');
+        });
+
+        // Initialize phrase enable/disable arrays if not already set
+        if (!rumiEnhancement.enabledPendingPhrases) {
+            rumiEnhancement.enabledPendingPhrases = new Array(rumiEnhancement.pendingTriggerPhrases.length).fill(true);
+        }
+        if (!rumiEnhancement.enabledSolvedPhrases) {
+            rumiEnhancement.enabledSolvedPhrases = new Array(rumiEnhancement.solvedTriggerPhrases.length).fill(true);
+        }
+
+        // Add event listeners for phrase checkboxes
+        rumiEnhancement.pendingTriggerPhrases.forEach((phrase, index) => {
+            const checkbox = document.getElementById(`pending-phrase-${index}`);
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    rumiEnhancement.enabledPendingPhrases[index] = e.target.checked;
+                    RUMILogger.info('SETTINGS', `Pending phrase ${index + 1} ${e.target.checked ? 'enabled' : 'disabled'}`);
+                });
+            }
+        });
+
+        rumiEnhancement.solvedTriggerPhrases.forEach((phrase, index) => {
+            const checkbox = document.getElementById(`solved-phrase-${index}`);
+            if (checkbox) {
+                checkbox.addEventListener('change', (e) => {
+                    rumiEnhancement.enabledSolvedPhrases[index] = e.target.checked;
+                    RUMILogger.info('SETTINGS', `Solved phrase ${index + 1} ${e.target.checked ? 'enabled' : 'disabled'}`);
+                });
+            }
+        });
+
         // Clear history
         document.getElementById('rumi-clear-history')?.addEventListener('click', () => {
             rumiEnhancement.processedHistory = [];
             updateProcessedTicketsDisplay();
         });
 
-        // Export data functionality
-        document.getElementById('rumi-export-data')?.addEventListener('click', () => {
+        // Export config functionality
+        document.getElementById('rumi-export-config')?.addEventListener('click', () => {
             const exportData = {
                 timestamp: new Date().toISOString(),
                 processedTickets: rumiEnhancement.processedHistory,
@@ -3529,13 +4382,30 @@ ${customerWordsLine}`;
 
             const link = document.createElement('a');
             link.href = url;
-            link.download = `rumi-enhancement-data-${new Date().toISOString().slice(0, 10)}.json`;
+            link.download = `rumi-enhancement-config-${new Date().toISOString().slice(0, 10)}.json`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
-            RUMILogger.info('UI', 'Data exported successfully');
+            RUMILogger.info('UI', 'Config exported successfully');
+        });
+
+        // Export unprocessed tickets functionality
+        document.getElementById('rumi-export-unprocessed')?.addEventListener('click', async () => {
+            if (!window.rumiUnprocessedTickets || window.rumiUnprocessedTickets.length === 0) {
+                showExportToast('No unprocessed tickets');
+                return;
+            }
+
+            const csvContent = window.rumiUnprocessedTickets.join(',');
+            const success = await RUMICSVUtils.copyToClipboard(csvContent);
+
+            if (success) {
+                showExportToast('Exported');
+            } else {
+                showExportToast('Export failed');
+            }
         });
 
         // Test specific ticket(s)
@@ -3585,7 +4455,7 @@ ${customerWordsLine}`;
 
                 showTestResult(`
                     <div style="text-align: center; padding: 15px;">
-                        <strong style="color: #66d9ff;">⚡ FAST CONCURRENT TESTING</strong><br>
+                        <strong style="color: #66d9ff;">Processing Tickets</strong><br>
                         Processing ${ticketIdList.length} tickets simultaneously...
                     </div>
                 `, 'info');
@@ -3641,7 +4511,7 @@ ${customerWordsLine}`;
                 // Create comprehensive batch summary with performance metrics
                 const batchSummary = `
                     <div style="text-align: center; margin-bottom: 16px; padding: 12px; background: white; border: 1px solid #E0E0E0; border-radius: 2px;">
-                        <strong style="color: #333333; font-size: 14px;">⚡ FAST CONCURRENT TEST RESULTS</strong>
+                        <strong style="color: #333333; font-size: 14px;">Testing Results</strong>
                         <div style="margin-top: 8px; color: #666; font-size: 12px;">
                             <strong>Mode:</strong> <span style="color: ${rumiEnhancement.isDryRun ? '#007bff' : '#28a745'}; font-weight: bold;">${rumiEnhancement.isDryRun ? '🧪 DRY RUN' : '🚀 LIVE PROCESSING'}</span><br>
                             Total Time: <strong>${totalTime}s</strong> | Average: <strong>${avgTime}s/ticket</strong> | Speed: <strong>${(ticketIdList.length / parseFloat(totalTime)).toFixed(1)} tickets/sec</strong>
@@ -3650,166 +4520,51 @@ ${customerWordsLine}`;
                         ${(() => {
                             const skippedTickets = results.filter(r => r.status === 'success' && r.details && !r.details.matches);
                             if (skippedTickets.length > 0) {
-                                const unprocessedNumbers = skippedTickets.map(r => r.id).join('\\n');
+                                // Store unprocessed tickets for export button in Data Management section
+                                window.rumiUnprocessedTickets = skippedTickets.map(r => r.id);
                                 return `
-                                    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #E0E0E0;">
-                                        <button onclick="navigator.clipboard.writeText('${unprocessedNumbers}').then(() => {
-                                            const btn = this;
-                                            const original = btn.innerHTML;
-                                            btn.innerHTML = '✅ Copied!';
-                                            btn.style.background = '#28a745';
-                                            setTimeout(() => {
-                                                btn.innerHTML = original;
-                                                btn.style.background = '#007bff';
-                                            }, 2000);
-                                        })"
-                                        style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold;">
-                                            📋 Copy Unprocessed Ticket Numbers (${skippedTickets.length})
-                                        </button>
+                                    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #E0E0E0; text-align: center;">
+                                        <div style="font-size: 12px; color: #666666;">
+                                            <strong>${skippedTickets.length} unprocessed tickets</strong> - Use "Export Unprocessed" in Data Management section
+                                        </div>
                                     </div>
                                 `;
+                            } else {
+                                // Clear any stored unprocessed tickets
+                                window.rumiUnprocessedTickets = null;
+                                return '';
                             }
-                            return '';
                         })()}
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-                        <div style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <span style="color: #28A745; font-size: 18px; font-weight: bold; display: block;">${successCount}</span>
-                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Successful</div>
+                        <div class="rumi-result-card" data-category="solved" style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s;">
+                            <span style="color: #007BFF; font-size: 18px; font-weight: bold; display: block;">${(() => { const processed = results.filter(r => r.details && r.details.matches); return processed.filter(r => r.details.action && r.details.action.includes('solved')).length; })()}</span>
+                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Solved</div>
                         </div>
-                        <div style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <span style="color: #007BFF; font-size: 18px; font-weight: bold; display: block;">${matchCount}</span>
-                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Matches</div>
+                        <div class="rumi-result-card" data-category="pending" style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s;">
+                            <span style="color: #28A745; font-size: 18px; font-weight: bold; display: block;">${(() => { const processed = results.filter(r => r.details && r.details.matches); return processed.filter(r => !r.details.action.includes('solved') && !r.details.isHalaPattern && !(r.details.isSolvedPattern && r.details.assignee === '34980896869267') && !(r.details.action && r.details.action.includes('RTA'))).length; })()}</span>
+                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Pending</div>
                         </div>
-                        <div style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <span style="color: #DC3545; font-size: 18px; font-weight: bold; display: block;">${errorCount}</span>
-                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Errors</div>
+                        <div class="rumi-result-card" data-category="rta" style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s;">
+                            <span style="color: #FFC107; font-size: 18px; font-weight: bold; display: block;">${(() => { const processed = results.filter(r => r.details && r.details.matches); return processed.filter(r => (r.details.isHalaPattern) || (r.details.isSolvedPattern && r.details.assignee === '34980896869267') || (r.details.action && r.details.action.includes('RTA'))).length; })()}</span>
+                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">RTA</div>
                         </div>
-                        <div style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <span style="color: #333333; font-size: 18px; font-weight: bold; display: block;">${ticketIdList.length}</span>
-                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Total</div>
+                        <div class="rumi-result-card" data-category="unprocessed" style="background: white; padding: 12px; border-radius: 2px; border: 1px solid #E0E0E0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.2s;">
+                            <span style="color: #DC3545; font-size: 18px; font-weight: bold; display: block;">${results.filter(r => r.status === 'success' && r.details && !r.details.matches || r.status === 'error').length}</span>
+                            <div style="color: #666666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Unprocessed</div>
                         </div>
                     </div>
 
-                    ${(() => {
-                        // Separate results into categories
-                        const processedTickets = results.filter(r => r.status === 'success' && r.details && r.details.matches);
-                        const skippedTickets = results.filter(r => r.status === 'success' && r.details && !r.details.matches);
-                        const errorTickets = results.filter(r => r.status === 'error');
+                    <div id="rumi-unified-results" style="margin-top: 16px;">
+                        <div style="text-align: center; color: #666; font-size: 12px; margin-bottom: 16px;">
+                            Click on any category above to view the tickets
+                        </div>
+                        <div id="rumi-results-content" style="display: none;">
+                            <!-- Content will be populated when cards are clicked -->
+                        </div>
+                    </div>
 
-                        let sectionsHTML = '';
-
-                        // WOULD BE PROCESSED Section
-                        if (processedTickets.length > 0) {
-                            sectionsHTML += `
-                                <div style="margin-bottom: 20px;">
-                                    <div style="background: #d4edda; padding: 12px; border-radius: 4px 4px 0 0; border-left: 4px solid #28a745;">
-                                        <strong style="color: #155724; font-size: 14px;">✅ ${rumiEnhancement.isDryRun ? 'WOULD BE PROCESSED' : 'PROCESSED'} (${processedTickets.length})</strong>
-                                        <div style="font-size: 11px; color: #155724; margin-top: 2px;">These tickets contain trigger phrases and ${rumiEnhancement.isDryRun ? 'would be updated' : 'were updated'} to pending status</div>
-                                    </div>
-                                    <div style="max-height: 250px; overflow-y: auto; border: 1px solid #c3e6cb; border-top: none; background: white;">
-                                        ${processedTickets.map(result => {
-                                            const details = result.details;
-                                            return `
-                                                <div style="padding: 12px; border-bottom: 1px solid #e9ecef; border-left: 3px solid #28a745;">
-                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                                        <strong style="color: #333333; font-size: 13px;">Ticket #${result.id}</strong>
-                                                        <span style="color: #28a745; font-weight: bold; font-size: 11px; padding: 2px 8px; background: #d4edda; border-radius: 3px;">WILL PROCESS</span>
-                                                    </div>
-
-                                                    <div style="background: #f8f9fa; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
-                                                        <div style="font-size: 12px; color: #333333; margin-bottom: 4px;">
-                                                            <strong>Subject:</strong> <span style="color: #666666;">${details.subject?.substring(0, 60) || 'No subject'}${details.subject?.length > 60 ? '...' : ''}</span>
-                                                        </div>
-                                                        <div style="font-size: 12px; color: #333333;">
-                                                            <strong>Status:</strong> <span style="color: #666666;">${details.previousStatus.toUpperCase()}</span>
-                                                            ${details.currentStatus !== details.previousStatus ? ` → <span style="color: #28a745; font-weight: bold;">${details.currentStatus.toUpperCase()}</span>` : ''}
-                                                            ${details.triggerReason === 'end-user-reply-chain' ? '<span style="margin-left: 8px; color: #007bff; font-size: 10px;">📧 End-User Reply Chain</span>' : ''}
-                                                        </div>
-                                                        <div style="font-size: 11px; color: #333333; margin-top: 4px;">
-                                                            <strong>Action:</strong> <span style="color: ${details.processed ? '#28a745' : '#666666'}; font-weight: ${details.processed ? 'bold' : 'normal'};">${details.action}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div style="font-size: 11px; color: #666666;">
-                                                        <strong>Matched Phrase:</strong><br>
-                                                        <div style="background: #f1f3f4; padding: 6px; border-radius: 2px; margin-top: 4px; font-family: monospace; word-wrap: break-word; line-height: 1.3; color: #333333; max-height: 60px; overflow-y: auto; font-size: 10px;">
-                                                            "${details.phrase?.substring(0, 150)}${details.phrase?.length > 150 ? '...' : ''}"
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                </div>
-                            `;
-                        }
-
-                        // WOULD BE SKIPPED Section
-                        if (skippedTickets.length > 0) {
-                            sectionsHTML += `
-                                <div style="margin-bottom: 20px;">
-                                    <div style="background: #fff3cd; padding: 12px; border-radius: 4px 4px 0 0; border-left: 4px solid #ffc107;">
-                                        <strong style="color: #856404; font-size: 14px;">⏭️ ${rumiEnhancement.isDryRun ? 'WOULD BE SKIPPED' : 'SKIPPED'} (${skippedTickets.length})</strong>
-                                        <div style="font-size: 11px; color: #856404; margin-top: 2px;">These tickets do not contain trigger phrases and ${rumiEnhancement.isDryRun ? 'would not be' : 'were not'} processed</div>
-                                    </div>
-                                    <div style="max-height: 200px; overflow-y: auto; border: 1px solid #ffeaa7; border-top: none; background: white;">
-                                        ${skippedTickets.map(result => {
-                                            const details = result.details;
-                                            return `
-                                                <div style="padding: 10px; border-bottom: 1px solid #e9ecef; border-left: 3px solid #ffc107;">
-                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                                        <strong style="color: #333333; font-size: 13px;">Ticket #${result.id}</strong>
-                                                        <span style="color: #856404; font-weight: bold; font-size: 11px; padding: 2px 8px; background: #fff3cd; border-radius: 3px;">SKIP</span>
-                                                    </div>
-
-                                                    <div style="background: #f8f9fa; padding: 6px; border-radius: 3px;">
-                                                        <div style="font-size: 12px; color: #333333; margin-bottom: 3px;">
-                                                            <strong>Subject:</strong> <span style="color: #666666;">${details.subject?.substring(0, 80) || 'No subject'}${details.subject?.length > 80 ? '...' : ''}</span>
-                                                        </div>
-                                                        <div style="font-size: 12px; color: #333333;">
-                                                            <strong>Status:</strong> <span style="color: #666666;">${details.previousStatus.toUpperCase()}</span>
-                                                        </div>
-                                                        <div style="font-size: 11px; color: #856404; margin-top: 3px;">
-                                                            <strong>Action:</strong> ${details.action || details.reason}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }).join('')}
-                                    </div>
-                                </div>
-                            `;
-                        }
-
-                        // ERROR Section
-                        if (errorTickets.length > 0) {
-                            sectionsHTML += `
-                                <div style="margin-bottom: 20px;">
-                                    <div style="background: #f8d7da; padding: 12px; border-radius: 4px 4px 0 0; border-left: 4px solid #dc3545;">
-                                        <strong style="color: #721c24; font-size: 14px;">❌ ERRORS (${errorTickets.length})</strong>
-                                        <div style="font-size: 11px; color: #721c24; margin-top: 2px;">These tickets could not be processed due to errors</div>
-                                    </div>
-                                    <div style="max-height: 150px; overflow-y: auto; border: 1px solid #f5c6cb; border-top: none; background: white;">
-                                        ${errorTickets.map(result => `
-                                            <div style="padding: 8px 12px; border-bottom: 1px solid #e9ecef; border-left: 3px solid #dc3545;">
-                                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                    <div>
-                                                        <strong style="color: #333333; font-size: 13px;">Ticket #${result.id}</strong><br>
-                                                        <small style="color: #721c24;">${result.message}</small>
-                                                    </div>
-                                                    <span style="color: #721c24; font-weight: bold; font-size: 11px; padding: 2px 8px; background: #f8d7da; border-radius: 3px;">ERROR</span>
-                                                </div>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            `;
-                        }
-
-                        return sectionsHTML;
-                    })()}
 
                     <div style="text-align: center; margin-top: 12px; padding: 12px; background: #E8F4FD; border: 1px solid #0066CC; border-radius: 2px;">
                         <strong style="color: #333333;">BATCH TESTING COMPLETED</strong><br>
@@ -3818,6 +4573,121 @@ ${customerWordsLine}`;
                 `;
 
                 showTestResult(batchSummary, successCount === ticketIdList.length ? 'success' : (errorCount === ticketIdList.length ? 'error' : 'warning'));
+
+                // Store results data and add click handlers
+                setTimeout(() => {
+                    // Store the results data for card interactions
+                    // Debug: Log all action strings to understand the categorization
+                    console.log('All processed tickets action strings:', results.filter(r => r.details && r.details.matches).map(r => r.details.action));
+
+                    // More robust categorization logic
+                    const allProcessedTickets = results.filter(r => r.details && r.details.matches);
+                    const solvedResults = allProcessedTickets.filter(r => r.details.action && r.details.action.includes('solved'));
+                    const rtaResults = allProcessedTickets.filter(r =>
+                        (r.details.isHalaPattern) ||
+                        (r.details.isSolvedPattern && r.details.assignee === '34980896869267') ||
+                        (r.details.action && r.details.action.includes('RTA'))
+                    );
+                    const pendingResults = allProcessedTickets.filter(r =>
+                        !r.details.action.includes('solved') &&
+                        !r.details.isHalaPattern &&
+                        !(r.details.isSolvedPattern && r.details.assignee === '34980896869267') &&
+                        !(r.details.action && r.details.action.includes('RTA'))
+                    );
+
+                    console.log('Debug solved results:', solvedResults.length, solvedResults.map(r => r.details.action));
+                    console.log('Debug pending results:', pendingResults.length, pendingResults.map(r => r.details.action));
+                    console.log('Debug RTA results:', rtaResults.length);
+
+                    window.rumiTestResults = {
+                        solved: solvedResults,
+                        pending: pendingResults,
+                        rta: rtaResults,
+                        unprocessed: results.filter(r => r.status === 'success' && r.details && !r.details.matches || r.status === 'error')
+                    };
+
+                    // Add click handlers to result cards
+                    document.querySelectorAll('.rumi-result-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const category = card.getAttribute('data-category');
+                            const tickets = window.rumiTestResults[category] || [];
+
+                            // Remove selected class from all cards
+                            document.querySelectorAll('.rumi-result-card').forEach(c => c.classList.remove('selected'));
+                            // Add selected class to clicked card
+                            card.classList.add('selected');
+
+                            // Show results content
+                            const contentDiv = document.getElementById('rumi-results-content');
+                            contentDiv.style.display = 'block';
+
+                            if (tickets.length === 0) {
+                                contentDiv.innerHTML = `<div style="text-align: center; color: #666; padding: 20px;">No ${category} tickets found</div>`;
+                                return;
+                            }
+
+                            const categoryColors = {
+                                solved: '#007BFF',
+                                pending: '#28A745',
+                                rta: '#FFC107',
+                                unprocessed: '#DC3545'
+                            };
+
+                            const categoryNames = {
+                                solved: 'Solved',
+                                pending: 'Pending',
+                                rta: 'RTA',
+                                unprocessed: 'Unprocessed'
+                            };
+
+                            contentDiv.innerHTML = `
+                                <div style="margin-bottom: 20px;">
+                                    <div style="background: white; padding: 12px; border-radius: 4px 4px 0 0; border-left: 4px solid ${categoryColors[category]}; border: 1px solid #E0E0E0;">
+                                        <strong style="color: ${categoryColors[category]}; font-size: 14px;">${categoryNames[category]} Tickets (${tickets.length})</strong>
+                                    </div>
+                                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #E0E0E0; border-top: none; background: white;">
+                                        ${tickets.map(result => {
+                                            const details = result.details || {};
+                                            return `
+                                                <div style="padding: 12px; border-bottom: 1px solid #e9ecef; border-left: 3px solid ${categoryColors[category]};">
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                                        <strong style="color: #333333; font-size: 13px;">Ticket <a href="https://gocareem.zendesk.com/agent/tickets/${result.id}" target="_blank" style="color: #0066CC; text-decoration: none; font-weight: bold;">#${result.id}</a></strong>
+                                                        <span style="color: ${categoryColors[category]}; font-weight: bold; font-size: 11px; padding: 2px 8px; background: ${category === 'solved' ? '#E3F2FD' : category === 'pending' ? '#E8F5E8' : category === 'rta' ? '#FFF8E1' : '#FFEBEE'}; border-radius: 3px;">${categoryNames[category].toUpperCase()}</span>
+                                                    </div>
+                                                    ${details.subject ? `
+                                                        <div style="background: #f8f9fa; padding: 8px; border-radius: 3px; margin-bottom: 8px;">
+                                                            <div style="font-size: 12px; color: #333333; margin-bottom: 4px;">
+                                                                <strong>Subject:</strong> <span style="color: #666666;">${details.subject}</span>
+                                                            </div>
+                                                            <div style="font-size: 12px; color: #333333;">
+                                                                <strong>Status:</strong> <span style="color: #666666;">${details.previousStatus ? details.previousStatus.toUpperCase() : 'UNKNOWN'}</span>
+                                                                ${details.currentStatus && details.currentStatus !== details.previousStatus ? ` → <span style="color: ${categoryColors[category]}; font-weight: bold;">${details.currentStatus.toUpperCase()}</span>` : ''}
+                                                            </div>
+                                                            ${details.action ? `<div style="font-size: 11px; color: #333333; margin-top: 4px;"><strong>Action:</strong> ${details.action}</div>` : ''}
+                                                        </div>
+                                                    ` : ''}
+                                                    ${details.phrase ? `
+                                                        <div style="font-size: 11px; color: #666666;">
+                                                            <strong>Matched Phrase:</strong><br>
+                                                            <div style="background: #f1f3f4; padding: 6px; border-radius: 2px; margin-top: 4px; font-family: monospace; word-wrap: break-word; font-size: 11px; line-height: 1.4;">
+                                                                "${details.phrase}"
+                                                            </div>
+                                                        </div>
+                                                    ` : ''}
+                                                    ${result.status === 'error' ? `
+                                                        <div style="font-size: 11px; color: #721c24; margin-top: 8px;">
+                                                            <strong>Error:</strong> ${result.message}
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    });
+                }, 500);
 
             } catch (error) {
                 showTestResult(`
@@ -3839,11 +4709,78 @@ ${customerWordsLine}`;
             }
         });
 
+        // CSV Export Event Handlers
+        document.getElementById('rumi-view-grid')?.addEventListener('click', async (e) => {
+            // Handle CSV Export to Clipboard
+            if (e.target.closest('.rumi-csv-download-btn')) {
+                e.stopPropagation();
+                const btn = e.target.closest('.rumi-csv-download-btn');
+                const viewId = btn.dataset.viewId;
+                const viewName = btn.dataset.viewName;
 
-        // Close on overlay click
+                RUMILogger.info('CSV', `Ticket IDs export requested for view ${viewId} (${viewName})`);
+
+                // Show loading state
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '⋯';
+                btn.disabled = true;
+
+                try {
+                    // Fetch all tickets for the view
+                    const viewData = await RUMIZendeskAPI.getViewTicketsForDirectCSV(viewId, viewName);
+
+                    // Generate ticket IDs CSV (just comma-separated IDs)
+                    const csvContent = RUMICSVUtils.generateTicketIDsCSV(viewData);
+
+                    // Copy to clipboard
+                    const success = await RUMICSVUtils.copyToClipboard(csvContent);
+
+                    if (success) {
+                        showExportToast('Exported');
+                    } else {
+                        throw new Error('Failed to copy to clipboard');
+                    }
+
+                } catch (error) {
+                    RUMILogger.error('CSV', `Ticket IDs export failed for view ${viewId}`, error);
+                    showExportToast('Export failed');
+                } finally {
+                    // Reset button
+                    btn.innerHTML = originalHTML;
+                    btn.disabled = false;
+                }
+            }
+        });
+
+
+        // Close on overlay click (but not during drag operations)
+        let isDragging = false;
+        let dragStartTime = 0;
+
+        document.getElementById('rumi-enhancement-panel')?.addEventListener('mousedown', (e) => {
+            if (e.target.className === 'rumi-enhancement-overlay') {
+                isDragging = false;
+                dragStartTime = Date.now();
+            }
+        });
+
+        document.getElementById('rumi-enhancement-panel')?.addEventListener('mousemove', (e) => {
+            if (e.target.className === 'rumi-enhancement-overlay' && e.buttons > 0) {
+                isDragging = true;
+            }
+        });
+
         document.getElementById('rumi-enhancement-panel')?.addEventListener('click', (e) => {
             if (e.target.className === 'rumi-enhancement-overlay') {
-                document.getElementById('rumi-enhancement-panel')?.remove();
+                // Only close if it's a genuine click (not a drag operation)
+                // Allow a small time window for quick clicks and ensure no dragging occurred
+                const clickDuration = Date.now() - dragStartTime;
+                if (!isDragging && clickDuration < 300) {
+                    document.getElementById('rumi-enhancement-panel')?.remove();
+                }
+                // Reset drag state
+                isDragging = false;
+                dragStartTime = 0;
             }
         });
     }
@@ -3871,35 +4808,61 @@ ${customerWordsLine}`;
         }
 
         // Update metrics
-        const processedCount = document.getElementById('metric-processed');
+        const solvedCount = document.getElementById('metric-solved');
+        const pendingCount = document.getElementById('metric-pending');
+        const rtaCount = document.getElementById('metric-rta');
         const apiCalls = document.getElementById('metric-api-calls');
         const errors = document.getElementById('metric-errors');
-        const views = document.getElementById('metric-views');
 
-        if (processedCount) processedCount.textContent = rumiEnhancement.processedHistory.length;
+        if (pendingCount) pendingCount.textContent = rumiEnhancement.pendingTickets.length;
+        if (solvedCount) solvedCount.textContent = rumiEnhancement.solvedTickets.length;
+        if (rtaCount) rtaCount.textContent = rumiEnhancement.rtaTickets.length;
         if (apiCalls) apiCalls.textContent = rumiEnhancement.apiCallCount;
         if (errors) errors.textContent = rumiEnhancement.consecutiveErrors;
-        if (views) views.textContent = rumiEnhancement.selectedViews.size;
     }
 
     function updateProcessedTicketsDisplay() {
-        const displayArea = document.getElementById('rumi-processed-tickets');
+        // Update the metrics in the UI
+        updateRUMIEnhancementUI();
+
+        // Update tab headers with counts
+        const solvedHeader = document.querySelector('[data-tab="solved"]');
+        const pendingHeader = document.querySelector('[data-tab="pending"]');
+        const rtaHeader = document.querySelector('[data-tab="rta"]');
+
+        if (solvedHeader) solvedHeader.textContent = `Solved (${rumiEnhancement.solvedTickets.length})`;
+        if (pendingHeader) pendingHeader.textContent = `Pending (${rumiEnhancement.pendingTickets.length})`;
+        if (rtaHeader) rtaHeader.textContent = `RTA (${rumiEnhancement.rtaTickets.length})`;
+
+        // Update solved tab
+        updateTabContent('solved', rumiEnhancement.solvedTickets);
+
+        // Update pending tab
+        updateTabContent('pending', rumiEnhancement.pendingTickets);
+
+        // Update RTA tab
+        updateTabContent('rta', rumiEnhancement.rtaTickets);
+    }
+
+    function updateTabContent(tabType, tickets) {
+        const displayArea = document.getElementById(`rumi-${tabType}-tickets`);
         if (!displayArea) return;
 
-        if (rumiEnhancement.processedHistory.length === 0) {
-            displayArea.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No tickets processed yet</div>';
+        if (tickets.length === 0) {
+            displayArea.innerHTML = `<div style="text-align: center; color: #666666; padding: 20px;">No ${tabType} tickets yet</div>`;
             return;
         }
 
-        const recentTickets = rumiEnhancement.processedHistory.slice(-10).reverse();
+        const recentTickets = tickets.slice(-10).reverse();
         displayArea.innerHTML = recentTickets.map(item => {
             const timestamp = new Date(item.timestamp).toLocaleTimeString();
             const date = new Date(item.timestamp).toLocaleDateString();
+            const ticketId = item.id || item.ticketId;
 
             return `
                 <div class="rumi-processed-ticket-item">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <strong style="color: #333333; font-size: 13px;">Ticket #${item.ticketId}</strong>
+                        <strong style="color: #333333; font-size: 13px;">Ticket ${createClickableTicketId(ticketId)}</strong>
                         <div style="text-align: right;">
                             <div style="font-size: 11px; color: #666666;">${date} ${timestamp}</div>
                         </div>
@@ -3910,33 +4873,62 @@ ${customerWordsLine}`;
                             <strong>View:</strong> <span style="color: #666666;">${item.viewName}</span>
                         </div>
                         <div style="font-size: 12px; color: #333333; margin-bottom: 4px;">
-                            <strong>Status Change:</strong>
-                            <span style="color: #666666;">${item.previousStatus.toUpperCase()}</span>
-                            →
-                            <span style="color: #28A745; font-weight: bold;">PENDING</span>
+                            <strong>Status:</strong>
+                            <span style="color: #666666;">${item.previousStatus?.toUpperCase() || 'UNKNOWN'}</span>
+                            → <span style="color: ${getStatusColor(item.status || tabType)}; font-weight: bold;">${(item.status || tabType).toUpperCase()}</span>
                         </div>
                         ${item.triggerReason === 'end-user-reply-chain' ? `
-                            <div style="font-size: 11px; color: #0066CC; background: rgba(0,102,204,0.1); padding: 4px; border-radius: 2px; border-left: 2px solid #0066CC;">
-                                <strong>📧 End-User Reply Chain:</strong> Trigger found in agent comment #${item.triggerCommentId}
+                            <div style="font-size: 11px; color: #007bff; margin-bottom: 4px;">
+                                📞 End-User Reply Chain
                             </div>
                         ` : ''}
-                    </div>
-
+                        ${item.phrase ? `
                     <div style="font-size: 11px; color: #666666;">
                         <strong>Matched Phrase:</strong><br>
-                        <div style="background: #F8F9FA; padding: 6px; border-radius: 2px; margin-top: 4px; border: 1px solid #E9ECEF; font-family: monospace; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4; color: #333333;">
-                            "${item.phrase}"
+                                <div style="background: #F1F3F4; padding: 6px; border-radius: 2px; margin-top: 2px; font-family: monospace; word-wrap: break-word; font-size: 11px; line-height: 1.4;">
+                                    "${item.phrase}"
                         </div>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
         }).join('');
     }
 
+    function getStatusColor(status) {
+        switch (status.toLowerCase()) {
+            case 'pending': return '#28a745';
+            case 'solved': return '#007bff';
+            case 'rta': return '#ffc107';
+            default: return '#666666';
+        }
+    }
+
+    function createClickableTicketId(ticketId) {
+        return `<a href="https://gocareem.zendesk.com/agent/tickets/${ticketId}" target="_blank" style="color: #0066CC; text-decoration: none; font-weight: bold;">#${ticketId}</a>`;
+    }
+
     function updateSelectedViewsCount() {
         const countElement = document.getElementById('rumi-selected-count');
         if (countElement) {
             countElement.textContent = rumiEnhancement.selectedViews.size;
+        }
+    }
+
+    async function copyTicketIds(ticketArray, type) {
+        if (ticketArray.length === 0) {
+            showExportToast(`No ${type} tickets to copy`);
+            return;
+        }
+
+        const ticketIds = ticketArray.map(ticket => ticket.id || ticket).join('\n');
+        const success = await RUMICSVUtils.copyToClipboard(ticketIds);
+
+        if (success) {
+            showExportToast(`Copied ${ticketArray.length} ${type} ticket IDs`);
+        } else {
+            showExportToast('Copy failed');
         }
     }
 
@@ -3960,6 +4952,7 @@ ${customerWordsLine}`;
         resultDiv.innerHTML = message;
     }
 
+
     // ============================================================================
     // FAST TICKET TESTING FOR CONCURRENT PROCESSING
     // ============================================================================
@@ -3979,7 +4972,40 @@ ${customerWordsLine}`;
 
             const ticket = ticketResponse.ticket;
 
-            // Get ticket comments
+            // First check for HALA provider tag (highest priority)
+            if (ticket.tags && ticket.tags.includes('ghc_provider_hala-rides')) {
+                let action = 'RTA Assignment - HALA provider tag detected';
+                let processed = false;
+
+                if (rumiEnhancement.isDryRun) {
+                    action = 'Would assign to RTA group';
+                } else {
+                    try {
+                        await assignHalaTicketToGroup(ticketId);
+                        action = 'Assigned to RTA group';
+                        processed = true;
+                    } catch (updateError) {
+                        action = `Failed to assign: ${updateError.message}`;
+                    }
+                }
+
+                return {
+                    matches: true,
+                    phrase: 'HALA provider tag: ghc_provider_hala-rides',
+                    previousStatus: ticket.status,
+                    currentStatus: 'rta',
+                    subject: ticket.subject,
+                    created_at: ticket.created_at,
+                    updated_at: ticket.updated_at,
+                    reason: 'HALA provider tag detected',
+                    processed: processed,
+                    action: action,
+                    isHalaPattern: true,
+                    assignee: '34980896869267'
+                };
+            }
+
+            // Get ticket comments for regular processing
             const comments = await RUMIZendeskAPI.getTicketComments(ticketId);
 
             if (!comments || comments.length === 0) {
@@ -3996,8 +5022,25 @@ ${customerWordsLine}`;
                 };
             }
 
-            // Analyze latest comment
-            const analysis = await RUMICommentAnalyzer.analyzeLatestComment(comments);
+            // First check for solved message patterns (higher priority)
+            const solvedAnalysis = await RUMISolvedAnalyzer.analyzeSolvedPattern(comments);
+            let analysis;
+
+            if (solvedAnalysis.matches) {
+                // Convert solved analysis to same format as pending analysis
+                analysis = {
+                    matches: true,
+                    phrase: solvedAnalysis.phrase || `SOLVED PATTERN: ${solvedAnalysis.reason}`,
+                    action: solvedAnalysis.action,
+                    assignee: solvedAnalysis.assignee,
+                    status: solvedAnalysis.status,
+                    isSolvedPattern: true
+                };
+            } else {
+                // Fall back to regular pending analysis
+                analysis = await RUMICommentAnalyzer.analyzeLatestComment(comments);
+                analysis.isSolvedPattern = false;
+            }
 
             let processed = false;
             let action = 'Analysis only';
@@ -4006,33 +5049,55 @@ ${customerWordsLine}`;
             // If analysis matches and we're not in dry run mode, actually process the ticket
             if (analysis.matches) {
                 if (rumiEnhancement.isDryRun) {
-                    action = ticket.status === 'pending' ? 'Would skip - Already pending' : 'Would update to pending';
+                    if (analysis.isSolvedPattern) {
+                        action = ticket.status === analysis.status ? `Would skip - Already ${analysis.status}` : `Would update to ${analysis.status}`;
+                    } else {
+                        action = ticket.status === 'pending' ? 'Would skip - Already pending' : 'Would update to pending';
+                    }
                 } else {
                     // Not in dry run mode - actually process the ticket
-                    if (ticket.status === 'pending') {
-                        action = 'Skipped - Already pending';
+                    if (analysis.isSolvedPattern) {
+                        // Handle solved pattern
+                        if (ticket.status === analysis.status) {
+                            action = `Skipped - Already ${analysis.status}`;
+                        } else {
+                            try {
+                                await RUMIZendeskAPI.updateTicketWithAssignee(ticketId, analysis.status, analysis.assignee, 'Manual Test');
+                                processed = true;
+                                newStatus = analysis.status;
+                                action = `Updated: ${ticket.status.toUpperCase()} → ${analysis.status.toUpperCase()}`;
+                            } catch (updateError) {
+                                action = `Failed to update: ${updateError.message}`;
+                                RUMILogger.error('FAST_TEST', `Failed to update ticket ${ticketId}`, updateError);
+                            }
+                        }
                     } else {
-                        try {
-                            await RUMIZendeskAPI.updateTicketStatus(ticketId, 'pending', 'Manual Test');
-                            processed = true;
-                            newStatus = 'pending';
-                            action = `Updated: ${ticket.status.toUpperCase()} → PENDING`;
+                        // Handle pending pattern
+                        if (ticket.status === 'pending') {
+                            action = 'Skipped - Already pending';
+                        } else {
+                            try {
+                                await RUMIZendeskAPI.updateTicketStatus(ticketId, 'pending', 'Manual Test');
+                                processed = true;
+                                newStatus = 'pending';
+                                action = `Updated: ${ticket.status.toUpperCase()} → PENDING`;
 
-                            // Add to processed history
-                            rumiEnhancement.processedHistory.push({
-                                ticketId: ticketId,
-                                timestamp: new Date().toISOString(),
-                                viewName: 'Manual Test',
-                                phrase: analysis.phrase,
-                                previousStatus: ticket.status,
-                                triggerReason: analysis.triggerReason || 'direct-match',
-                                triggerCommentId: analysis.comment?.id,
-                                latestCommentId: analysis.latestComment?.id
-                            });
+                                // Add to processed history
+                                rumiEnhancement.processedHistory.push({
+                                    ticketId: ticketId,
+                                    timestamp: new Date().toISOString(),
+                                    viewName: 'Manual Test',
+                                    phrase: analysis.phrase,
+                                    previousStatus: ticket.status,
+                                    triggerReason: analysis.triggerReason || 'direct-match',
+                                    triggerCommentId: analysis.comment?.id,
+                                    latestCommentId: analysis.latestComment?.id
+                                });
 
-                        } catch (updateError) {
-                            RUMILogger.error('FAST_TEST', `Failed to update ticket ${ticketId}`, updateError);
-                            action = `Update failed: ${updateError.message}`;
+                            } catch (updateError) {
+                                RUMILogger.error('FAST_TEST', `Failed to update ticket ${ticketId}`, updateError);
+                                action = `Update failed: ${updateError.message}`;
+                            }
                         }
                     }
                 }
@@ -4112,8 +5177,26 @@ ${customerWordsLine}`;
                 return;
             }
 
-            // Analyze latest comment
-            const analysis = await RUMICommentAnalyzer.analyzeLatestComment(comments);
+            // First check for solved message patterns (higher priority)
+            const solvedAnalysis = await RUMISolvedAnalyzer.analyzeSolvedPattern(comments);
+            let analysis;
+
+            if (solvedAnalysis.matches) {
+                // Convert solved analysis to same format as pending analysis for display
+                analysis = {
+                    matches: true,
+                    phrase: solvedAnalysis.phrase || `SOLVED PATTERN: ${solvedAnalysis.reason}`,
+                    action: solvedAnalysis.action,
+                    assignee: solvedAnalysis.assignee,
+                    status: solvedAnalysis.status,
+                    isSolvedPattern: true
+                };
+            } else {
+                // Fall back to regular pending analysis
+                analysis = await RUMICommentAnalyzer.analyzeLatestComment(comments);
+                analysis.isSolvedPattern = false;
+            }
+
             const latestComment = comments[0];
 
             let resultHTML = `
@@ -4143,7 +5226,7 @@ ${customerWordsLine}`;
 
             if (analysis.matches) {
                 const matchedPhrase = analysis.phrase;
-                const phraseIndex = rumiEnhancement.triggerPhrases.indexOf(matchedPhrase) + 1;
+                const phraseIndex = rumiEnhancement.pendingTriggerPhrases.indexOf(matchedPhrase) + 1;
                 const isEndUserReplyChain = analysis.triggerReason === 'end-user-reply-chain';
 
                 resultHTML += `
@@ -4261,7 +5344,7 @@ ${customerWordsLine}`;
                 resultHTML += `
                     <div style="background: rgba(255,170,0,0.2); padding: 15px; border-radius: 6px; border-left: 4px solid #ffaa00; margin: 15px 0;">
                         <strong style="color: #ffaa00;">❌ NO TRIGGER PHRASE MATCH</strong><br>
-                        The latest comment does not contain any of the ${rumiEnhancement.triggerPhrases.length} configured trigger phrases.
+                        The latest comment does not contain any of the ${rumiEnhancement.pendingTriggerPhrases.length} configured pending trigger phrases.
                     </div>
                 `;
 
@@ -4371,10 +5454,7 @@ ${customerWordsLine}`;
                 applyFieldVisibilityState();
             }, 100);
 
-            // Check for HALA provider tag after additional delay to ensure tags are loaded
-            setTimeout(() => {
-                checkForHalaProviderTag();
-            }, 1000);
+            // HALA provider tag checking integrated into ticket processing workflow
         }, 500);
     }
 
@@ -4852,10 +5932,7 @@ ${customerWordsLine}`;
                     applyFieldVisibilityState();
                 }, 100);
 
-                // Check for HALA provider tag after additional delay to ensure tags are loaded
-                setTimeout(() => {
-                    checkForHalaProviderTag();
-                }, 1000);
+                // HALA provider tag checking integrated into ticket processing workflow
             }, 1000);
         }
 
