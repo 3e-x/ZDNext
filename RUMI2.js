@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         RUMI - Zendesk
+// @name         RUMI - 28/09 4:19 AM working fully no care tickets
 // @namespace    http://tampermonkey.net/
 // @version      1.0
 // @description  RUMI button functionality for Zendesk workflows
@@ -2634,6 +2634,11 @@
                             categoryArray.push(ticketData);
                         }
 
+                        // Update automatic counters if this was automatic processing
+                        if (isAutomatic) {
+                            updateAutomaticTicketCounters();
+                        }
+
                         rumiEnhancement.processedTickets.add(ticketId);
 
                 // Auto-save processed tickets
@@ -2737,6 +2742,11 @@
                         } else {
                             categoryArray.push(ticketData);
                         }
+
+                        // Update automatic counters if this was automatic processing
+                        if (isAutomatic) {
+                            updateAutomaticTicketCounters();
+                        }
                     } else if (solvedAnalysis.assignee === '34980896869267') {
                         // RTA (Hala taxi rides) - assigned to specific user
                         const existingIndex = rumiEnhancement.rtaTickets.findIndex(t => t.id === ticketId);
@@ -2769,6 +2779,11 @@
                             categoryArray[categoryIndex] = ticketData;
                         } else {
                             categoryArray.push(ticketData);
+                        }
+
+                        // Update automatic counters if this was automatic processing
+                        if (isAutomatic) {
+                            updateAutomaticTicketCounters();
                         }
                     }
 
@@ -5086,7 +5101,7 @@ ${customerWordsLine}`;
                             <div class="rumi-tab-content">
                                 <div class="rumi-tab-panel active" id="rumi-auto-solved-tab">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <span style="font-size: 12px; color: #666;">Automatic Solved Tickets (${rumiEnhancement.automaticTickets.solved.length})</span>
+                                        <span id="auto-solved-counter" style="font-size: 12px; color: #666;">Automatic Solved Tickets (${rumiEnhancement.automaticTickets.solved.length})</span>
                                         <button id="copy-auto-solved-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
                                     </div>
                                     <div id="rumi-auto-solved-tickets" style="max-height: 400px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
@@ -5095,7 +5110,7 @@ ${customerWordsLine}`;
                                 </div>
                                 <div class="rumi-tab-panel" id="rumi-auto-pending-tab">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <span style="font-size: 12px; color: #666;">Automatic Pending Tickets (${rumiEnhancement.automaticTickets.pending.length})</span>
+                                        <span id="auto-pending-counter" style="font-size: 12px; color: #666;">Automatic Pending Tickets (${rumiEnhancement.automaticTickets.pending.length})</span>
                                         <button id="copy-auto-pending-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
                                     </div>
                                     <div id="rumi-auto-pending-tickets" style="max-height: 400px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
@@ -5104,7 +5119,7 @@ ${customerWordsLine}`;
                                 </div>
                                 <div class="rumi-tab-panel" id="rumi-auto-rta-tab">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                        <span style="font-size: 12px; color: #666;">Automatic RTA Tickets (${rumiEnhancement.automaticTickets.rta.length})</span>
+                                        <span id="auto-rta-counter" style="font-size: 12px; color: #666;">Automatic RTA Tickets (${rumiEnhancement.automaticTickets.rta.length})</span>
                                         <button id="copy-auto-rta-ids" class="rumi-enhancement-button" style="font-size: 11px; padding: 4px 8px;">COPY IDs</button>
                                     </div>
                                     <div id="rumi-auto-rta-tickets" style="max-height: 400px; overflow-y: auto; border: 1px solid #E0E0E0; padding: 12px; background: white; border-radius: 2px; font-size: 13px;">
@@ -5976,6 +5991,10 @@ ${customerWordsLine}`;
                 // Update processed tickets display if tickets were actually processed
                 if (actuallyProcessedCount > 0) {
                     updateProcessedTicketsDisplay();
+                    // Ensure manual ticket displays are updated
+                    updateManualTicketDisplays();
+                    // Save the processed tickets to storage
+                    RUMIStorage.saveProcessedTickets();
                 }
 
                 // Create comprehensive batch summary with performance metrics
@@ -6159,6 +6178,17 @@ ${customerWordsLine}`;
                             `;
                         });
                     });
+
+                    // Final comprehensive UI update to ensure manual metrics are displayed correctly
+                    if (actuallyProcessedCount > 0) {
+                        updateRUMIEnhancementUI();
+                        updateManualTicketDisplays();
+                        console.log('Manual tickets after processing:', {
+                            solved: rumiEnhancement.manualTickets.solved.length,
+                            pending: rumiEnhancement.manualTickets.pending.length,
+                            rta: rumiEnhancement.manualTickets.rta.length
+                        });
+                    }
                 }, 500);
 
             } catch (error) {
@@ -6511,6 +6541,9 @@ ${customerWordsLine}`;
         updateAutomaticTabContent('auto-pending', rumiEnhancement.automaticTickets.pending);
         updateAutomaticTabContent('auto-rta', rumiEnhancement.automaticTickets.rta);
 
+        // Update automatic ticket counters
+        updateAutomaticTicketCounters();
+
         // Update manual ticket displays
         updateManualTicketDisplays();
     }
@@ -6524,7 +6557,7 @@ ${customerWordsLine}`;
             return;
         }
 
-        const recentTickets = tickets.slice(-10).reverse();
+        const recentTickets = tickets.slice().reverse();
         displayArea.innerHTML = recentTickets.map(item => {
             const timestamp = new Date(item.timestamp).toLocaleTimeString();
             const date = new Date(item.timestamp).toLocaleDateString();
@@ -6577,7 +6610,7 @@ ${customerWordsLine}`;
             return;
         }
 
-        const recentTickets = tickets.slice(-10).reverse();
+        const recentTickets = tickets.slice().reverse();
         displayArea.innerHTML = recentTickets.map(item => {
             const timestamp = new Date(item.timestamp).toLocaleTimeString();
             const date = new Date(item.timestamp).toLocaleDateString();
@@ -6629,6 +6662,23 @@ ${customerWordsLine}`;
         updateManualTabContent('rta', rumiEnhancement.manualTickets.rta);
     }
 
+    function updateAutomaticTicketCounters() {
+        // Update automatic ticket counters in tab headers
+        const autoSolvedCounter = document.getElementById('auto-solved-counter');
+        const autoPendingCounter = document.getElementById('auto-pending-counter');
+        const autoRtaCounter = document.getElementById('auto-rta-counter');
+
+        if (autoSolvedCounter) {
+            autoSolvedCounter.textContent = `Automatic Solved Tickets (${rumiEnhancement.automaticTickets.solved.length})`;
+        }
+        if (autoPendingCounter) {
+            autoPendingCounter.textContent = `Automatic Pending Tickets (${rumiEnhancement.automaticTickets.pending.length})`;
+        }
+        if (autoRtaCounter) {
+            autoRtaCounter.textContent = `Automatic RTA Tickets (${rumiEnhancement.automaticTickets.rta.length})`;
+        }
+    }
+
     function updateManualTabContent(tabType, tickets) {
         const displayArea = document.getElementById(`rumi-manual-${tabType}-tickets`);
         if (!displayArea) return;
@@ -6638,7 +6688,7 @@ ${customerWordsLine}`;
             return;
         }
 
-        const recentTickets = tickets.slice(-10).reverse();
+        const recentTickets = tickets.slice().reverse();
         displayArea.innerHTML = recentTickets.map(item => {
             const timestamp = new Date(item.timestamp).toLocaleTimeString();
             const date = new Date(item.timestamp).toLocaleDateString();
@@ -6962,6 +7012,43 @@ ${customerWordsLine}`;
                                 processed = true;
                                 newStatus = analysis.status;
                                 action = `Updated: ${ticket.status.toUpperCase()} → ${analysis.status.toUpperCase()}`;
+
+                                // Add to manual ticket arrays for proper categorization
+                                const ticketData = {
+                                    id: ticketId,
+                                    ticketId: ticketId,
+                                    timestamp: new Date().toISOString(),
+                                    viewName: 'Manual Test',
+                                    phrase: analysis.phrase,
+                                    previousStatus: ticket.status,
+                                    status: analysis.status,
+                                    triggerReason: analysis.triggerReason || 'direct-match',
+                                    triggerCommentId: analysis.comment?.id,
+                                    latestCommentId: analysis.latestComment?.id
+                                };
+
+                                if (analysis.status === 'solved') {
+                                    // Add to manual solved tickets
+                                    const existingIndex = rumiEnhancement.manualTickets.solved.findIndex(t => t.id === ticketId);
+                                    if (existingIndex !== -1) {
+                                        rumiEnhancement.manualTickets.solved[existingIndex] = ticketData;
+                                    } else {
+                                        rumiEnhancement.manualTickets.solved.push(ticketData);
+                                    }
+                                } else if (analysis.assignee === '34980896869267') {
+                                    // Add to manual RTA tickets
+                                    const existingIndex = rumiEnhancement.manualTickets.rta.findIndex(t => t.id === ticketId);
+                                    if (existingIndex !== -1) {
+                                        rumiEnhancement.manualTickets.rta[existingIndex] = ticketData;
+                                    } else {
+                                        rumiEnhancement.manualTickets.rta.push(ticketData);
+                                    }
+                                }
+
+                                // Immediately update UI to reflect the new ticket
+                                updateRUMIEnhancementUI();
+                                updateManualTicketDisplays();
+
                             } catch (updateError) {
                                 action = `Failed to update: ${updateError.message}`;
                                 RUMILogger.error('FAST_TEST', `Failed to update ticket ${ticketId}`, updateError);
@@ -6979,16 +7066,32 @@ ${customerWordsLine}`;
                                 action = `Updated: ${ticket.status.toUpperCase()} → PENDING`;
 
                                 // Add to processed history
-                                rumiEnhancement.processedHistory.push({
+                                const ticketData = {
                                     ticketId: ticketId,
+                                    id: ticketId,
                                     timestamp: new Date().toISOString(),
                                     viewName: 'Manual Test',
                                     phrase: analysis.phrase,
                                     previousStatus: ticket.status,
+                                    status: 'pending',
                                     triggerReason: analysis.triggerReason || 'direct-match',
                                     triggerCommentId: analysis.comment?.id,
                                     latestCommentId: analysis.latestComment?.id
-                                });
+                                };
+
+                                rumiEnhancement.processedHistory.push(ticketData);
+
+                                // Add to manual pending tickets
+                                const existingIndex = rumiEnhancement.manualTickets.pending.findIndex(t => t.id === ticketId);
+                                if (existingIndex !== -1) {
+                                    rumiEnhancement.manualTickets.pending[existingIndex] = ticketData;
+                                } else {
+                                    rumiEnhancement.manualTickets.pending.push(ticketData);
+                                }
+
+                                // Immediately update UI to reflect the new ticket
+                                updateRUMIEnhancementUI();
+                                updateManualTicketDisplays();
 
                             } catch (updateError) {
                                 RUMILogger.error('FAST_TEST', `Failed to update ticket ${ticketId}`, updateError);
