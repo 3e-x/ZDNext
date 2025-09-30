@@ -18,7 +18,9 @@
         TARGET_STATUS: 'open',
         REQUIRED_STATUS: 'new',
         SUBJECT_KEYWORD: 'no activity details available',
-        CHECK_INTERVAL: 60000,
+        CHECK_INTERVAL: 60000, // Default: 60 seconds
+        MIN_INTERVAL: 10000, // Minimum: 10 seconds
+        MAX_INTERVAL: 600000, // Maximum: 10 minutes
         MAX_RETRIES: 3,
         CIRCUIT_BREAKER_THRESHOLD: 5,
         DRY_RUN: false
@@ -36,6 +38,7 @@
         consecutiveErrors: 0,
         apiCallCount: 0,
         monitorInterval: null,
+        checkInterval: CONFIG.CHECK_INTERVAL,
         logs: [],
         maxLogs: 200
     };
@@ -96,6 +99,13 @@
         },
         loadSelectedViews() {
             state.selectedViews = new Set(this.load('selectedViews', []));
+        },
+        saveCheckInterval() {
+            this.save('checkInterval', state.checkInterval);
+        },
+        loadCheckInterval() {
+            const saved = this.load('checkInterval', CONFIG.CHECK_INTERVAL);
+            state.checkInterval = Math.max(CONFIG.MIN_INTERVAL, Math.min(CONFIG.MAX_INTERVAL, saved));
         },
         clearOldData(days = 7) {
             const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
@@ -326,13 +336,23 @@
             state.monitoringStartTime = new Date();
             try {
                 await this.establishBaseline();
-                state.monitorInterval = setInterval(() => this.checkViews(), CONFIG.CHECK_INTERVAL);
-                Logger.info('MONITOR', `Started with ${CONFIG.CHECK_INTERVAL}ms interval`);
+                state.monitorInterval = setInterval(() => this.checkViews(), state.checkInterval);
+                Logger.info('MONITOR', `Started with ${state.checkInterval}ms interval`);
             } catch (error) {
                 Logger.error('MONITOR', 'Failed to start', null, error);
                 state.isMonitoring = false;
             }
             updateUI();
+        },
+        async restart() {
+            if (!state.isMonitoring) return;
+            Logger.info('MONITOR', 'Restarting with new interval');
+            if (state.monitorInterval) {
+                clearInterval(state.monitorInterval);
+                state.monitorInterval = null;
+            }
+            state.monitorInterval = setInterval(() => this.checkViews(), state.checkInterval);
+            Logger.info('MONITOR', `Restarted with ${state.checkInterval}ms interval`);
         },
         stop() {
             if (!state.isMonitoring) return;
@@ -356,7 +376,8 @@
             lastCheck: document.getElementById('lastCheck'),
             status: document.getElementById('monitoringStatus'),
             startBtn: document.getElementById('startMonitoring'),
-            stopBtn: document.getElementById('stopMonitoring')
+            stopBtn: document.getElementById('stopMonitoring'),
+            intervalInput: document.getElementById('checkInterval')
         };
         
         if (els.processed) els.processed.textContent = state.totalProcessed;
@@ -382,6 +403,10 @@
         if (els.stopBtn) {
             els.stopBtn.disabled = !state.isMonitoring;
             els.stopBtn.style.opacity = state.isMonitoring ? '1' : '0.5';
+        }
+        
+        if (els.intervalInput && els.intervalInput.value !== String(state.checkInterval / 1000)) {
+            els.intervalInput.value = state.checkInterval / 1000;
         }
         
         updateProcessedList();
@@ -584,11 +609,18 @@
                 </div>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <h3 style="margin: 0 0 10px 0; font-size: 16px;">Controls</h3>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
                         <button id="startMonitoring" style="flex: 1; padding: 10px 20px; background: #2ecc71; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">▶ Start</button>
                         <button id="stopMonitoring" style="flex: 1; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;" disabled>⏹ Stop</button>
                         <button id="testTicket" style="flex: 1; padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🧪 Test</button>
                         <button id="clearData" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🗑 Clear</button>
+                    </div>
+                    <div style="background: white; padding: 12px; border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                        <label for="checkInterval" style="font-weight: bold; color: #333;">Check Interval:</label>
+                        <input type="number" id="checkInterval" min="10" max="600" step="5" style="padding: 8px; border: 2px solid #ddd; border-radius: 4px; width: 100px; font-size: 14px;">
+                        <span style="color: #666;">seconds</span>
+                        <button id="applyInterval" style="padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: auto;">Apply</button>
+                        <span id="intervalStatus" style="color: #666; font-size: 12px;"></span>
                     </div>
                 </div>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -648,6 +680,34 @@
             }
         });
         document.getElementById('loadViews').addEventListener('click', loadViewsList);
+        document.getElementById('applyInterval').addEventListener('click', () => {
+            const input = document.getElementById('checkInterval');
+            const seconds = parseInt(input.value);
+            const ms = seconds * 1000;
+            
+            if (ms < CONFIG.MIN_INTERVAL || ms > CONFIG.MAX_INTERVAL) {
+                const statusEl = document.getElementById('intervalStatus');
+                statusEl.textContent = `Must be between ${CONFIG.MIN_INTERVAL / 1000}-${CONFIG.MAX_INTERVAL / 1000}s`;
+                statusEl.style.color = '#e74c3c';
+                setTimeout(() => { statusEl.textContent = ''; }, 3000);
+                return;
+            }
+            
+            state.checkInterval = ms;
+            Storage.saveCheckInterval();
+            
+            const statusEl = document.getElementById('intervalStatus');
+            statusEl.textContent = '✓ Saved!';
+            statusEl.style.color = '#2ecc71';
+            setTimeout(() => { statusEl.textContent = ''; }, 2000);
+            
+            Logger.info('CONFIG', `Check interval updated to ${seconds}s`);
+            
+            // Restart monitoring if active
+            if (state.isMonitoring) {
+                Monitor.restart();
+            }
+        });
     }
 
     // INIT
@@ -655,6 +715,7 @@
         Logger.info('INIT', 'No Activity Handler initializing...');
         Storage.loadProcessedTickets();
         Storage.loadSelectedViews();
+        Storage.loadCheckInterval();
         Storage.clearOldData(7);
         
         // Try to create UI with retries (Zendesk icon may not be immediately available)
