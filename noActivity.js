@@ -23,6 +23,8 @@
         MAX_INTERVAL: 600000, // Maximum: 10 minutes
         MAX_RETRIES: 3,
         CIRCUIT_BREAKER_THRESHOLD: 5,
+        BATCH_CONCURRENCY: 3, // Process up to 3 tickets concurrently
+        BATCH_DELAY: 500, // Delay between batch processing (ms)
         DRY_RUN: false
     };
 
@@ -35,6 +37,8 @@
         monitoringStartTime: null,
         totalProcessed: 0,
         totalSkipped: 0,
+        totalFailed: 0,
+        largestBatch: 0,
         consecutiveErrors: 0,
         apiCallCount: 0,
         monitorInterval: null,
@@ -219,6 +223,56 @@
             }
             return { process: true };
         },
+        async processBatch(tickets, viewName = null) {
+            if (tickets.length === 0) return { processed: 0, skipped: 0, failed: 0 };
+            
+            Logger.info('PROCESS', `Processing batch of ${tickets.length} ticket(s)`, null);
+            
+            // Track largest batch
+            if (tickets.length > state.largestBatch) {
+                state.largestBatch = tickets.length;
+            }
+            
+            const results = { processed: 0, skipped: 0, failed: 0 };
+            const chunks = [];
+            
+            // Split tickets into chunks based on concurrency limit
+            for (let i = 0; i < tickets.length; i += CONFIG.BATCH_CONCURRENCY) {
+                chunks.push(tickets.slice(i, i + CONFIG.BATCH_CONCURRENCY));
+            }
+            
+            Logger.debug('PROCESS', `Split into ${chunks.length} chunk(s) (${CONFIG.BATCH_CONCURRENCY} tickets per chunk)`);
+            
+            // Process each chunk with controlled concurrency
+            for (const chunk of chunks) {
+                const chunkResults = await Promise.allSettled(
+                    chunk.map(ticket => this.processTicket(ticket, viewName))
+                );
+                
+                chunkResults.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        if (result.value === true) {
+                            results.processed++;
+                        } else if (result.value === false) {
+                            results.skipped++;
+                        }
+                    } else {
+                        results.failed++;
+                        state.totalFailed++;
+                        Logger.error('PROCESS', `Batch processing failed for ticket`, chunk[index].id, result.reason);
+                    }
+                });
+                
+                // Small delay between chunks to avoid overwhelming the API
+                if (chunks.indexOf(chunk) < chunks.length - 1) {
+                    await new Promise(r => setTimeout(r, CONFIG.BATCH_DELAY));
+                }
+            }
+            
+            Logger.info('PROCESS', `Batch complete - Processed: ${results.processed}, Skipped: ${results.skipped}, Failed: ${results.failed}`);
+            updateUI();
+            return results;
+        },
         async processTicket(ticket, viewName = null) {
             const ticketId = ticket.id;
             Logger.info('PROCESS', `Evaluating ticket ${ticketId}`, ticketId);
@@ -307,20 +361,33 @@
             updateUI();
         },
         async checkSingleView(viewId) {
-            const tickets = await Zendesk.getViewTickets(viewId);
-            const currentIds = new Set(tickets.map(t => t.id));
-            const baselineIds = state.baselineTickets.get(viewId) || new Set();
-            const newTickets = tickets.filter(t => !baselineIds.has(t.id));
-            if (newTickets.length > 0) {
-                Logger.info('MONITOR', `Found ${newTickets.length} new tickets in view ${viewId}`);
-                for (const ticket of newTickets) {
-                    if (!state.processedTickets.has(ticket.id)) {
-                        await Processor.processTicket(ticket, `View ${viewId}`);
-                        await new Promise(r => setTimeout(r, 1000));
+            try {
+                const tickets = await Zendesk.getViewTickets(viewId);
+                const currentIds = new Set(tickets.map(t => t.id));
+                const baselineIds = state.baselineTickets.get(viewId) || new Set();
+                const newTickets = tickets.filter(t => !baselineIds.has(t.id));
+                
+                // Always update baseline, even if processing fails
+                state.baselineTickets.set(viewId, currentIds);
+                
+                if (newTickets.length > 0) {
+                    Logger.info('MONITOR', `Found ${newTickets.length} new ticket(s) in view ${viewId}`);
+                    
+                    // Filter out already processed tickets
+                    const ticketsToProcess = newTickets.filter(t => !state.processedTickets.has(t.id));
+                    
+                    if (ticketsToProcess.length > 0) {
+                        Logger.info('MONITOR', `${ticketsToProcess.length} ticket(s) need processing`);
+                        // Use batch processing to handle multiple tickets efficiently
+                        await Processor.processBatch(ticketsToProcess, `View ${viewId}`);
+                    } else {
+                        Logger.debug('MONITOR', `All ${newTickets.length} new ticket(s) already processed`);
                     }
                 }
+            } catch (error) {
+                Logger.error('MONITOR', `Failed to check view ${viewId}`, null, error);
+                throw error; // Re-throw to be caught by Promise.allSettled in checkViews
             }
-            state.baselineTickets.set(viewId, currentIds);
         },
         async start() {
             if (state.isMonitoring) {
@@ -371,8 +438,10 @@
         const els = {
             processed: document.getElementById('totalProcessed'),
             skipped: document.getElementById('totalSkipped'),
+            failed: document.getElementById('totalFailed'),
             apiCalls: document.getElementById('apiCalls'),
             errorCount: document.getElementById('errorCount'),
+            largestBatch: document.getElementById('largestBatch'),
             lastCheck: document.getElementById('lastCheck'),
             status: document.getElementById('monitoringStatus'),
             startBtn: document.getElementById('startMonitoring'),
@@ -382,8 +451,10 @@
         
         if (els.processed) els.processed.textContent = state.totalProcessed;
         if (els.skipped) els.skipped.textContent = state.totalSkipped;
+        if (els.failed) els.failed.textContent = state.totalFailed;
         if (els.apiCalls) els.apiCalls.textContent = state.apiCallCount;
         if (els.errorCount) els.errorCount.textContent = state.consecutiveErrors;
+        if (els.largestBatch) els.largestBatch.textContent = state.largestBatch;
         
         if (els.lastCheck && state.lastCheckTime) {
             const seconds = Math.floor((Date.now() - state.lastCheckTime.getTime()) / 1000);
@@ -584,7 +655,7 @@
             <div style="padding: 20px; overflow-y: auto; flex: 1;">
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <h3 style="margin: 0 0 10px 0; font-size: 16px;">Status</h3>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
                         <div style="background: white; padding: 10px; border-radius: 6px; text-align: center;">
                             <div id="totalProcessed" style="font-size: 24px; font-weight: bold; color: #2ecc71;">0</div>
                             <div style="font-size: 12px; color: #666;">Processed</div>
@@ -594,12 +665,22 @@
                             <div style="font-size: 12px; color: #666;">Skipped</div>
                         </div>
                         <div style="background: white; padding: 10px; border-radius: 6px; text-align: center;">
+                            <div id="totalFailed" style="font-size: 24px; font-weight: bold; color: #e74c3c;">0</div>
+                            <div style="font-size: 12px; color: #666;">Failed</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                        <div style="background: white; padding: 10px; border-radius: 6px; text-align: center;">
                             <div id="apiCalls" style="font-size: 24px; font-weight: bold; color: #3498db;">0</div>
                             <div style="font-size: 12px; color: #666;">API Calls</div>
                         </div>
                         <div style="background: white; padding: 10px; border-radius: 6px; text-align: center;">
                             <div id="errorCount" style="font-size: 24px; font-weight: bold; color: #e74c3c;">0</div>
                             <div style="font-size: 12px; color: #666;">Errors</div>
+                        </div>
+                        <div style="background: white; padding: 10px; border-radius: 6px; text-align: center;">
+                            <div id="largestBatch" style="font-size: 24px; font-weight: bold; color: #9b59b6;">0</div>
+                            <div style="font-size: 12px; color: #666;">Largest Batch</div>
                         </div>
                     </div>
                     <div style="margin-top: 10px; font-size: 12px; color: #666;">
