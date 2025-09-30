@@ -503,29 +503,94 @@
         'SSOC incident source'
     ];
 
+    // Check if a field is a system field that should never be hidden (Requester, Assignee, CCs)
+    function isSystemField(field) {
+        if (!field || !field.querySelector) return false;
+        
+        const label = field.querySelector('label');
+        if (!label) return false;
+        
+        const labelText = label.textContent.trim().toLowerCase();
+        const systemFieldLabels = [
+            'assignee',
+            'ccs',
+            'cc',
+            'collaborators',
+            'followers'
+        ];
+        
+        // Check if this is a system field by label text
+        if (systemFieldLabels.some(sysLabel => labelText.includes(sysLabel))) {
+            return true;
+        }
+        
+        // Special handling for "Requester" - only the main requester field, not device/IP fields
+        if (labelText === 'requester') {
+            return true;
+        }
+        
+        // Check by data-test-id patterns for system fields (be specific to avoid catching device/IP fields)
+        const testIds = [
+            'ticket-system-field-requester-label',  // More specific to avoid device/IP fields
+            'ticket-system-field-requester-select', // More specific to avoid device/IP fields
+            'assignee-field',
+            'ticket-fields-collaborators'
+        ];
+        
+        if (testIds.some(testId => field.querySelector(`[data-test-id*="${testId}"]`) || field.getAttribute('data-test-id') === testId)) {
+            return true;
+        }
+        
+        // Also check if the field itself has the requester system field test-id
+        const fieldTestId = field.getAttribute('data-test-id') || '';
+        if (fieldTestId === 'ticket-system-field-requester-label' || 
+            fieldTestId === 'ticket-system-field-requester-select') {
+            return true;
+        }
+        
+        return false;
+    }
+
     function isTargetField(field) {
         const label = field.querySelector('label');
         if (!label) return false;
 
-        let targetLabels = [];
-        
         if (fieldVisibilityState === 'all') {
             // In 'all' state, no fields are considered target fields (all visible)
             return false;
-        } else if (fieldVisibilityState === 'standard') {
+        }
+        
+        let targetLabels = [];
+        if (fieldVisibilityState === 'standard') {
             targetLabels = standardFields;
         } else if (fieldVisibilityState === 'minimal') {
             targetLabels = minimalFields;
         }
-
-        return targetLabels.some(targetText =>
-            label.textContent.trim() === targetText
-        );
+        
+        // Enhanced matching for different label structures
+        const labelText = label.textContent.trim();
+        const isMinimalField = targetLabels.some(targetText => {
+            // Exact match
+            if (labelText === targetText) return true;
+            
+            // Handle labels with asterisks or other suffixes
+            if (labelText.replace(/\*$/, '').trim() === targetText) return true;
+            
+            // Handle labels without asterisks when target has them
+            if (targetText.endsWith('*') && labelText === targetText.slice(0, -1).trim()) return true;
+            
+            // Case insensitive match as fallback
+            if (labelText.toLowerCase() === targetText.toLowerCase()) return true;
+            
+            return false;
+        });
+        
+        return isMinimalField;
     }
 
 
     function clearUserIdField(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         Array.from(fields).forEach(field => {
             const label = field.querySelector('label');
             if (label && label.textContent.trim() === 'User ID') {
@@ -565,7 +630,7 @@
 
 
     function copyBookingIdToRouteId(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let bookingIdValue = '';
 
         Array.from(fields).forEach(field => {
@@ -692,7 +757,7 @@
 
 
     function getSelectedCity(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let selectedCity = '';
 
         Array.from(fields).forEach(field => {
@@ -998,7 +1063,8 @@
 
                     // Quick verification
                     const displayValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim();
+                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
                     trigger.dataset.isProcessing = 'false';
                     return displayValue === valueText;
@@ -1018,7 +1084,7 @@
     // Async version for sequential processing
     async function setCountryBasedOnCityAsync(container, country) {
         try {
-            const fields = container.children;
+            const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             const promises = [];
 
             Array.from(fields).forEach(field => {
@@ -1071,7 +1137,7 @@
             return;
         }
 
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         Array.from(fields).forEach(field => {
             const label = field.querySelector('label');
             if (label && label.textContent.trim() === 'Country') {
@@ -1217,7 +1283,25 @@
     function toggleAllFields() {
         // Use debouncing to prevent rapid successive calls
         debounce(() => {
-            const allForms = getCachedElements('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', 2000);
+            let allForms = getCachedElements('section.grid-ticket-fields-panel', 2000);
+            
+            // If no forms found with the primary selector, try fallback selectors
+            if (allForms.length === 0) {
+                const formSelectors = [
+                    'section[class*="ticket-fields"]',
+                    '[data-test-id*="TicketFieldsPane"]',
+                    'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                    '.ticket_fields'
+                ];
+                
+                for (const selector of formSelectors) {
+                    allForms = document.querySelectorAll(selector);
+                    if (allForms.length > 0) {
+                        console.log(`📋 Found forms using fallback selector: ${selector}`);
+                        break;
+                    }
+                }
+            }
 
             if (allForms.length === 0) {
                 return;
@@ -1235,11 +1319,37 @@
             // Use requestAnimationFrame for better performance
             requestAnimationFrame(() => {
                 allForms.forEach(form => {
-                    if (!form || !form.children || !form.isConnected) return;
+                    if (!form || !form.isConnected) return;
 
-                    const fields = Array.from(form.children).filter(field =>
-                        field.nodeType === Node.ELEMENT_NODE && field.isConnected
-                    );
+                    // Enhanced field detection to handle both old and new structures
+                    // Start with a broad search and then filter out system fields
+                    const allPossibleFields = Array.from(form.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
+                    
+                    const fields = [];
+                    allPossibleFields.forEach(field => {
+                        try {
+                            // Must have a label and be connected
+                            if (field.nodeType !== Node.ELEMENT_NODE || 
+                                !field.isConnected || 
+                                !field.querySelector('label')) {
+                                return;
+                            }
+                            
+                            // Skip system fields (Requester, Assignee, CCs)
+                            if (isSystemField(field)) {
+                                return;
+                            }
+                            
+                            // Skip duplicates
+                            if (fields.includes(field)) {
+                                return;
+                            }
+                            
+                            fields.push(field);
+                        } catch (e) {
+                            console.debug('Error processing field:', field, e);
+                        }
+                    });
 
                     // Batch DOM operations
                     const fieldsToHide = [];
@@ -1351,7 +1461,7 @@
 
 
     async function setReasonToNA(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         const promises = [];
         let fieldFound = false;
 
@@ -1388,7 +1498,7 @@
     }
 
     async function setEscalationCallToNo(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         const promises = [];
         let fieldFound = false;
 
@@ -1426,7 +1536,7 @@
     }
 
     async function setInsuranceRequiredToNo(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         const promises = [];
         let fieldFound = false;
 
@@ -1526,7 +1636,7 @@
         console.log(`🎯 Target Parent Ticket Source: ${targetValue}`);
 
         // Find the Parent Ticket Source field in the current container
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let parentTicketSourceField = null;
 
         Array.from(fields).forEach(field => {
@@ -1569,18 +1679,31 @@
         debounce(() => {
             if (observerDisconnected) return;
 
-            const allForms = getCachedElements('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', 1000);
+            let allForms = getCachedElements('section.grid-ticket-fields-panel', 1000);
+            
+            // If no forms found with the primary selector, try fallback selectors
+            if (allForms.length === 0) {
+                const formSelectors = [
+                    'section[class*="ticket-fields"]',
+                    '[data-test-id*="TicketFieldsPane"]',
+                    'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                    '.ticket_fields'
+                ];
+                
+                for (const selector of formSelectors) {
+                    allForms = document.querySelectorAll(selector);
+                    if (allForms.length > 0) {
+                        console.log(`📋 Found forms using fallback selector: ${selector}`);
+                        break;
+                    }
+                }
+            }
+            
             console.log(`📋 Found ${allForms.length} forms to process`);
-
-            // Debug: Also try alternative selectors
-            const altForms1 = document.querySelectorAll('div[data-test-id="ticket-fields"]');
-            const altForms2 = document.querySelectorAll('div[data-tracking-id="ticket-fields"]');
             const allTicketDivs = document.querySelectorAll('div[data-test-id*="ticket"]');
 
             console.log(`🔍 Debug form detection:`, {
-                exactSelector: allForms.length,
-                testIdOnly: altForms1.length,
-                trackingIdOnly: altForms2.length,
+                formsFound: allForms.length,
                 anyTicketDivs: allTicketDivs.length
             });
 
@@ -1658,7 +1781,7 @@
 
             let countrySuccess = true;
             if (desiredCountry) {
-                const countryField = Array.from(form.children).find(field => {
+                const countryField = Array.from(form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)')).find(field => {
                     const label = field.querySelector('label');
                     return label && label.textContent.trim() === 'Country';
                 });
@@ -1741,7 +1864,7 @@
     }
 
     function addCopyButtonToSSOCReason(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         Array.from(fields).forEach(field => {
 
             const label = field.querySelector('label[data-garden-id="forms.input_label"]') ||
@@ -1769,7 +1892,7 @@
     }
 
     function initFormManager(container) {
-        if (!container || !container.children || observerDisconnected) {
+        if (!container || observerDisconnected) {
             return;
         }
 
@@ -1779,9 +1902,35 @@
                 return;
             }
 
-            const fields = Array.from(container.children).filter(field =>
-                field.nodeType === Node.ELEMENT_NODE && field.isConnected
-            );
+            // Enhanced field detection to handle both old and new structures
+            // Start with a broad search and then filter out system fields
+            const allPossibleFields = Array.from(container.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
+            
+            const fields = [];
+            allPossibleFields.forEach(field => {
+                try {
+                    // Must have a label and be connected
+                    if (field.nodeType !== Node.ELEMENT_NODE || 
+                        !field.isConnected || 
+                        !field.querySelector('label')) {
+                        return;
+                    }
+                    
+                    // Skip system fields (Requester, Assignee, CCs)
+                    if (isSystemField(field)) {
+                        return;
+                    }
+                    
+                    // Skip duplicates
+                    if (fields.includes(field)) {
+                        return;
+                    }
+                    
+                    fields.push(field);
+                } catch (e) {
+                    console.debug('Error processing field:', field, e);
+                }
+            });
 
             if (fields.length === 0) {
                 return;
@@ -1823,9 +1972,25 @@
     }
 
     function setCaptainId(captainId) {
-        const allForms = document.querySelectorAll('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]');
+        let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
+        
+        // If no forms found with the primary selector, try fallback selectors
+        if (allForms.length === 0) {
+            const formSelectors = [
+                'section[class*="ticket-fields"]',
+                '[data-test-id*="TicketFieldsPane"]',
+                'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                '.ticket_fields'
+            ];
+            
+            for (const selector of formSelectors) {
+                allForms = document.querySelectorAll(selector);
+                if (allForms.length > 0) break;
+            }
+        }
+        
         allForms.forEach(form => {
-            const fields = form.children;
+            const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             Array.from(fields).forEach(field => {
                 const label = field.querySelector('label');
                 if (label && label.textContent.trim() === 'Captain ID') {
@@ -1889,11 +2054,27 @@
 
             // Verify the value was set correctly after a short delay
             setTimeout(() => {
-                const allForms = document.querySelectorAll('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]');
+                let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
+                
+                // If no forms found with the primary selector, try fallback selectors
+                if (allForms.length === 0) {
+                    const formSelectors = [
+                        'section[class*="ticket-fields"]',
+                        '[data-test-id*="TicketFieldsPane"]',
+                        'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                        '.ticket_fields'
+                    ];
+                    
+                    for (const selector of formSelectors) {
+                        allForms = document.querySelectorAll(selector);
+                        if (allForms.length > 0) break;
+                    }
+                }
+                
                 let valueSet = false;
 
                 allForms.forEach(form => {
-                    const fields = form.children;
+                    const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
                     Array.from(fields).forEach(field => {
                         const label = field.querySelector('label');
                         if (label && label.textContent.trim() === 'Captain ID') {
@@ -4329,10 +4510,10 @@ ${blockHistoryText}
     
     // Set SSOC Reason to "Escalated to Uber"
     async function setSSOCReasonToEscalated(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let fieldFound = false;
 
-        for (const field of Array.from(fields)) {
+        for (const field of fields) {
             const label = field.querySelector('label');
             if (label && label.textContent.trim() === 'SSOC Reason') {
                 if (fieldFound) {
@@ -4340,6 +4521,16 @@ ${blockHistoryText}
                     continue;
                 }
                 fieldFound = true;
+
+                // Check if field is already set to the target value
+                const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
+                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+
+                if (currentValue === 'Escalated to Uber') {
+                    console.log(`✅ SSOC Reason already set to target value: "${currentValue}", skipping`);
+                    return true;
+                }
 
                 try {
                     console.log('📝 Setting SSOC Reason to "Escalated to Uber"...');
@@ -4359,10 +4550,10 @@ ${blockHistoryText}
 
     // Set Action Taken - Consumer to "Resolved - Escalated to Uber"
     async function setActionTakenConsumer(container) {
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let fieldFound = false;
 
-        for (const field of Array.from(fields)) {
+        for (const field of fields) {
             const label = field.querySelector('label');
             if (label && label.textContent.trim() === 'Action Taken - Consumer') {
                 if (fieldFound) {
@@ -4370,6 +4561,16 @@ ${blockHistoryText}
                     continue;
                 }
                 fieldFound = true;
+
+                // Check if field is already set to the target value
+                const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
+                    field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                    field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+
+                if (currentValue === 'Resolved - Escalated to Uber') {
+                    console.log(`✅ Action Taken - Consumer already set to target value: "${currentValue}", skipping`);
+                    return true;
+                }
 
                 try {
                     console.log('📝 Setting Action Taken - Consumer to "Resolved - Escalated to Uber"...');
@@ -4537,10 +4738,10 @@ ${blockHistoryText}
         console.log(`🎯 Target SSOC incident source: ${targetValue}`);
 
         // Find the SSOC incident source field in the current container
-        const fields = container.children;
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let ssocIncidentSourceField = null;
 
-        for (const field of Array.from(fields)) {
+        for (const field of fields) {
             const label = field.querySelector('label');
             if (label && label.textContent.trim() === 'SSOC incident source') {
                 ssocIncidentSourceField = field;
@@ -4613,10 +4814,25 @@ ${blockHistoryText}
 
     // Extract current Reason field value
     function getCurrentReasonValue() {
-        const allForms = document.querySelectorAll('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]');
+        let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
+        
+        // If no forms found with the primary selector, try fallback selectors
+        if (allForms.length === 0) {
+            const formSelectors = [
+                'section[class*="ticket-fields"]',
+                '[data-test-id*="TicketFieldsPane"]',
+                'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                '.ticket_fields'
+            ];
+            
+            for (const selector of formSelectors) {
+                allForms = document.querySelectorAll(selector);
+                if (allForms.length > 0) break;
+            }
+        }
         
         for (const form of allForms) {
-            const fields = Array.from(form.children);
+            const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             for (const field of fields) {
                 const label = field.querySelector('label');
                 if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' ||label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
@@ -4632,10 +4848,25 @@ ${blockHistoryText}
 
     // Extract current SSOC incident source value
     function getCurrentSSOCIncidentSource() {
-        const allForms = document.querySelectorAll('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]');
+        let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
+        
+        // If no forms found with the primary selector, try fallback selectors
+        if (allForms.length === 0) {
+            const formSelectors = [
+                'section[class*="ticket-fields"]',
+                '[data-test-id*="TicketFieldsPane"]',
+                'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                '.ticket_fields'
+            ];
+            
+            for (const selector of formSelectors) {
+                allForms = document.querySelectorAll(selector);
+                if (allForms.length > 0) break;
+            }
+        }
         
         for (const form of allForms) {
-            const fields = Array.from(form.children);
+            const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             for (const field of fields) {
                 const label = field.querySelector('label');
                 if (label && label.textContent.trim() === 'SSOC incident source') {
@@ -4863,7 +5094,26 @@ ${customerWordsLine}`;
         console.log(`🌍 Customer Language: "${customerLanguage}"`);
         
         // First, perform autofill operations
-        const allForms = getCachedElements('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', 1000);
+        let allForms = getCachedElements('section.grid-ticket-fields-panel', 1000);
+        
+        // If no forms found with the primary selector, try fallback selectors
+        if (allForms.length === 0) {
+            const formSelectors = [
+                'section[class*="ticket-fields"]',
+                '[data-test-id*="TicketFieldsPane"]',
+                'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                '.ticket_fields'
+            ];
+            
+            for (const selector of formSelectors) {
+                allForms = document.querySelectorAll(selector);
+                if (allForms.length > 0) {
+                    console.log(`📋 Found forms using fallback selector: ${selector}`);
+                    break;
+                }
+            }
+        }
+        
         console.log(`📋 Found ${allForms.length} forms to process for Template T autofill`);
 
         if (allForms.length > 0) {
@@ -5604,14 +5854,29 @@ Safety & Security Operations Team`;
         
         try {
             // Find the form container
-            const formContainer = document.querySelector('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]');
+            let formContainer = document.querySelector('section.grid-ticket-fields-panel');
+            
+            // If no form found with the primary selector, try fallback selectors
+            if (!formContainer) {
+                const formSelectors = [
+                    'section[class*="ticket-fields"]',
+                    '[data-test-id*="TicketFieldsPane"]',
+                    'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                    '.ticket_fields'
+                ];
+                
+                for (const selector of formSelectors) {
+                    formContainer = document.querySelector(selector);
+                    if (formContainer) break;
+                }
+            }
             
             if (!formContainer) {
                 console.log('⚠️ Form container not found');
                 return;
             }
 
-            const fields = formContainer.children;
+            const fields = formContainer.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             let appliedCount = 0;
             
             // Apply to Booking ID field
@@ -5913,13 +6178,43 @@ Safety & Security Operations Team`;
                 duplicateAddLinkButton();
 
                 // Use cached elements for better performance
-                const formContainers = getCachedElements('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', 2000);
+                let formContainers = getCachedElements('section.grid-ticket-fields-panel', 2000);
+                
+                // If no forms found with the primary selector, try fallback selectors
+                if (formContainers.length === 0) {
+                    const formSelectors = [
+                        'section[class*="ticket-fields"]',
+                        '[data-test-id*="TicketFieldsPane"]',
+                        'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                        '.ticket_fields'
+                    ];
+                    
+                    for (const selector of formSelectors) {
+                        formContainers = document.querySelectorAll(selector);
+                        if (formContainers.length > 0) break;
+                    }
+                }
 
                 if (formContainers.length === 0) {
                     // Single retry with timeout cleanup
                     const timeoutId = setTimeout(() => {
                         if (observerDisconnected) return;
-                        const retryContainers = getCachedElements('div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]', 500);
+                        let retryContainers = getCachedElements('section.grid-ticket-fields-panel', 500);
+                        
+                        // If no forms found with the primary selector, try fallback selectors
+                        if (retryContainers.length === 0) {
+                            const formSelectors = [
+                                'section[class*="ticket-fields"]',
+                                '[data-test-id*="TicketFieldsPane"]',
+                                'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
+                                '.ticket_fields'
+                            ];
+                            
+                            for (const selector of formSelectors) {
+                                retryContainers = document.querySelectorAll(selector);
+                                if (retryContainers.length > 0) break;
+                            }
+                        }
                         retryContainers.forEach(container => {
                             if (container.offsetParent !== null && container.isConnected) {
                                 initFormManager(container);
@@ -5947,7 +6242,11 @@ Safety & Security Operations Team`;
             let shouldHandle = false;
             for (const mutation of mutations) {
                 if (mutation.target.matches &&
-                    (mutation.target.matches('div[data-test-id="ticket-fields"]') ||
+                    (mutation.target.matches('section.grid-ticket-fields-panel') ||
+                        mutation.target.matches('section[class*="ticket-fields"]') ||
+                        mutation.target.matches('div[data-test-id="ticket-fields"]') ||
+                        mutation.target.closest('section.grid-ticket-fields-panel') ||
+                        mutation.target.closest('section[class*="ticket-fields"]') ||
                         mutation.target.closest('div[data-test-id="ticket-fields"]'))) {
                     shouldHandle = true;
                     break;
