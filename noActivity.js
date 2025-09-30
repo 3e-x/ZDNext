@@ -212,7 +212,18 @@
         async processTicket(ticket, viewName = null) {
             const ticketId = ticket.id;
             Logger.info('PROCESS', `Evaluating ticket ${ticketId}`, ticketId);
-            const check = this.shouldProcess(ticket);
+            
+            // Always fetch full ticket details to ensure we have accurate status
+            let fullTicket;
+            try {
+                fullTicket = await Zendesk.getTicket(ticketId);
+                Logger.debug('PROCESS', `Fetched full ticket ${ticketId} - status: ${fullTicket.status}`, ticketId);
+            } catch (error) {
+                Logger.error('PROCESS', `Failed to fetch ticket ${ticketId}`, ticketId, error);
+                return false;
+            }
+            
+            const check = this.shouldProcess(fullTicket);
             if (!check.process) {
                 Logger.debug('PROCESS', `Skipped: ${check.reason}`, ticketId);
                 state.totalSkipped++;
@@ -227,7 +238,7 @@
                     timestamp: Date.now(),
                     status: CONFIG.TARGET_STATUS,
                     groupId: CONFIG.TARGET_GROUP_ID,
-                    subject: ticket.subject,
+                    subject: fullTicket.subject,
                     viewName: viewName || 'Unknown'
                 });
                 state.totalProcessed++;
@@ -241,13 +252,8 @@
             }
         },
         async processById(ticketId) {
-            try {
-                const ticket = await Zendesk.getTicket(ticketId);
-                return await this.processTicket(ticket);
-            } catch (error) {
-                Logger.error('PROCESS', `Failed to process by ID ${ticketId}`, ticketId, error);
-                return false;
-            }
+            // processTicket now fetches the full ticket internally, so just pass the ID
+            return await this.processTicket({ id: ticketId });
         }
     };
 
