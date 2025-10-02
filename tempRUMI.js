@@ -88,6 +88,8 @@
             "We have directed this matter to the most appropriate support team, who will be reaching out to you as soon as possible. In the meantime, if you feel more information could be helpful, please reply to this message.",
             "We have escalated this matter to a specialized support team, who will be reaching out to you as soon as possible.",
             "We have escalated this to a specialized support team who will be reaching out to you as soon as possible.",
+            "We’re going to escalate your issue to our team that can investigate further",
+            "In order to best assist you, we need to bring in another team",
             "I would like to reassure you that we are treating this with the utmost seriousness. A member of our team will be in touch with you shortly.",
             "EMEA Urgent Triage Team zzzDUT",
             "https://blissnxt.uberinternal.com",
@@ -105,7 +107,6 @@
             "In the meantime, if you feel additional information could be helpful, please reply to this message. We'll be sure to follow-up",
             "In the meantime, this contact thread will say \"Waiting for your reply,\" but there is nothing else needed from you right now",
             "Any additional information would be beneficial to our investigation.",
-            "We’ll keep an eye out for your reply",
 
             // ===============================================================
             // WAITING FOR REPLY PHRASES (English)
@@ -114,6 +115,8 @@
             "Awaiting your reply.",
             "Waiting for your reply.",
             "Waiting for your kind response.",
+            "We’ll keep a keen eye out for your reply",
+            "We’ll keep an eye out for your reply",
 
             // ===============================================================
             // INTERNAL NOTES/ACTIONS (English)
@@ -156,7 +159,10 @@
         solvedTriggerPhrases: [
             "Rest assured, we take these kinds of allegations very seriously and we will be taking the appropriate actions with the partner driver involved. As of this message, we have also made some changes in the application to reduce the chance of you being paired with this partner driver in the future. If you are ever matched again, please cancel the trip and reach out to us through the application.",
             "Thanks for your understanding",
+            "Please note that GIG will follow up regarding the insurance within 2 business days",
+            "يرجى العلم قد قام بالفعل أحد أعضاء الفريق المختص لدينا بالتواصل",
             "وقد اتخذنا بالفعل الإجراء المناسب داخلياً بشأن حساب السائق",
+            "وقد قمنا بالفعل باتخاذ الإجراءات المناسبة داخليًا",
 "نود إعلامكِ أننا قد تلقينا رسالتكِ، وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معكِ من خلال رسالة أخرى بخصوص استفساركِ في أقرب وقت ممكن",
 "نود إعلامك أننا قد تلقينا رسالتك، وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى بخصوص استفسارك في أقرب وقت ممكن",
 "فإننا نأخذ مثل هذه الادِّعاءات على محمل الجد، وسنتَّخذ الإجراءات الداخلية الملائمة بحق السائق المتورط في الأمر",
