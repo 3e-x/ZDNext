@@ -2405,7 +2405,7 @@
                     const htmlBody = comment.html_body || '';
 
                     // Check if the comment contains either "Incident type" or "Customer words"
-                    let containsRequiredPhrase = false;
+                    let containsRequiredPhrase = true;
                     let matchedPhrase = '';
 
                     for (const phrase of requiredPhrases) {
