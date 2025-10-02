@@ -170,6 +170,7 @@
 "لنمنح الركاب تجربة خالية من المتاعب حتى يتمكنوا من إجراء مشوار في أقرب وقت ممكن",
 "يمكننا الردّ على أي استفسارات حول هذا الأمر في أي وقت",
 "وسنتابع الأمر مع الشريك السائق المعني",
+"نحرص دائماً على توفير تجربة آمنة ومريحة تتسم بالاحترام للركاب والسائقين على حدٍّ سواء",
 
 
 "We will be following up with Partner-driver, to try to ensure the experience you describe can’t happen again.",
@@ -182,6 +183,7 @@
 "It looks like you’ve already raised a similar concern for this trip that our Support team has resolved.",
 "We want everyone, both drivers and riders, to have a safe, respectful, and comfortable experience as stated in our Careem Rides Community Guidelines.",
 "we will be taking the appropriate actions internally with the driver involved",
+"We also want to make you aware of it as it is something we take very seriously here at",
 "-PB",
 "- PB",
 "-Pushback",
