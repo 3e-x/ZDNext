@@ -88,8 +88,6 @@
             "We have directed this matter to the most appropriate support team, who will be reaching out to you as soon as possible. In the meantime, if you feel more information could be helpful, please reply to this message.",
             "We have escalated this matter to a specialized support team, who will be reaching out to you as soon as possible.",
             "We have escalated this to a specialized support team who will be reaching out to you as soon as possible.",
-            "We have escalated this to a specialised support team who will be reaching out to you as soon as possible.",
-            "We have escalated this to a specialized support team",
             "I would like to reassure you that we are treating this with the utmost seriousness. A member of our team will be in touch with you shortly.",
             "EMEA Urgent Triage Team zzzDUT",
             "https://blissnxt.uberinternal.com",
