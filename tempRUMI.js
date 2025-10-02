@@ -174,7 +174,7 @@
 "إن سلامة جميع المستخدمين من أهم أولوياتنا",
 "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
 
-"\u003Cdiv class=\"zd-comment\" dir=\"auto\"\u003ESelected issue: null\u003Cbr\u003E\u003Cp dir=\"auto\"\u003E- Warning sent\u003C/p\u003E\u003Cp dir=\"auto\"\u003E- \u003Ca href=\"https://blissnxt.uberinternal.com/tabs?tabs=contact:c817efc8-3640-4a25-a940-ed2aef07dc1d&amp;view=0\" rel=\"noopener noreferrer\"\u003EOGT\u003C/a\u003E\u003C/p\u003E\u003Cp dir=\"auto\"\u003E-Set Reported by / Reported against\u003C/p\u003E\u003Cp dir=\"auto\"\u003E\u003Cbr\u003E\u003C/p\u003E\u003C/div\u003E",
+"Selected issue: null",
 "We will be following up with Partner-driver, to try to ensure the experience you describe can’t happen again.",
 "We will be following up with the driver and taking the appropriate actions",
 "Rest assured that we have taken the necessary internal actions.",
