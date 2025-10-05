@@ -104,7 +104,7 @@
 
             // INTERNAL NOTES/ACTIONS & CODES
             "emea urgent triage team zzzdut",
-            "please re-escalate if urgent concerns are confirmed",          
+            "please re-escalate if urgent concerns are confirmed",
             "https://apps.mypurecloud.ie",
             "1st call attempt",
             "2nd call attempt",
@@ -1489,6 +1489,7 @@ the everything app`;
         static syncTriggerPhrases(settings) {
             // Sync stored settings with current trigger phrases in code
             // This ensures new/modified phrases are added while preserving user's enabled/disabled choices
+            // and removes phrases that are no longer in the code
             let modified = false;
             const synced = JSON.parse(JSON.stringify(settings)); // Deep clone
 
@@ -1510,29 +1511,95 @@ the everything app`;
                 modified = true;
             }
 
+            // Create sets of current phrases for efficient lookup
+            const currentPendingPhrases = new Set(RUMIRules.PENDING_TRIGGERS);
+            const currentSolvedPhrases = new Set(RUMIRules.SOLVED_TRIGGERS);
+            const currentCareRoutingPhrases = new Set(RUMIRules.CARE_ROUTING_PHRASES);
+
+            // Remove phrases that are no longer in the code
+            const pendingPhrasesToRemove = Object.keys(synced.triggerPhrases.pending).filter(
+                phrase => !currentPendingPhrases.has(phrase)
+            );
+            if (pendingPhrasesToRemove.length > 0) {
+                RUMILogger.info('STORAGE', 'Removing obsolete pending trigger phrases', {
+                    removedPhrases: pendingPhrasesToRemove
+                });
+                pendingPhrasesToRemove.forEach(phrase => {
+                    delete synced.triggerPhrases.pending[phrase];
+                    modified = true;
+                });
+            }
+
+            const solvedPhrasesToRemove = Object.keys(synced.triggerPhrases.solved).filter(
+                phrase => !currentSolvedPhrases.has(phrase)
+            );
+            if (solvedPhrasesToRemove.length > 0) {
+                RUMILogger.info('STORAGE', 'Removing obsolete solved trigger phrases', {
+                    removedPhrases: solvedPhrasesToRemove
+                });
+                solvedPhrasesToRemove.forEach(phrase => {
+                    delete synced.triggerPhrases.solved[phrase];
+                    modified = true;
+                });
+            }
+
+            const careRoutingPhrasesToRemove = Object.keys(synced.triggerPhrases.careRouting).filter(
+                phrase => !currentCareRoutingPhrases.has(phrase)
+            );
+            if (careRoutingPhrasesToRemove.length > 0) {
+                RUMILogger.info('STORAGE', 'Removing obsolete care routing trigger phrases', {
+                    removedPhrases: careRoutingPhrasesToRemove
+                });
+                careRoutingPhrasesToRemove.forEach(phrase => {
+                    delete synced.triggerPhrases.careRouting[phrase];
+                    modified = true;
+                });
+            }
+
             // Add any new pending triggers
+            const newPendingPhrases = [];
             RUMIRules.PENDING_TRIGGERS.forEach(phrase => {
                 if (!(phrase in synced.triggerPhrases.pending)) {
                     synced.triggerPhrases.pending[phrase] = true; // Default to enabled
+                    newPendingPhrases.push(phrase);
                     modified = true;
                 }
             });
+            if (newPendingPhrases.length > 0) {
+                RUMILogger.info('STORAGE', 'Adding new pending trigger phrases', {
+                    newPhrases: newPendingPhrases
+                });
+            }
 
             // Add any new solved triggers
+            const newSolvedPhrases = [];
             RUMIRules.SOLVED_TRIGGERS.forEach(phrase => {
                 if (!(phrase in synced.triggerPhrases.solved)) {
                     synced.triggerPhrases.solved[phrase] = true; // Default to enabled
+                    newSolvedPhrases.push(phrase);
                     modified = true;
                 }
             });
+            if (newSolvedPhrases.length > 0) {
+                RUMILogger.info('STORAGE', 'Adding new solved trigger phrases', {
+                    newPhrases: newSolvedPhrases
+                });
+            }
 
             // Add any new care routing phrases
+            const newCareRoutingPhrases = [];
             RUMIRules.CARE_ROUTING_PHRASES.forEach(phrase => {
                 if (!(phrase in synced.triggerPhrases.careRouting)) {
                     synced.triggerPhrases.careRouting[phrase] = true; // Default to enabled
+                    newCareRoutingPhrases.push(phrase);
                     modified = true;
                 }
             });
+            if (newCareRoutingPhrases.length > 0) {
+                RUMILogger.info('STORAGE', 'Adding new care routing trigger phrases', {
+                    newPhrases: newCareRoutingPhrases
+                });
+            }
 
             return modified ? synced : settings;
         }
@@ -9304,3 +9371,4 @@ the everything app`;
     }
 
 })();
+
