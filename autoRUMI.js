@@ -143,8 +143,8 @@
 
             // SAFETY & PRECAUTIONARY MEASURES (Arabic)
             "قد أجرينا أيضاً بعض التغييرات في التطبيق للتقليل من فرص",
-            "إذا تمت مطابقتكِ مرة أخرى، يرجى إلغاء الرحلة والتواصل معنا من خلال التطبيق",
             "إذا تمت مطابقتك مرة أخرى، يرجى إلغاء الرحلة والتواصل معنا من خلال التطبيق",
+            "إذا كانت لديك أي معلومات إضافية أو ترغب في إعادة فتح هذا البلاغ في أي وقت",
 
             // INTERNAL PROCESS / STATUS UPDATES (English)
             "it looks like you've already raised a similar concern for this trip that our support team has resolved",
