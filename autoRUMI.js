@@ -104,9 +104,7 @@
 
             // INTERNAL NOTES/ACTIONS & CODES
             "emea urgent triage team zzzdut",
-            "please re-escalate if urgent concerns are confirmed",
-            "https://blissnxt.uberinternal.com",
-            "https://uber.lighthouse-cloud.com",
+            "please re-escalate if urgent concerns are confirmed",          
             "https://apps.mypurecloud.ie",
             "1st call attempt",
             "2nd call attempt",
@@ -9306,4 +9304,3 @@ the everything app`;
     }
 
 })();
-
