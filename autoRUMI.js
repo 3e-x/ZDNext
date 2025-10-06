@@ -124,14 +124,17 @@
 
         static SOLVED_TRIGGERS = [
             // ACTION TAKEN / RESOLUTION CONFIRMED (English)
-            "we will be following up with the driver and taking the appropriate actions",
-            "rest assured that we have taken the necessary internal actions",
+            "be following up with the driver and taking the appropriate actions",
+            "be following up with your driver in order to take the appropriate actions",
+            "be taking the appropriate actions",
+            "be taking the appropriate action",
+            "be taking any necessary internal actions",
+            "we have taken the necessary internal actions",
             "already taken the appropriate action internally",
             "already taken the appropriate actions internally",
-            "we have already taken all the appropriate actions internally",
-            "we have already taken all the necessary internal actions",
-            "we will be taking the appropriate actions",
-            "we will be taking the appropriate action",
+            "already taken all the appropriate actions internally",
+            "already taken all the necessary internal actions",
+            "these are the actions we have taken",
             "thanks for your understanding",
             "please note that GIG will follow up regarding the insurance within 2 business days",
 
@@ -144,6 +147,7 @@
             "وسنتابع الأمر مع الشريك السائق المعني",
             "وقد قمنا بالفعل باتخاذ الإجراءات المناسبة",
             "وسنتابع الأمر مع السائق، لاتخاذ الإجراءات الداخلية المناسبة",
+            "سنتابع الأمر مع الشريك السائق ونتخذ الإجراءات الملائمة",
 
             // SAFETY & PRECAUTIONARY MEASURES (English)
             "to try to ensure the experience you describe can't happen again",
@@ -191,14 +195,7 @@
             "not safety related^"
         ];
 
-        static ESCALATED_BUT_NO_RESPONSE = `i hope this message finds you well.
-
- i'm truly sorry to hear about what happened during your trip. to assist you better, our team will contact you shortly to get more details about the incident.
-
-if you need any further assistance or have any questions, please don't hesitate to reach out. we're here to help!
-
-careem care
-the everything app`;
+        static ESCALATED_BUT_NO_RESPONSE = "i’m truly sorry to hear about what happened during your trip. to assist you better, our team will contact you shortly to get more details about the incident";
     }
 
     // ============================================================================
@@ -624,7 +621,7 @@ the everything app`;
             // Load settings based on processing mode
             const settings = isManual ? RUMIStorage.getManualSettings() : RUMIStorage.getAutomaticSettings();
 
-            // Rule priority: Blacklist → Routing → Pending → Solved
+            // Rule priority: Routing → Escalation Response → Pending → Solved
 
             // 1. Check routing rules (including Care #notsafety)
             const routingResult = await this.evaluateRoutingRules(ticket, comments, settings);
@@ -632,13 +629,19 @@ the everything app`;
                 return routingResult;
             }
 
-            // 2. Check pending rules
+            // 2. Check escalation response rules (ESCALATED_BUT_NO_RESPONSE)
+            const escalationResult = await this.evaluateEscalationResponseRules(ticket, comments, settings, viewName);
+            if (escalationResult.action !== 'none') {
+                return escalationResult;
+            }
+
+            // 3. Check pending rules
             const pendingResult = await this.evaluatePendingRules(ticket, comments, settings, viewName);
             if (pendingResult.action !== 'none') {
                 return pendingResult;
             }
 
-            // 3. Check solved rules
+            // 4. Check solved rules
             const solvedResult = await this.evaluateSolvedRules(ticket, comments, settings);
             if (solvedResult.action !== 'none') {
                 return solvedResult;
@@ -764,6 +767,90 @@ the everything app`;
                 }
             }
 
+            return { action: 'none' };
+        }
+
+        static async evaluateEscalationResponseRules(ticket, comments, settings, viewName = null) {
+            // Check if pending action type is enabled (this rule sets to pending)
+            if (!settings.actionTypes.pending) {
+                RUMILogger.debug('Processor', 'Pending action type disabled in settings', { ticketId: ticket.id });
+                return { action: 'none' };
+            }
+
+            if (comments.length === 0) return { action: 'none' };
+
+            const latestComment = comments[comments.length - 1];
+            const latestAuthor = await this.getUserRole(latestComment.author_id);
+            const latestNormalized = RUMICommentProcessor.normalizeForMatching(latestComment.html_body);
+            const isLatestRFR = latestNormalized.includes('careem.rfr') || latestNormalized.includes('global.rfr');
+
+            // Check if latest comment contains ESCALATED_BUT_NO_RESPONSE (do nothing if so)
+            const escalationPhrase = RUMIRules.ESCALATED_BUT_NO_RESPONSE.toLowerCase();
+            if (latestNormalized.includes(escalationPhrase)) {
+                // ESCALATED_BUT_NO_RESPONSE is the last comment - no action
+                return { action: 'none' };
+            }
+
+            // Only proceed if latest comment is from end-user OR contains "Careem.RFR" OR "Global.RFR"
+            if (!latestAuthor.isEndUser && !isLatestRFR) {
+                return { action: 'none' };
+            }
+
+            // Trace backwards through ONLY end-user or RFR (Careem.RFR/Global.RFR) comments
+            // Stop at the first comment that is neither
+            const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
+            let commentBeforeChain = null;
+
+            for (let i = comments.length - 2; i >= startIndex; i--) {
+                const comment = comments[i];
+                const author = await this.getUserRole(comment.author_id);
+                const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
+                const isRFR = normalized.includes('careem.rfr') || normalized.includes('global.rfr');
+
+                // If this comment is NOT (end-user OR RFR), it breaks the chain
+                if (!author.isEndUser && !isRFR) {
+                    // Found the first comment that breaks the chain
+                    commentBeforeChain = comment;
+                    break;
+                }
+                // Otherwise, continue tracing back through the chain
+            }
+
+            if (!commentBeforeChain) {
+                return { action: 'none' };
+            }
+
+            // Check if this comment is internal (public = false) and contains ESCALATED_BUT_NO_RESPONSE
+            if (commentBeforeChain.public === false) {
+                const normalized = RUMICommentProcessor.normalizeForMatching(commentBeforeChain.html_body);
+
+                if (normalized.includes(escalationPhrase)) {
+                    // User or RFR responded after escalation - set to pending and assign to CAREEM_CARE_ID
+                    const viewId = RUMIUI.viewsMap.get(viewName);
+                    const specialViewIds = ['360069695114', '360000843468'];
+                    const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
+
+                    const payload = {
+                        ticket: {
+                            status: 'pending',
+                            assignee_id: CONFIG.CAREEM_CARE_ID
+                        }
+                    };
+
+                    if (shouldSetPriorityNormal) {
+                        payload.ticket.priority = 'normal';
+                    }
+
+                    return {
+                        action: 'pending',
+                        trigger: 'ESCALATED_BUT_NO_RESPONSE',
+                        payload: payload
+                    };
+                }
+            }
+
+            // Chain was broken by a comment that does NOT contain ESCALATED_BUT_NO_RESPONSE
+            // Do not keep looking - stop here
             return { action: 'none' };
         }
 
