@@ -68,13 +68,16 @@
             "we've forwarded this issue to a specialized support team",
             "we have forwarded this to a dedicated support team",
             "we're going to escalate your issue to our team that can investigate further",
-            "we’re currently investigating the case and will provide you with an update as soon as possible",
+            "and will provide you with an update as soon as possible",
             "in order to best assist you, we need to bring in another team",
+            "you will receive a response as soon as possible",
 
             // ESCALATION & INTERNAL TRANSFER (Arabic)
             "لقد قمنا بتصعيد هذا الأمر إلى الفريق المختص",
             "لقد قمنا بتصعيد هذه المشكلة إلى فريق دعم",
             "لقد قمنا بتصعيد الأمر إلى فريق دعم متخصص",
+            "فريق دعم متخصص سيتواصل معك في أقرب وقت ممكن",
+            "لقد قمنا بتحويل ملاحظتك إلى الفريق المختص لمتابعتها واتخاذ اللازم",
 
             // REQUESTING MORE INFORMATION (English)
             "we want you to provide us with more information about what happened",
@@ -83,6 +86,7 @@
             "any additional information would be beneficial to our investigation",
             "we'll keep an eye out for your reply",
             "if you feel additional information could be helpful, please reply to this message",
+            "in order to be able to further investigate the issue",
 
             // REQUESTING MORE INFORMATION (Arabic)
             "مزيد من التفاصيل عن ما حدث معك أثناء الرحلة",
@@ -94,16 +98,19 @@
             "awaiting your reply",
             "waiting for your reply",
             "waiting for your kind response",
-            "Will be waiting for your reply",
+            "will be waiting for your reply",
             "keep a keen eye out for your reply",
+            "keeping an eye out for your reply",
 
             // WAITING FOR REPLY STATUS (Arabic)
-            "في انتظار ردك.",
+            "في انتظار ردك",
+            "ف انتظار ردك",
             "ننتظر ردك",
             "في انتظار الرد",
 
             // INTERNAL NOTES/ACTIONS & CODES
             "emea urgent triage team zzzdut",
+            "no urgent safety concern found",
             "please re-escalate if urgent concerns are confirmed",
             "https://blissnxt.uberinternal.com",
             "https://uber.lighthouse-cloud.com",
@@ -121,12 +128,12 @@
             "rest assured that we have taken the necessary internal actions",
             "already taken the appropriate action internally",
             "already taken the appropriate actions internally",
-            "we have already taken all the appropriate actions internally.",
+            "we have already taken all the appropriate actions internally",
             "we have already taken all the necessary internal actions",
             "we will be taking the appropriate actions",
             "we will be taking the appropriate action",
             "thanks for your understanding",
-            "Please note that GIG will follow up regarding the insurance within 2 business days",
+            "please note that GIG will follow up regarding the insurance within 2 business days",
 
             // ACTION TAKEN / RESOLUTION CONFIRMED (Arabic)
             "وقد اتخذنا بالفعل الإجراء المناسب داخليا",
@@ -136,13 +143,15 @@
             "سنتابع الأمر مع السائق من أجل اتخاذ الإجراءات المناسبة",
             "وسنتابع الأمر مع الشريك السائق المعني",
             "وقد قمنا بالفعل باتخاذ الإجراءات المناسبة",
+            "وسنتابع الأمر مع السائق، لاتخاذ الإجراءات الداخلية المناسبة",
 
             // SAFETY & PRECAUTIONARY MEASURES (English)
-            "to try to ensure the experience you describe can't happen again.",
+            "to try to ensure the experience you describe can't happen again",
             "we have also made some changes in the application to reduce the chance of you being paired with this partner driver in the future",
-            "we want everyone, both drivers and riders, to have a safe, respectful, and comfortable experience as stated in our careem rides community guidelines.",
-            "We also want to make you aware of it as it is something we take very seriously here at",
+            "we want everyone, both drivers and riders, to have a safe, respectful, and comfortable experience as stated in our careem rides community guidelines",
+            "we also want to make you aware of it as it is something we take very seriously here at",
             "we can confirm that this trip isn’t eligible for a price adjustment",
+            "we can confirm that this trip isn't eligible for a price adjustment",
 
             // SAFETY & PRECAUTIONARY MEASURES (Arabic)
             "قد أجرينا أيضا بعض التغييرات في التطبيق للتقليل من فرص",
@@ -177,7 +186,7 @@
             "careem actions required on rider",
             "careem actions required for rider",
             "ask the rider",
-            "Inform the rider",
+            "inform the rider",
             "captain asks for extra money is no longer a safety case",
             "not safety related^"
         ];
@@ -794,7 +803,7 @@ the everything app`;
 
                     return {
                         action: 'pending',
-                        trigger: triggerResult.trigger.substring(0, 50) + (triggerResult.trigger.length > 50 ? '...' : ''),
+                        trigger: triggerResult.trigger.substring(0, 500) + (triggerResult.trigger.length > 500 ? '...' : ''),
                         payload: payload
                     };
                 }
@@ -3522,17 +3531,26 @@ the everything app`;
         }
 
         /* Column width controls for processed tickets tables */
-        /* Column 1: Ticket ID */
+        /* Column 1: Row Number */
         .rumi-table th:nth-child(1),
         .rumi-table td:nth-child(1) {
+            width: 50px;
+            min-width: 50px;
+            max-width: 50px;
+            text-align: center;
+        }
+
+        /* Column 2: Ticket ID */
+        .rumi-table th:nth-child(2),
+        .rumi-table td:nth-child(2) {
             width: 100px;
             min-width: 100px;
             max-width: 100px;
         }
 
-        /* Column 2: Subject */
-        .rumi-table th:nth-child(2),
-        .rumi-table td:nth-child(2) {
+        /* Column 3: Subject */
+        .rumi-table th:nth-child(3),
+        .rumi-table td:nth-child(3) {
             width: 350px;
             min-width: 350px;
             max-width: 350px;
@@ -3540,17 +3558,17 @@ the everything app`;
             word-wrap: break-word;
         }
 
-        /* Column 3: View */
-        .rumi-table th:nth-child(3),
-        .rumi-table td:nth-child(3) {
+        /* Column 4: View */
+        .rumi-table th:nth-child(4),
+        .rumi-table td:nth-child(4) {
             width: 150px;
             min-width: 150px;
             max-width: 150px;
         }
 
-        /* Column 4: Action */
-        .rumi-table th:nth-child(4),
-        .rumi-table td:nth-child(4) {
+        /* Column 5: Action */
+        .rumi-table th:nth-child(5),
+        .rumi-table td:nth-child(5) {
             width: 120px;
             min-width: 120px;
             max-width: 120px;
@@ -3558,9 +3576,9 @@ the everything app`;
             word-wrap: break-word;
         }
 
-        /* Column 5: Trigger */
-        .rumi-table th:nth-child(5),
-        .rumi-table td:nth-child(5) {
+        /* Column 6: Trigger */
+        .rumi-table th:nth-child(6),
+        .rumi-table td:nth-child(6) {
             width: 200px;
             min-width: 200px;
             max-width: 200px;
@@ -3568,15 +3586,7 @@ the everything app`;
             word-wrap: break-word;
         }
 
-        /* Column 6: Previous Status */
-        .rumi-table th:nth-child(6),
-        .rumi-table td:nth-child(6) {
-            width: 100px;
-            min-width: 100px;
-            max-width: 100px;
-        }
-
-        /* Column 7: New Status */
+        /* Column 7: Previous Status */
         .rumi-table th:nth-child(7),
         .rumi-table td:nth-child(7) {
             width: 100px;
@@ -3584,19 +3594,15 @@ the everything app`;
             max-width: 100px;
         }
 
-        /* Column 8: Previous Group */
+        /* Column 8: New Status */
         .rumi-table th:nth-child(8),
         .rumi-table td:nth-child(8) {
-            width: 150px;
-            min-width: 150px;
-            max-width: 150px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            overflow: hidden;
+            width: 100px;
+            min-width: 100px;
+            max-width: 100px;
         }
 
-        /* Column 9: New Group */
+        /* Column 9: Previous Group */
         .rumi-table th:nth-child(9),
         .rumi-table td:nth-child(9) {
             width: 150px;
@@ -3608,9 +3614,21 @@ the everything app`;
             overflow: hidden;
         }
 
-        /* Column 10: Processed At */
+        /* Column 10: New Group */
         .rumi-table th:nth-child(10),
         .rumi-table td:nth-child(10) {
+            width: 150px;
+            min-width: 150px;
+            max-width: 150px;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            overflow: hidden;
+        }
+
+        /* Column 11: Processed At */
+        .rumi-table th:nth-child(11),
+        .rumi-table td:nth-child(11) {
             width: 160px;
             min-width: 160px;
             max-width: 160px;
@@ -3620,17 +3638,17 @@ the everything app`;
             overflow: hidden;
         }
 
-        /* Column 11: Dry Run */
-        .rumi-table th:nth-child(11),
-        .rumi-table td:nth-child(11) {
+        /* Column 12: Dry Run */
+        .rumi-table th:nth-child(12),
+        .rumi-table td:nth-child(12) {
             width: 80px;
             min-width: 80px;
             max-width: 80px;
         }
 
-        /* Column 12: Updated? */
-        .rumi-table th:nth-child(12),
-        .rumi-table td:nth-child(12) {
+        /* Column 13: Updated? */
+        .rumi-table th:nth-child(13),
+        .rumi-table td:nth-child(13) {
             width: 90px;
             min-width: 90px;
             max-width: 90px;
@@ -3779,8 +3797,8 @@ the everything app`;
         }
 
         [data-theme="light"] .rumi-status-badge-solved {
-            background: #eb5c69;
-            color: #151a1e;
+            background: #5c6970;
+            color: #ffffff;
         }
 
         [data-theme="dark"] .rumi-status-badge-solved {
@@ -4803,6 +4821,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -4828,6 +4847,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -4853,6 +4873,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -4878,6 +4899,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -4903,6 +4925,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -4928,6 +4951,7 @@ the everything app`;
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
                                             <th>View</th>
@@ -5072,6 +5096,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5097,6 +5122,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5122,6 +5148,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5147,6 +5174,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5172,6 +5200,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5197,6 +5226,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -5222,6 +5252,7 @@ the everything app`;
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
                                                             <th>View</th>
@@ -6305,7 +6336,7 @@ the everything app`;
             const tbody = document.getElementById(`rumi-table-${type}`);
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -6332,7 +6363,8 @@ the everything app`;
             }));
 
             // All tabs show the same columns
-            tbody.innerHTML = ticketsWithResolvedNames.map(ticket => {
+            tbody.innerHTML = ticketsWithResolvedNames.map((ticket, index) => {
+                const rowNumber = ticketsWithResolvedNames.length - index; // Last processed is #1
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
                 const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
                 const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
@@ -6346,6 +6378,7 @@ the everything app`;
 
                 return `
                     <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
+                        <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
                         <td>${this.escapeHtml(ticket.viewName)}</td>
@@ -6361,6 +6394,9 @@ the everything app`;
                     </tr>
                 `;
             }).join('');
+
+            // Update tab count to reflect filtered results
+            this.updateTabCount(type, ticketsWithResolvedNames.length);
         }
 
         static async renderManualTicketsTable(type, tickets) {
@@ -6372,7 +6408,7 @@ the everything app`;
             }
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="12" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -6398,7 +6434,8 @@ the everything app`;
                 return ticket;
             }));
 
-            tbody.innerHTML = ticketsWithResolvedNames.map(ticket => {
+            tbody.innerHTML = ticketsWithResolvedNames.map((ticket, index) => {
+                const rowNumber = ticketsWithResolvedNames.length - index; // Last processed is #1
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
                 const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
                 const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
@@ -6412,6 +6449,7 @@ the everything app`;
 
                 return `
                     <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
+                        <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
                         <td>${this.escapeHtml(ticket.viewName || 'N/A')}</td>
@@ -6427,6 +6465,42 @@ the everything app`;
                     </tr>
                 `;
             }).join('');
+
+            // Update tab count to reflect filtered results
+            this.updateManualTabCount(type, ticketsWithResolvedNames.length);
+        }
+
+        static updateTabCount(tabType, count) {
+            // Update tab label with current filtered count
+            const tabButton = document.querySelector(`[data-auto-tab="${tabType}"]`);
+            if (tabButton) {
+                const tabLabels = {
+                    'all': 'All Processed',
+                    'pending': 'Pending',
+                    'solved': 'Solved',
+                    'care': 'Care',
+                    'hala': 'Hala/RTA',
+                    'casablanca': 'Casablanca'
+                };
+                tabButton.textContent = `${tabLabels[tabType]} (${count})`;
+            }
+        }
+
+        static updateManualTabCount(tabType, count) {
+            // Update tab label with current filtered count
+            const tabButton = document.querySelector(`[data-manual-tab="${tabType}"]`);
+            if (tabButton) {
+                const tabLabels = {
+                    'manual-all': 'All Processed',
+                    'manual-pending': 'Pending',
+                    'manual-solved': 'Solved',
+                    'manual-care': 'Care',
+                    'manual-hala': 'Hala/RTA',
+                    'manual-casablanca': 'Casablanca',
+                    'manual-unprocessed': 'Unprocessed'
+                };
+                tabButton.textContent = `${tabLabels[tabType]} (${count})`;
+            }
         }
 
         static getUniqueColumnValues(tickets, columnName) {
@@ -6562,7 +6636,7 @@ the everything app`;
             const headers = headerRow.querySelectorAll('th');
             headers.forEach((th, index) => {
                 const columnName = columnMap[index];
-                if (!columnName || columnName === 'note') return;
+                if (!columnName || columnName === 'note' || columnName === 'rowNumber') return;
 
                 th.classList.add('sortable');
                 th.style.cursor = 'pointer';
@@ -6621,7 +6695,7 @@ the everything app`;
                 const td = document.createElement('td');
                 const columnName = columnMap[index];
 
-                if (!columnName || columnName === 'note') {
+                if (!columnName || columnName === 'note' || columnName === 'rowNumber') {
                     filterRow.appendChild(td);
                     return;
                 }
@@ -6779,18 +6853,19 @@ the everything app`;
 
             // Automatic processing tables
             const autoColumnMap = {
-                0: 'ticketId',
-                1: 'subject',
-                2: 'viewName',
-                3: 'action',
-                4: 'trigger',
-                5: 'previousStatus',
-                6: 'newStatus',
-                7: 'previousGroupName',
-                8: 'newGroupName',
-                9: 'timestamp',
-                10: 'dryRun',
-                11: 'alreadyCorrect'
+                0: 'rowNumber', // Row counter (not filterable)
+                1: 'ticketId',
+                2: 'subject',
+                3: 'viewName',
+                4: 'action',
+                5: 'trigger',
+                6: 'previousStatus',
+                7: 'newStatus',
+                8: 'previousGroupName',
+                9: 'newGroupName',
+                10: 'timestamp',
+                11: 'dryRun',
+                12: 'alreadyCorrect'
             };
 
             ['all', 'pending', 'solved', 'care', 'hala', 'casablanca'].forEach(type => {
@@ -6800,18 +6875,19 @@ the everything app`;
 
             // Manual processing tables
             const manualColumnMap = {
-                0: 'ticketId',
-                1: 'subject',
-                2: 'viewName',
-                3: 'action',
-                4: 'trigger',
-                5: 'previousStatus',
-                6: 'newStatus',
-                7: 'previousGroupName',
-                8: 'newGroupName',
-                9: 'timestamp',
-                10: 'dryRun',
-                11: 'alreadyCorrect'
+                0: 'rowNumber', // Row counter (not filterable)
+                1: 'ticketId',
+                2: 'subject',
+                3: 'viewName',
+                4: 'action',
+                5: 'trigger',
+                6: 'previousStatus',
+                7: 'newStatus',
+                8: 'previousGroupName',
+                9: 'newGroupName',
+                10: 'timestamp',
+                11: 'dryRun',
+                12: 'alreadyCorrect'
             };
 
             ['manual-all', 'manual-pending', 'manual-solved', 'manual-care', 'manual-hala', 'manual-casablanca', 'manual-unprocessed'].forEach(type => {
@@ -6945,8 +7021,13 @@ the everything app`;
                 ? `<div class="rumi-log-meta">${this.escapeHtml(JSON.stringify(log.meta))}</div>`
                 : '';
 
+            // Convert UTC timestamp to GMT+3 for display
+            const logDate = new Date(log.timestamp);
+            const gmt3Date = new Date(logDate.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
+            const displayTimestamp = gmt3Date.toISOString().replace('T', ' ').substring(0, 19);
+
             div.innerHTML = `
-                <strong>${log.timestamp}</strong> [${log.level.toUpperCase()}] ${log.module}: ${escapedMessage}
+                <strong>${displayTimestamp}</strong> [${log.level.toUpperCase()}] ${log.module}: ${escapedMessage}
                 ${metaHtml}
             `;
 
@@ -7152,9 +7233,10 @@ the everything app`;
                 let csvContent = BOM + headers.join(',') + '\n';
 
                 tickets.forEach(ticket => {
-                    // Format date without commas to prevent column splitting
+                    // Format date without commas to prevent column splitting (convert UTC to GMT+3)
                     const processedDate = new Date(ticket.timestamp);
-                    const formattedDate = processedDate.toISOString().replace('T', ' ').substring(0, 19);
+                    const gmt3Date = new Date(processedDate.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
+                    const formattedDate = gmt3Date.toISOString().replace('T', ' ').substring(0, 19);
 
                     const row = [
                         ticket.ticketId || '',
