@@ -105,6 +105,8 @@
             // INTERNAL NOTES/ACTIONS & CODES
             "emea urgent triage team zzzdut",
             "please re-escalate if urgent concerns are confirmed",
+            "https://blissnxt.uberinternal.com",
+            "https://uber.lighthouse-cloud.com",
             "https://apps.mypurecloud.ie",
             "1st call attempt",
             "2nd call attempt",
@@ -120,14 +122,15 @@
             "already taken the appropriate action internally",
             "already taken the appropriate actions internally",
             "we have already taken all the appropriate actions internally.",
+            "we have already taken all the necessary internal actions",
             "we will be taking the appropriate actions",
             "we will be taking the appropriate action",
             "thanks for your understanding",
             "Please note that GIG will follow up regarding the insurance within 2 business days",
 
             // ACTION TAKEN / RESOLUTION CONFIRMED (Arabic)
-            "وقد اتخذنا بالفعل الإجراء المناسب داخلياً",
-            "وسنتَّخذ الإجراءات الداخلية",
+            "وقد اتخذنا بالفعل الإجراء المناسب داخليا",
+            "وسنتخذ الإجراءات الداخلية",
             "وسوف نقوم بمتابعة التحقيق واتخاذ الإجراءات",
             "وسوف نتخذ الإجراءات المناسبة",
             "سنتابع الأمر مع السائق من أجل اتخاذ الإجراءات المناسبة",
@@ -142,22 +145,19 @@
             "we can confirm that this trip isn’t eligible for a price adjustment",
 
             // SAFETY & PRECAUTIONARY MEASURES (Arabic)
-            "قد أجرينا أيضاً بعض التغييرات في التطبيق للتقليل من فرص",
+            "قد أجرينا أيضا بعض التغييرات في التطبيق للتقليل من فرص",
             "إذا تمت مطابقتك مرة أخرى، يرجى إلغاء الرحلة والتواصل معنا من خلال التطبيق",
-            "إذا كانت لديك أي معلومات إضافية أو ترغب في إعادة فتح هذا البلاغ في أي وقت",
-
             // INTERNAL PROCESS / STATUS UPDATES (English)
             "it looks like you've already raised a similar concern for this trip that our support team has resolved",
             "will be handled by one of our specialized teams through another message soon",
 
             // INTERNAL PROCESS / STATUS UPDATES (Arabic)
-            "وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معكِ من خلال رسالة أخرى بخصوص استفساركِ في أقرب وقت ممكن",
             "وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى بخصوص استفسارك في أقرب وقت ممكن",
-            "ومن ثمَّ، سنغلق تذكرة الدعم الحالية لتسهيل التواصل وتجنُّب أي التباس",
-            "يمكننا الردّ على أي استفسارات حول هذا الأمر في أي وقت",
+            "ومن ثم، سنغلق تذكرة الدعم الحالية لتسهيل التواصل وتجنب أي التباس",
+            "يمكننا الرد على أي استفسارات حول هذا الأمر في أي وقت",
             "لنمنح الركاب تجربة خالية من المتاعب حتى يتمكنوا من إجراء مشوار في أقرب وقت ممكن",
             "ويمكننا ملاحظة أنك قد تواصلت معنا بشأنها من قبل",
-            "نحرص دائماً على توفير تجربة آمنة ومريحة تتسم بالاحترام للركاب والسائقين",
+            "نحرص دائما على توفير تجربة آمنة ومريحة تتسم بالاحترام للركاب والسائقين",
             "فسوف يتم الرد عليك برسالة أخرى من الفريق المختص",
             "إن سلامة جميع المستخدمين من أهم أولوياتنا",
             "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
