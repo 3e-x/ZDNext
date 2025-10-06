@@ -677,36 +677,12 @@ the everything app`;
                 return { action: 'none' };
             }
 
-            // Care routing - #notsafety check (latest comment only)
-            const latestComment = comments[comments.length - 1];
-            const latestAuthor = await this.getUserRole(latestComment.author_id);
+            // Care routing - Use same trace-back logic to find comment to check
+            const commentToCheck = await this.findCommentToCheck(comments);
+            if (commentToCheck) {
+                const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
 
-            if (!latestAuthor.isEndUser) {
-                const normalized = RUMICommentProcessor.normalizeForMatching(latestComment.html_body);
-                // Only check enabled care routing phrases
-                const enabledCareRoutingPhrases = RUMIRules.CARE_ROUTING_PHRASES.filter(phrase => {
-                    return settings.triggerPhrases.careRouting[phrase] !== false;
-                });
-
-                // These specific phrases can come from any agent (not just CAREEM_CARE_ID)
-                const agentOnlyPhrases = [
-                    "not safety related^",
-                    "captain asks for extra money is no longer a safety case"
-                ];
-
-                const matchedPhrase = enabledCareRoutingPhrases.find(phrase => {
-                    if (RUMICommentProcessor.matchesTrigger(normalized, phrase)) {
-                        // For agent-only phrases, verify the author is an agent role
-                        if (agentOnlyPhrases.includes(phrase.toLowerCase())) {
-                            return latestAuthor.role === 'agent';
-                        }
-                        // For other phrases, any non-end-user is fine
-                        return true;
-                    }
-                    return false;
-                });
-
-                if (matchedPhrase) {
+                if (triggerResult && triggerResult.type === 'care') {
                     const payload = { ticket: { group_id: GROUP_IDS.CARE } };
                     // If ticket is pending or solved, change to open
                     if (ticket.status === 'pending' || ticket.status === 'solved') {
@@ -714,9 +690,34 @@ the everything app`;
                     }
                     return {
                         action: 'care',
-                        trigger: `Routing phrase: ${matchedPhrase}`,
+                        trigger: `Routing phrase: ${triggerResult.trigger}`,
                         payload: payload
                     };
+                }
+
+                // No triggers found in commentToCheck - check if it's internal, then check one comment before
+                if (!triggerResult && commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                    const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
+
+                    if (commentIndex > 0) {
+                        const precedingComment = comments[commentIndex - 1];
+
+                        if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                            const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
+
+                            if (precedingTriggerResult && precedingTriggerResult.type === 'care') {
+                                const payload = { ticket: { group_id: GROUP_IDS.CARE } };
+                                if (ticket.status === 'pending' || ticket.status === 'solved') {
+                                    payload.ticket.status = 'open';
+                                }
+                                return {
+                                    action: 'care',
+                                    trigger: `Routing phrase: ${precedingTriggerResult.trigger}`,
+                                    payload: payload
+                                };
+                            }
+                        }
+                    }
                 }
             }
 
@@ -764,35 +765,56 @@ the everything app`;
                 return { action: 'none' };
             }
 
-            const latestComment = comments[comments.length - 1];
+            // Find the comment to check using trace-back logic
+            const commentToCheck = await this.findCommentToCheck(comments);
+            if (!commentToCheck) {
+                return { action: 'none' };
+            }
 
-            // Special rule: If last comment is "english ticket" and private, check preceding comment for triggers
-            const latestNormalized = RUMICommentProcessor.normalizeForMatching(latestComment.html_body);
-            if (latestComment.public === false && latestNormalized.trim() === 'english ticket') {
-                // Find the comment before the "english ticket" comment
-                if (comments.length >= 2) {
-                    const precedingComment = comments[comments.length - 2];
-                    const precedingNormalized = RUMICommentProcessor.normalizeForMatching(precedingComment.html_body);
+            // Check if the found comment has any triggers
+            const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
 
-                    // Check if preceding comment is from CAREEM_CARE_ID and is private
-                    if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID &&
-                        precedingComment.public === false) {
+            // If comment has a trigger, process it based on type
+            if (triggerResult) {
+                if (triggerResult.type === 'pending') {
+                    const viewId = RUMIUI.viewsMap.get(viewName);
+                    const specialViewIds = ['360069695114', '360000843468'];
+                    const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
 
-                        // Check for care routing phrases (these take precedence)
-                        if (RUMICommentProcessor.matchesAnyTrigger(precedingNormalized, RUMIRules.CARE_ROUTING_PHRASES)) {
-                            return { action: 'none' };
+                    const payload = {
+                        ticket: {
+                            status: 'pending',
+                            assignee_id: CONFIG.CAREEM_CARE_ID
                         }
+                    };
 
-                        // Check for pending triggers
-                        const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
-                            return settings.triggerPhrases.pending[phrase] !== false;
-                        });
+                    if (shouldSetPriorityNormal) {
+                        payload.ticket.priority = 'normal';
+                    }
 
-                        const matchedTrigger = enabledPendingTriggers.find(phrase =>
-                            RUMICommentProcessor.matchesTrigger(precedingNormalized, phrase)
-                        );
+                    return {
+                        action: 'pending',
+                        trigger: triggerResult.trigger.substring(0, 50) + (triggerResult.trigger.length > 50 ? '...' : ''),
+                        payload: payload
+                    };
+                }
+                // If it has other triggers (solved/care), those are handled by other rule evaluators
+                return { action: 'none' };
+            }
 
-                        if (matchedTrigger) {
+            // No triggers found in commentToCheck
+            // Check if commentToCheck is internal (private) - if so, check one comment before
+            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
+
+                if (commentIndex > 0) {
+                    const precedingComment = comments[commentIndex - 1];
+
+                    // Check if preceding is from CAREEM_CARE_ID
+                    if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
+
+                        if (precedingTriggerResult && precedingTriggerResult.type === 'pending') {
                             const viewId = RUMIUI.viewsMap.get(viewName);
                             const specialViewIds = ['360069695114', '360000843468'];
                             const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
@@ -810,7 +832,7 @@ the everything app`;
 
                             return {
                                 action: 'pending',
-                                trigger: `English ticket override: ${matchedTrigger.substring(0, 50)}${matchedTrigger.length > 50 ? '...' : ''}`,
+                                trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
                                 payload: payload
                             };
                         }
@@ -818,143 +840,7 @@ the everything app`;
                 }
             }
 
-            // Find the comment to check (with trace-back if needed)
-            const commentToCheck = await this.findCommentToCheck(comments);
-            if (!commentToCheck) {
-                return { action: 'none' };
-            }
-
-            const normalized = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-
-            // Special handling for ESCALATED_BUT_NO_RESPONSE template (check before CAREEM_CARE_ID filter)
-            const escalatedNormalized = RUMICommentProcessor.normalizeForMatching(RUMIRules.ESCALATED_BUT_NO_RESPONSE);
-            if (normalized === escalatedNormalized) {
-                // If it's the latest comment, do nothing
-                if (commentToCheck.id === latestComment.id) {
-                    return { action: 'none' };
-                }
-                // If it's not the latest comment (end-user replied after), set to pending
-                const payload = {
-                    ticket: {
-                        status: 'pending',
-                        assignee_id: CONFIG.CAREEM_CARE_ID
-                    }
-                };
-
-                return {
-                    action: 'pending',
-                    trigger: 'ESCALATED_BUT_NO_RESPONSE with end-user reply',
-                    payload: payload
-                };
-            }
-
-            // Check if this is a CareemCare comment (for regular pending triggers)
-            if (commentToCheck.author_id.toString() !== CONFIG.CAREEM_CARE_ID) {
-                return { action: 'none' };
-            }
-
-            // Special rule: If latest comment is private from CAREEM_CARE_ID and has no triggers,
-            // check if preceding comment is public from CAREEM_CARE_ID with pending trigger
-            if (commentToCheck.id === latestComment.id &&
-                latestComment.public === false &&
-                latestComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-
-                // Check if this comment has no pending or care triggers
-                const hasPendingTrigger = RUMIRules.PENDING_TRIGGERS.some(phrase =>
-                    RUMICommentProcessor.matchesTrigger(normalized, phrase)
-                );
-                const hasCareTrigger = RUMIRules.CARE_ROUTING_PHRASES.some(phrase =>
-                    RUMICommentProcessor.matchesTrigger(normalized, phrase)
-                );
-
-                if (!hasPendingTrigger && !hasCareTrigger && comments.length >= 2) {
-                    const commentIndex = comments.findIndex(c => c.id === latestComment.id);
-
-                    if (commentIndex > 0) {
-                        const precedingComment = comments[commentIndex - 1];
-
-                        // Check if preceding is public from CAREEM_CARE_ID
-                        if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID &&
-                            precedingComment.public === true) {
-
-                            const precedingNormalized = RUMICommentProcessor.normalizeForMatching(precedingComment.html_body);
-
-                            // Only check enabled pending trigger phrases
-                            const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
-                                return settings.triggerPhrases.pending[phrase] !== false;
-                            });
-
-                            const matchedPrecedingTrigger = enabledPendingTriggers.find(phrase =>
-                                RUMICommentProcessor.matchesTrigger(precedingNormalized, phrase)
-                            );
-
-                            if (matchedPrecedingTrigger) {
-                                const viewId = RUMIUI.viewsMap.get(viewName);
-                                const specialViewIds = ['360069695114', '360000843468'];
-                                const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
-                                const payload = {
-                                    ticket: {
-                                        status: 'pending',
-                                        assignee_id: CONFIG.CAREEM_CARE_ID
-                                    }
-                                };
-
-                                if (shouldSetPriorityNormal) {
-                                    payload.ticket.priority = 'normal';
-                                }
-
-                                return {
-                                    action: 'pending',
-                                    trigger: `Preceding trigger: ${matchedPrecedingTrigger.substring(0, 50)}${matchedPrecedingTrigger.length > 50 ? '...' : ''}`,
-                                    payload: payload
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Check for routing phrases (Care routing takes precedence)
-            if (RUMICommentProcessor.matchesAnyTrigger(normalized, RUMIRules.CARE_ROUTING_PHRASES)) {
-                return { action: 'none' };
-            }
-
-            // Only check enabled pending trigger phrases
-            const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
-                return settings.triggerPhrases.pending[phrase] !== false;
-            });
-
-            // Check for pending triggers (can be in public or private comments)
-            const matchedTrigger = enabledPendingTriggers.find(phrase =>
-                RUMICommentProcessor.matchesTrigger(normalized, phrase)
-            );
-
-            if (matchedTrigger) {
-                // Business rule: For specific views, if priority is not 'normal', set it to 'normal'
-                const viewId = RUMIUI.viewsMap.get(viewName);
-                const specialViewIds = ['360069695114', '360000843468'];
-                const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
-                const payload = {
-                    ticket: {
-                        status: 'pending',
-                        assignee_id: CONFIG.CAREEM_CARE_ID
-                    }
-                };
-
-                // Add priority to payload if needed for special views
-                if (shouldSetPriorityNormal) {
-                    payload.ticket.priority = 'normal';
-                }
-
-                return {
-                    action: 'pending',
-                    trigger: matchedTrigger.substring(0, 50) + (matchedTrigger.length > 50 ? '...' : ''),
-                    payload: payload
-                };
-            }
-
+            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
             return { action: 'none' };
         }
 
@@ -965,51 +851,53 @@ the everything app`;
                 return { action: 'none' };
             }
 
-            // Only check enabled solved trigger phrases
-            const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
-                return settings.triggerPhrases.solved[phrase] !== false;
-            });
+            // Find the comment to check using trace-back logic
+            const commentToCheck = await this.findCommentToCheck(comments);
+            if (!commentToCheck) {
+                return { action: 'none' };
+            }
 
-            // Trace back through comments to find CAREEM_CARE_ID comment with solved trigger
-            const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
-            for (let i = comments.length - 1; i >= startIndex; i--) {
-                const comment = comments[i];
+            // Check if the found comment has any triggers
+            const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
 
-                // Only check CAREEM_CARE_ID comments
-                if (comment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                    const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
-                    const matchedTrigger = enabledSolvedTriggers.find(phrase =>
-                        RUMICommentProcessor.matchesTrigger(normalized, phrase)
-                    );
+            // If comment has a trigger, process it based on type
+            if (triggerResult) {
+                if (triggerResult.type === 'solved') {
+                    const userId = await this.ensureCurrentUserId();
 
-                    if (matchedTrigger) {
-                        // Found a solved trigger, but check if there are end-user comments after it
-                        const hasEndUserCommentsAfter = await this.hasEndUserCommentsAfter(comments, i);
+                    return {
+                        action: 'solved',
+                        trigger: triggerResult.trigger.substring(0, 50) + (triggerResult.trigger.length > 50 ? '...' : ''),
+                        payload: {
+                            ticket: {
+                                status: 'solved',
+                                assignee_id: userId
+                            }
+                        }
+                    };
+                }
+                // If it has other triggers (pending/care), those are handled by other rule evaluators
+                return { action: 'none' };
+            }
 
-                        if (hasEndUserCommentsAfter) {
-                            // If there are end-user comments after the solved trigger, set to pending instead
-                            RUMILogger.debug('Processor', 'Found solved trigger but end-user responded after, setting to pending', {
-                                ticketId: ticket.id,
-                                commentId: comment.id
-                            });
+            // No triggers found in commentToCheck
+            // Check if commentToCheck is internal (private) - if so, check one comment before
+            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
 
-                            return {
-                                action: 'pending',
-                                trigger: matchedTrigger.substring(0, 50) + (matchedTrigger.length > 50 ? '...' : ''),
-                                payload: {
-                                    ticket: {
-                                        status: 'pending',
-                                        assignee_id: CONFIG.CAREEM_CARE_ID
-                                    }
-                                }
-                            };
-                        } else {
-                            // No end-user comments after solved trigger, set to solved
+                if (commentIndex > 0) {
+                    const precedingComment = comments[commentIndex - 1];
+
+                    // Check if preceding is from CAREEM_CARE_ID
+                    if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
+
+                        if (precedingTriggerResult && precedingTriggerResult.type === 'solved') {
                             const userId = await this.ensureCurrentUserId();
 
                             return {
                                 action: 'solved',
-                                trigger: matchedTrigger.substring(0, 50) + (matchedTrigger.length > 50 ? '...' : ''),
+                                trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
                                 payload: {
                                     ticket: {
                                         status: 'solved',
@@ -1022,20 +910,8 @@ the everything app`;
                 }
             }
 
-
+            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
             return { action: 'none' };
-        }
-
-        static async hasEndUserCommentsAfter(comments, commentIndex) {
-            // Check if there are any end-user comments after the given comment index
-            for (let i = commentIndex + 1; i < comments.length; i++) {
-                const comment = comments[i];
-                const author = await this.getUserRole(comment.author_id);
-                if (author.isEndUser) {
-                    return true;
-                }
-            }
-            return false;
         }
 
         static async findCommentToCheck(comments) {
@@ -1044,22 +920,65 @@ the everything app`;
             const latestComment = comments[comments.length - 1];
             const latestAuthor = await this.getUserRole(latestComment.author_id);
 
-            // If latest is not from end-user, use it
-            if (!latestAuthor.isEndUser) {
+            // Case A: Latest comment is from end-user - trace back to find first CAREEM_CARE_ID comment
+            if (latestAuthor.isEndUser) {
+                const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
+                for (let i = comments.length - 2; i >= startIndex; i--) {
+                    const comment = comments[i];
+                    if (comment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                        return comment;
+                    }
+                }
+                return null;
+            }
+
+            // Case B & C: Latest comment is from CAREEM_CARE_ID
+            if (latestComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                 return latestComment;
             }
 
-            // Trace back to find first non-end-user comment (max 50 comments)
-            const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
-            for (let i = comments.length - 2; i >= startIndex; i--) {
-                const comment = comments[i];
-                const author = await this.getUserRole(comment.author_id);
-                if (!author.isEndUser) {
-                    return comment;
-                }
+            // Latest comment is from another agent (not end-user, not CAREEM_CARE_ID)
+            return null;
+        }
+
+        static async checkCommentForTriggers(comment, settings) {
+            // Check if a comment contains any trigger phrases and return the result
+            const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
+
+            // Check pending triggers
+            const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
+                return settings.triggerPhrases.pending[phrase] !== false;
+            });
+            const pendingTrigger = enabledPendingTriggers.find(phrase =>
+                RUMICommentProcessor.matchesTrigger(normalized, phrase)
+            );
+            if (pendingTrigger) {
+                return { type: 'pending', trigger: pendingTrigger };
             }
 
-            return null;
+            // Check solved triggers
+            const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
+                return settings.triggerPhrases.solved[phrase] !== false;
+            });
+            const solvedTrigger = enabledSolvedTriggers.find(phrase =>
+                RUMICommentProcessor.matchesTrigger(normalized, phrase)
+            );
+            if (solvedTrigger) {
+                return { type: 'solved', trigger: solvedTrigger };
+            }
+
+            // Check care routing triggers
+            const enabledCareRoutingPhrases = RUMIRules.CARE_ROUTING_PHRASES.filter(phrase => {
+                return settings.triggerPhrases.careRouting[phrase] !== false;
+            });
+            const careTrigger = enabledCareRoutingPhrases.find(phrase =>
+                RUMICommentProcessor.matchesTrigger(normalized, phrase)
+            );
+            if (careTrigger) {
+                return { type: 'care', trigger: careTrigger };
+            }
+
+            return null; // No triggers found
         }
 
         static async getUserRole(userId) {
@@ -1257,9 +1176,9 @@ the everything app`;
                 timestamp: new Date().toISOString()
             });
 
-            // Keep last 500 processed tickets
-            if (tickets.length > 500) {
-                tickets.splice(0, tickets.length - 500);
+            // Keep last 1500 processed tickets
+            if (tickets.length > 1500) {
+                tickets.splice(0, tickets.length - 1500);
             }
 
             this.set('processed_tickets', tickets);
@@ -1281,9 +1200,9 @@ the everything app`;
                 timestamp: new Date().toISOString()
             });
 
-            // Keep last 500 processed tickets
-            if (tickets.length > 500) {
-                tickets.splice(0, tickets.length - 500);
+            // Keep last 1500 processed tickets
+            if (tickets.length > 1500) {
+                tickets.splice(0, tickets.length - 1500);
             }
 
             this.set('manual_processed_tickets', tickets);
@@ -2131,6 +2050,7 @@ the everything app`;
         static intervalSeconds = CONFIG.DEFAULT_INTERVAL_SECONDS;
         static baselineTickets = new Map(); // Track existing tickets per view
         static manualProcessingCancelled = false; // Flag to cancel manual processing
+        static failedPolls = new Map(); // Track which views failed to poll (viewId -> failureCount)
 
         static async start() {
             if (this.isRunning) {
@@ -2275,6 +2195,9 @@ the everything app`;
             // Clear baseline so that restarting monitoring will process existing tickets again
             this.baselineTickets.clear();
 
+            // Clear failed polls tracking
+            this.failedPolls.clear();
+
             RUMILogger.info('MONITOR', 'Stopped monitoring and cleared baseline');
             RUMIUI.updateConnectionStatus('offline');
         }
@@ -2312,55 +2235,107 @@ the everything app`;
 
                     const currentTicketIds = new Set(ticketIds);
 
+                    // Check if this view had failed polls previously
+                    const hadFailedPoll = this.failedPolls.has(viewId);
+                    const failureCount = this.failedPolls.get(viewId) || 0;
+
                     // Get baseline for this view
                     const baselineIds = this.baselineTickets.get(viewId) || new Set();
 
-                    // Find NEW tickets (not in baseline)
-                    const newTicketIds = ticketIds.filter(id => !baselineIds.has(id));
-
-                    if (newTicketIds.length > 0) {
-                        RUMILogger.info('MONITOR', `Found ${newTicketIds.length} NEW tickets in view "${viewName}"`, {
+                    // CATCH-UP MODE: If we had failed polls, process ALL tickets in view (like startup)
+                    // This ensures we don't miss any tickets that were added during rate limit period
+                    if (hadFailedPoll) {
+                        RUMILogger.warn('MONITOR', `CATCH-UP MODE: View "${viewName}" recovering from ${failureCount} failed poll(s) - processing ALL ${ticketIds.length} tickets`, {
                             viewId,
                             viewName,
-                            newTickets: newTicketIds,
+                            failureCount,
+                            ticketsToProcess: ticketIds.length,
                             totalInView: ticketIds.length
                         });
 
-                        // Process only NEW tickets
-                        for (const ticketId of newTicketIds) {
+                        RUMIUI.showToast(`Recovering view "${viewName}" - processing ${ticketIds.length} tickets`, 'warning');
+
+                        // Process ALL tickets in the view (like initial baseline establishment)
+                        for (const ticketId of ticketIds) {
                             const result = await RUMIProcessor.processTicket(ticketId, viewName);
                             if (result.action !== 'none' && result.action !== 'skipped') {
-                                // Stats are updated inside processor
                                 RUMIUI.updateCounters();
                                 RUMIUI.updateProcessedTicketsDisplay();
                             }
-                            // Small delay between processing
                             await new Promise(resolve => setTimeout(resolve, 300));
                         }
 
-                        // Update baseline with current tickets to include the new ones
-                        this.baselineTickets.set(viewId, currentTicketIds);
-                        RUMILogger.debug('MONITOR', `Updated baseline for view "${viewName}"`, {
+                        // Clear the failed poll flag for this view
+                        this.failedPolls.delete(viewId);
+
+                        RUMILogger.info('MONITOR', `CATCH-UP COMPLETE: View "${viewName}" recovered successfully`, {
                             viewId,
                             viewName,
-                            baselineSize: currentTicketIds.size
+                            processedCount: ticketIds.length
                         });
+
+                        RUMIUI.showToast(`View "${viewName}" recovered - ${ticketIds.length} tickets processed`, 'success');
                     } else {
-                        RUMILogger.debug('MONITOR', `No new tickets in view "${viewName}"`, {
-                            viewId,
-                            viewName,
-                            totalInView: ticketIds.length,
-                            baselineSize: baselineIds.size
-                        });
+                        // NORMAL MODE: Find NEW tickets (not in baseline)
+                        const newTicketIds = ticketIds.filter(id => !baselineIds.has(id));
+
+                        if (newTicketIds.length > 0) {
+                            RUMILogger.info('MONITOR', `Found ${newTicketIds.length} NEW tickets in view "${viewName}"`, {
+                                viewId,
+                                viewName,
+                                newTickets: newTicketIds,
+                                totalInView: ticketIds.length
+                            });
+
+                            // Process only NEW tickets
+                            for (const ticketId of newTicketIds) {
+                                const result = await RUMIProcessor.processTicket(ticketId, viewName);
+                                if (result.action !== 'none' && result.action !== 'skipped') {
+                                    // Stats are updated inside processor
+                                    RUMIUI.updateCounters();
+                                    RUMIUI.updateProcessedTicketsDisplay();
+                                }
+                                // Small delay between processing
+                                await new Promise(resolve => setTimeout(resolve, 300));
+                            }
+                        } else {
+                            RUMILogger.debug('MONITOR', `No new tickets in view "${viewName}"`, {
+                                viewId,
+                                viewName,
+                                totalInView: ticketIds.length,
+                                baselineSize: baselineIds.size
+                            });
+                        }
                     }
+
+                    // Update baseline with current tickets (both catch-up and normal mode)
+                    this.baselineTickets.set(viewId, currentTicketIds);
+                    RUMILogger.debug('MONITOR', `Updated baseline for view "${viewName}"`, {
+                        viewId,
+                        viewName,
+                        baselineSize: currentTicketIds.size,
+                        mode: hadFailedPoll ? 'catch-up' : 'normal'
+                    });
 
                 } catch (error) {
                     const viewName = await RUMIUI.getViewName(viewId);
-                    RUMILogger.error('MONITOR', `Failed to poll view "${viewName}"`, {
+
+                    // Track this failed poll
+                    const currentFailureCount = this.failedPolls.get(viewId) || 0;
+                    this.failedPolls.set(viewId, currentFailureCount + 1);
+
+                    RUMILogger.error('MONITOR', `Failed to poll view "${viewName}" (failure #${currentFailureCount + 1})`, {
                         viewId,
                         viewName,
-                        error: error.message
+                        error: error.message,
+                        failureCount: currentFailureCount + 1,
+                        willCatchUp: true
                     });
+
+                    // Show toast for rate limit errors specifically
+                    if (error.message.includes('Rate limit')) {
+                        RUMIUI.showToast(`Rate limited on view "${viewName}" - will catch up on next poll`, 'error');
+                    }
                 }
             }
 
@@ -3515,15 +3490,26 @@ the everything app`;
             border-right: 1px solid var(--rumi-border);
             word-wrap: break-word;
             overflow-wrap: break-word;
+            color: var(--rumi-text);
         }
 
         .rumi-table td:last-child {
             border-right: none;
         }
 
+        .rumi-table td a {
+            color: var(--rumi-accent-blue);
+            text-decoration: none;
+        }
+
+        .rumi-table td a:hover {
+            text-decoration: underline;
+        }
+
         .rumi-table tbody tr {
             position: relative;
             z-index: 1;
+            background: var(--rumi-panel-bg);
         }
 
         .rumi-table tbody tr:hover {
@@ -3651,11 +3637,19 @@ the everything app`;
         }
 
         [data-theme="light"] .rumi-table tbody tr.rumi-dry-run {
-            background: #FEF2F2;
+            background: #FEF2F2 !important;
         }
 
         [data-theme="dark"] .rumi-table tbody tr.rumi-dry-run {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15) !important;
+        }
+
+        [data-theme="light"] .rumi-table tbody tr.rumi-dry-run:hover {
+            background: #FEE2E2 !important;
+        }
+
+        [data-theme="dark"] .rumi-table tbody tr.rumi-dry-run:hover {
+            background: rgba(239, 68, 68, 0.25) !important;
         }
 
         .rumi-badge {
@@ -3669,13 +3663,13 @@ the everything app`;
         }
 
         .rumi-badge-yes {
-            background: #FEE2E2;
-            color: #DC2626;
+            background: #D1FAE5;
+            color: #059669;
         }
 
         .rumi-badge-no {
-            background: #D1FAE5;
-            color: #059669;
+            background: #FEE2E2;
+            color: #DC2626;
         }
 
         .rumi-badge-warning {
@@ -3684,48 +3678,114 @@ the everything app`;
             cursor: help;
         }
 
-        .rumi-badge-pending {
-            color: #1f73b7;
-        }
-
-        .rumi-badge-solved {
-            color: #5c6970;
-        }
-
         [data-theme="light"] .rumi-badge-pending {
-            background: #E3F2FD;
+            background: #1f73b7;
+            color: #FFFFFF;
         }
 
         [data-theme="dark"] .rumi-badge-pending {
-            background: rgba(31, 115, 183, 0.15);
+            background: #2693d6;
+            color: #151a1e;
         }
 
         [data-theme="light"] .rumi-badge-solved {
-            background: #F5F5F5;
+            background: #5c6970;
+            color: #FFFFFF;
         }
 
         [data-theme="dark"] .rumi-badge-solved {
-            background: rgba(92, 105, 112, 0.15);
+            background: #9CA3AF;
+            color: #151a1e;
         }
 
-        .rumi-badge-care {
-            background: #FEE2E2;
-            color: #DC2626;
+        [data-theme="light"] .rumi-badge-care {
+            background: #DC2626;
+            color: #FFFFFF;
         }
 
-        .rumi-badge-hala {
-            background: #EDE9FE;
-            color: #7C3AED;
+        [data-theme="dark"] .rumi-badge-care {
+            background: #EF4444;
+            color: #151a1e;
         }
 
-        .rumi-badge-casablanca {
-            background: #CFFAFE;
-            color: #0891B2;
+        [data-theme="light"] .rumi-badge-hala {
+            background: #7C3AED;
+            color: #FFFFFF;
         }
 
-        .rumi-badge-none {
-            background: #F3F4F6;
-            color: #6B7280;
+        [data-theme="dark"] .rumi-badge-hala {
+            background: #A78BFA;
+            color: #151a1e;
+        }
+
+        [data-theme="light"] .rumi-badge-casablanca {
+            background: #0891B2;
+            color: #FFFFFF;
+        }
+
+        [data-theme="dark"] .rumi-badge-casablanca {
+            background: #22D3EE;
+            color: #151a1e;
+        }
+
+        [data-theme="light"] .rumi-badge-none {
+            background: #9CA3AF;
+            color: #1F2937;
+        }
+
+        [data-theme="dark"] .rumi-badge-none {
+            background: #6B7280;
+            color: #F3F4F6;
+        }
+
+        .rumi-status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        [data-theme="light"] .rumi-status-badge-new {
+            background: #fca347;
+            color: #4c2c17;
+        }
+
+        [data-theme="dark"] .rumi-status-badge-new {
+            background: #e38215;
+            color: #151a1e;
+        }
+
+        [data-theme="light"] .rumi-status-badge-open {
+            background: #cd3642;
+            color: #FFFFFF;
+        }
+
+        [data-theme="dark"] .rumi-status-badge-open {
+            background: #eb5c69;
+            color: #151a1e;
+        }
+
+        [data-theme="light"] .rumi-status-badge-pending {
+            background: #1f73b7;
+            color: #ffffff;
+        }
+
+        [data-theme="dark"] .rumi-status-badge-pending {
+            background: #2693d6;
+            color: #151a1e;
+        }
+
+        [data-theme="light"] .rumi-status-badge-solved {
+            background: #eb5c69;
+            color: #151a1e;
+        }
+
+        [data-theme="dark"] .rumi-status-badge-solved {
+            background: #b0b8be;
+            color: #151a1e;
         }
 
         .rumi-logs-container {
@@ -6274,13 +6334,15 @@ the everything app`;
             // All tabs show the same columns
             tbody.innerHTML = ticketsWithResolvedNames.map(ticket => {
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
+                const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
+                const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
                 const dryRunBadge = ticket.dryRun
                     ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
                     : '<span class="rumi-badge rumi-badge-no">NO</span>';
 
                 const updatedBadge = ticket.alreadyCorrect
-                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
-                    : '<span class="rumi-badge rumi-badge-no">NO</span>';
+                    ? '<span class="rumi-badge rumi-badge-no">NO</span>'
+                    : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
                 return `
                     <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
@@ -6289,8 +6351,8 @@ the everything app`;
                         <td>${this.escapeHtml(ticket.viewName)}</td>
                         <td>${actionBadge}</td>
                         <td style="max-width: 250px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.trigger)}</td>
-                        <td>${this.escapeHtml(ticket.previousStatus)}</td>
-                        <td>${this.escapeHtml(ticket.newStatus)}</td>
+                        <td>${previousStatusBadge}</td>
+                        <td>${newStatusBadge}</td>
                         <td>${this.escapeHtml(ticket.previousGroupName || 'N/A')}</td>
                         <td>${this.escapeHtml(ticket.newGroupName || 'N/A')}</td>
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
@@ -6338,13 +6400,15 @@ the everything app`;
 
             tbody.innerHTML = ticketsWithResolvedNames.map(ticket => {
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
+                const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
+                const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
                 const dryRunBadge = ticket.dryRun
                     ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
                     : '<span class="rumi-badge rumi-badge-no">NO</span>';
 
                 const updatedBadge = ticket.alreadyCorrect
-                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
-                    : '<span class="rumi-badge rumi-badge-no">NO</span>';
+                    ? '<span class="rumi-badge rumi-badge-no">NO</span>'
+                    : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
                 return `
                     <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
@@ -6353,8 +6417,8 @@ the everything app`;
                         <td>${this.escapeHtml(ticket.viewName || 'N/A')}</td>
                         <td>${actionBadge}</td>
                         <td style="max-width: 250px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.trigger)}</td>
-                        <td>${this.escapeHtml(ticket.previousStatus)}</td>
-                        <td>${this.escapeHtml(ticket.newStatus)}</td>
+                        <td>${previousStatusBadge}</td>
+                        <td>${newStatusBadge}</td>
                         <td>${this.escapeHtml(ticket.previousGroupName || 'N/A')}</td>
                         <td>${this.escapeHtml(ticket.newGroupName || 'N/A')}</td>
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
