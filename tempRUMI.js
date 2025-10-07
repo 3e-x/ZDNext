@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         RUMI - Zendesk
+// @name         RUMI - Zendesk no automation
 // @namespace    http://tampermonkey.net/
 // @version      1.0
 // @description  RUMI button functionality for Zendesk workflows
@@ -230,7 +230,7 @@
                     lastSaved: new Date().toISOString()
                 };
                 localStorage.setItem(this.STORAGE_KEYS.PROCESSED_TICKETS, JSON.stringify(data));
-                RUMILogger.debug('Saved processed tickets to storage');
+                console.log('Saved processed tickets to storage');
             } catch (error) {
                 RUMILogger.error('Failed to save processed tickets', null, error);
             }
@@ -284,7 +284,7 @@
                 const parsed = JSON.parse(data);
                 rumiEnhancement.automationLogs = parsed.logs || [];
 
-                RUMILogger.debug(`Restored ${rumiEnhancement.automationLogs.length} log entries from storage`);
+                console.log(`Restored ${rumiEnhancement.automationLogs.length} log entries from storage`);
                 return true;
             } catch (error) {
                 RUMILogger.error('Failed to load automation logs', null, error);
@@ -315,7 +315,7 @@
                 const parsed = JSON.parse(data);
                 rumiEnhancement.ticketStatusHistory = new Map(parsed.history || []);
 
-                RUMILogger.debug(`Restored ${rumiEnhancement.ticketStatusHistory.size} ticket status entries from storage`);
+                console.log(`Restored ${rumiEnhancement.ticketStatusHistory.size} ticket status entries from storage`);
                 return true;
             } catch (error) {
                 RUMILogger.error('Failed to load ticket history', null, error);
@@ -384,7 +384,7 @@
                     };
                 }
 
-                RUMILogger.debug('Restored monitoring state from storage');
+                console.log('Restored monitoring state from storage');
                 return true;
             } catch (error) {
                 RUMILogger.error('Failed to load monitoring state', null, error);
@@ -551,7 +551,35 @@
     }
 
     // Function to apply the current field visibility state to forms
+    let applyFieldVisibilityTimeout = null;
+    let isApplyingFieldVisibility = false;
+
     function applyFieldVisibilityState(retryCount = 0) {
+        // Prevent concurrent executions
+        if (isApplyingFieldVisibility) {
+            console.debug('⏭️ Skipping applyFieldVisibilityState - already in progress');
+            return;
+        }
+
+        // Debounce: clear previous timeout and set a new one (except for retries)
+        if (retryCount === 0) {
+            if (applyFieldVisibilityTimeout) {
+                clearTimeout(applyFieldVisibilityTimeout);
+            }
+
+            applyFieldVisibilityTimeout = setTimeout(() => {
+                applyFieldVisibilityStateInternal(retryCount);
+            }, 100);
+            return;
+        }
+
+        // For retries, execute immediately
+        applyFieldVisibilityStateInternal(retryCount);
+    }
+
+    function applyFieldVisibilityStateInternal(retryCount = 0) {
+        isApplyingFieldVisibility = true;
+
         // Enhanced form detection for both old and new structures
         let allForms = DOMCache.get('section.grid-ticket-fields-panel', true, 2000);
 
@@ -565,7 +593,7 @@
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = DOMCache.get(selector, false, 1000);
                 if (allForms.length > 0) {
@@ -578,10 +606,12 @@
         if (allForms.length === 0) {
             if (retryCount < 3) {
                 console.warn(`⚠️ No forms found for field visibility control. Retrying in 1 second... (attempt ${retryCount + 1}/3)`);
+                isApplyingFieldVisibility = false;
                 setTimeout(() => applyFieldVisibilityState(retryCount + 1), 1000);
                 return;
             } else {
                 console.warn('⚠️ No forms found for field visibility control after 3 attempts. Fields may be loading dynamically or structure has changed.');
+                isApplyingFieldVisibility = false;
                 return;
             }
         }
@@ -595,27 +625,27 @@
                 // Enhanced field detection to handle both old and new structures
                 // Start with a broad search and then filter out system fields
                 const allPossibleFields = Array.from(form.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
-                
+
                 const fields = [];
                 allPossibleFields.forEach(field => {
                     try {
                         // Must have a label and be connected
-                        if (field.nodeType !== Node.ELEMENT_NODE || 
-                            !field.isConnected || 
+                        if (field.nodeType !== Node.ELEMENT_NODE ||
+                            !field.isConnected ||
                             !field.querySelector('label')) {
                             return;
                         }
-                        
+
                         // Skip system fields (Requester, Assignee, CCs)
                         if (isSystemField(field)) {
                             return;
                         }
-                        
+
                         // Skip duplicates
                         if (fields.includes(field)) {
                             return;
                         }
-                        
+
                         fields.push(field);
                     } catch (e) {
                         console.debug('Error processing field:', field, e);
@@ -629,7 +659,7 @@
                         const label = f.querySelector('label');
                         return label ? label.textContent.trim() : 'No label';
                     }));
-                    
+
                     // Also log system fields that were excluded
                     const systemFields = allPossibleFields.filter(f => f.querySelector('label') && isSystemField(f));
                     if (systemFields.length > 0) {
@@ -638,7 +668,7 @@
                             return label ? label.textContent.trim() : 'No label';
                         }));
                     }
-                    
+
                     // Log which fields will be hidden vs shown in minimal mode
                     if (fieldVisibilityState === 'minimal') {
                         const fieldsToShow = fields.filter(f => isTargetField(f));
@@ -646,7 +676,7 @@
                         console.log(`✅ Will SHOW ${fieldsToShow.length} minimal fields:`, fieldsToShow.map(f => f.querySelector('label')?.textContent.trim()));
                         console.log(`❌ Will HIDE ${fieldsToHide.length} non-minimal fields:`, fieldsToHide.map(f => f.querySelector('label')?.textContent.trim()));
                     }
-                    
+
                     // Log current visibility state
                     console.log(`👁️ Current field visibility state: ${fieldVisibilityState}`);
                 }
@@ -696,6 +726,11 @@
 
             // Update button state to reflect current state
             updateToggleButtonState();
+
+            // Reset flag after DOM updates are complete
+            setTimeout(() => {
+                isApplyingFieldVisibility = false;
+            }, 50);
         });
     }
 
@@ -1662,7 +1697,7 @@
 
             const finalOptions = { ...defaultOptions, ...options };
 
-            RUMILogger.debug('API', `Making ${finalOptions.method} request to ${endpoint}`);
+            console.log('API', `Making ${finalOptions.method} request to ${endpoint}`);
 
             try {
                 const response = await fetch(endpoint, finalOptions);
@@ -1683,7 +1718,7 @@
                 rumiEnhancement.consecutiveErrors = 0;
                 rumiEnhancement.apiCallCount++;
 
-                RUMILogger.debug('API', `Request successful (${responseTime}ms) - Total API calls: ${rumiEnhancement.apiCallCount}`, { endpoint, status: response.status });
+                console.log('API', `Request successful (${responseTime}ms) - Total API calls: ${rumiEnhancement.apiCallCount}`, { endpoint, status: response.status });
 
                 return data;
             } catch (error) {
@@ -1776,7 +1811,7 @@
 
                 // Debug: log a sample view to understand the structure
                 if (data.views.length > 0) {
-                    RUMILogger.debug('ZENDESK', 'Sample view structure:', data.views[0]);
+                    console.log('ZENDESK', 'Sample view structure:', data.views[0]);
                 }
 
                 return data.views;
@@ -1799,7 +1834,7 @@
                 const endpoint = `/api/v2/views/${viewId}/execute.json?per_page=${per_page}&page=${page}&sort_by=${sort_by}&sort_order=${sort_order}&group_by=+&include=${include}`;
                 const data = await RUMIAPIManager.makeRequestWithRetry(endpoint);
 
-                RUMILogger.debug('ZENDESK', `Retrieved ${data.rows?.length || 0} tickets from view ${viewId}`);
+                console.log('ZENDESK', `Retrieved ${data.rows?.length || 0} tickets from view ${viewId}`);
                 return data.rows || [];
             } catch (error) {
                 RUMILogger.error('ZENDESK', `Failed to retrieve tickets for view ${viewId}`, error);
@@ -1886,7 +1921,7 @@
             try {
                 const endpoint = `/api/v2/tickets/${ticketId}/comments.json?sort_order=desc`;
                 const data = await RUMIAPIManager.makeRequestWithRetry(endpoint);
-                RUMILogger.debug('ZENDESK', `Retrieved ${data.comments.length} comments for ticket ${ticketId}`);
+                console.log('ZENDESK', `Retrieved ${data.comments.length} comments for ticket ${ticketId}`);
                 return data.comments;
             } catch (error) {
                 RUMILogger.error('ZENDESK', `Failed to retrieve comments for ticket ${ticketId}`, error);
@@ -1898,7 +1933,7 @@
             try {
                 const endpoint = `/api/v2/users/${userId}.json`;
                 const data = await RUMIAPIManager.makeRequestWithRetry(endpoint);
-                RUMILogger.debug('ZENDESK', `Retrieved user details for user ${userId}`, {
+                console.log('ZENDESK', `Retrieved user details for user ${userId}`, {
                     id: data.user.id,
                     role: data.user.role,
                     name: data.user.name
@@ -2020,7 +2055,7 @@
                 try {
                     const token = method();
                     if (token) {
-                        RUMILogger.debug('ZENDESK', 'CSRF token found');
+                        console.log('ZENDESK', 'CSRF token found');
                         return token;
                     }
                 } catch (e) {
@@ -2090,32 +2125,32 @@
     const RUMICommentAnalyzer = {
         async analyzeLatestComment(comments) {
             if (!comments || comments.length === 0) {
-                RUMILogger.debug('COMMENT', 'No comments to analyze');
+                console.log('COMMENT', 'No comments to analyze');
                 return { matches: false, phrase: null };
             }
 
             // Ensure phrase arrays are initialized
             if (!rumiEnhancement.enabledPendingPhrases) {
                 rumiEnhancement.enabledPendingPhrases = new Array(rumiEnhancement.pendingTriggerPhrases.length).fill(true);
-                RUMILogger.debug('COMMENT', 'Initialized enabledPendingPhrases array');
+                console.log('COMMENT', 'Initialized enabledPendingPhrases array');
             }
 
             // NEW REQUIREMENT: Check if any comment is from author 35067366305043 AND contains "Incident type" or "Customer words"
             // This is a required condition for setting tickets to pending
             const hasRequiredAuthor = this.hasCommentFromRequiredAuthor(comments, 35067366305043);
             if (!hasRequiredAuthor) {
-                RUMILogger.debug('COMMENT', 'No qualifying comment found from required author 35067366305043 (must contain "Incident type" or "Customer words") - ticket will stay as open');
+                console.log('COMMENT', 'No qualifying comment found from required author 35067366305043 (must contain "Incident type" or "Customer words") - ticket will stay as open');
                 return { matches: false, phrase: null, reason: 'Missing qualifying comment from author 35067366305043' };
             }
 
-            RUMILogger.debug('COMMENT', 'Found qualifying comment from required author 35067366305043 with required phrases - proceeding with trigger phrase analysis');
+            console.log('COMMENT', 'Found qualifying comment from required author 35067366305043 with required phrases - proceeding with trigger phrase analysis');
 
             // Get latest comment (first in desc order)
             const latestComment = comments[0];
             const commentBody = latestComment.body || '';
             const htmlBody = latestComment.html_body || '';
 
-            RUMILogger.debug('COMMENT', `Analyzing latest comment from ticket`, {
+            console.log('COMMENT', `Analyzing latest comment from ticket`, {
                 commentId: latestComment.id,
                 author: latestComment.author_id,
                 created: latestComment.created_at,
@@ -2128,7 +2163,7 @@
                 const authorDetails = await RUMIZendeskAPI.getUserDetails(latestComment.author_id);
                 const authorRole = authorDetails.role;
 
-                RUMILogger.debug('COMMENT', `Latest comment author role: ${authorRole}`, {
+                console.log('COMMENT', `Latest comment author role: ${authorRole}`, {
                     userId: latestComment.author_id,
                     userName: authorDetails.name,
                     role: authorRole
@@ -2152,7 +2187,7 @@
                             const commentAuthor = await RUMIZendeskAPI.getUserDetails(comment.author_id);
                             const commentAuthorRole = commentAuthor.role;
 
-                            RUMILogger.debug('COMMENT', `Checking comment ${i + 1} from ${commentAuthorRole}`, {
+                            console.log('COMMENT', `Checking comment ${i + 1} from ${commentAuthorRole}`, {
                                 commentId: comment.id,
                                 authorId: comment.author_id,
                                 authorName: commentAuthor.name,
@@ -2161,7 +2196,7 @@
 
                             // If we find an agent comment, check it for trigger phrases
                             if (commentAuthorRole === 'agent' || commentAuthorRole === 'admin') {
-                                RUMILogger.debug('Found agent comment, checking for trigger phrases', latestComment.ticket_id);
+                                console.log('Found agent comment, checking for trigger phrases', latestComment.ticket_id);
                                 const result = this.checkTriggerPhrases(comment.body || '', comment.html_body || '', comment);
 
                                 if (result.matches) {
@@ -2174,14 +2209,14 @@
                                         latestComment: latestComment
                                     };
                                 } else {
-                                    RUMILogger.debug('COMMENT', `Agent comment does not contain trigger phrases - no action needed`);
+                                    console.log('COMMENT', `Agent comment does not contain trigger phrases - no action needed`);
                                     return { matches: false, phrase: null, comment: latestComment };
                                 }
                             }
 
                             // If it's another end-user comment, continue searching backwards
                             if (commentAuthorRole === 'end-user') {
-                                RUMILogger.debug('COMMENT', `Comment ${i + 1} is also from end-user, continuing search`);
+                                console.log('COMMENT', `Comment ${i + 1} is also from end-user, continuing search`);
                                 continue;
                             }
 
@@ -2193,12 +2228,12 @@
                     }
 
                     // If we've gone through all comments and only found end-user comments
-                    RUMILogger.debug('COMMENT', 'No agent comments found in history - no action needed');
+                    console.log('COMMENT', 'No agent comments found in history - no action needed');
                     return { matches: false, phrase: null, comment: latestComment };
                 }
 
                 // For any other roles, check trigger phrases directly
-                RUMILogger.debug('COMMENT', `Comment author has role "${authorRole}", checking trigger phrases directly`);
+                console.log('COMMENT', `Comment author has role "${authorRole}", checking trigger phrases directly`);
                 return this.checkTriggerPhrases(commentBody, htmlBody, latestComment);
 
             } catch (error) {
@@ -2215,7 +2250,7 @@
             }
 
             // Enhanced debugging: Log the actual comment body structure
-            RUMILogger.debug('COMMENT', 'Checking comment bodies:', {
+            console.log('COMMENT', 'Checking comment bodies:', {
                 bodyLength: commentBody ? commentBody.length : 0,
                 htmlBodyLength: htmlBody ? htmlBody.length : 0,
                 bodyPreview: commentBody ? commentBody.substring(0, 200) + '...' : '[no plain body]',
@@ -2224,11 +2259,11 @@
             });
 
             // Debug: Log current phrase settings
-            RUMILogger.debug('COMMENT', `Checking ${rumiEnhancement.pendingTriggerPhrases.length} phrases. Enabled array length: ${rumiEnhancement.enabledPendingPhrases?.length || 'undefined'}`);
+            console.log('COMMENT', `Checking ${rumiEnhancement.pendingTriggerPhrases.length} phrases. Enabled array length: ${rumiEnhancement.enabledPendingPhrases?.length || 'undefined'}`);
             if (rumiEnhancement.enabledPendingPhrases) {
                 const enabledCount = rumiEnhancement.enabledPendingPhrases.filter(enabled => enabled).length;
                 const disabledCount = rumiEnhancement.enabledPendingPhrases.length - enabledCount;
-                RUMILogger.debug('COMMENT', `Phrase status: ${enabledCount} enabled, ${disabledCount} disabled`);
+                console.log('COMMENT', `Phrase status: ${enabledCount} enabled, ${disabledCount} disabled`);
             }
 
             // Check for trigger phrases (case-insensitive exact match)
@@ -2236,11 +2271,11 @@
                 const phrase = rumiEnhancement.pendingTriggerPhrases[phraseIndex];
                 const isEnabled = !rumiEnhancement.enabledPendingPhrases || rumiEnhancement.enabledPendingPhrases[phraseIndex] !== false;
 
-                RUMILogger.debug('COMMENT', `Phrase ${phraseIndex + 1}: ${isEnabled ? 'ENABLED' : 'DISABLED'} - "${phrase.substring(0, 50)}..."`);
+                console.log('COMMENT', `Phrase ${phraseIndex + 1}: ${isEnabled ? 'ENABLED' : 'DISABLED'} - "${phrase.substring(0, 50)}..."`);
 
                 // Skip disabled phrases
                 if (rumiEnhancement.enabledPendingPhrases && !rumiEnhancement.enabledPendingPhrases[phraseIndex]) {
-                    RUMILogger.debug('COMMENT', `Skipping disabled phrase ${phraseIndex + 1}`);
+                    console.log('COMMENT', `Skipping disabled phrase ${phraseIndex + 1}`);
                     continue;
                 }
                 let foundMatch = false;
@@ -2391,7 +2426,7 @@
                 }
             }
 
-            RUMILogger.debug('COMMENT', 'No matching phrases found from required author');
+            console.log('COMMENT', 'No matching phrases found from required author');
             return { matches: false, phrase: null, comment };
         },
 
@@ -2424,7 +2459,7 @@
                     }
 
                     if (containsRequiredPhrase) {
-                        RUMILogger.debug('COMMENT', `Found qualifying comment from required author ${requiredAuthorId} containing "${matchedPhrase}"`, {
+                        console.log('COMMENT', `Found qualifying comment from required author ${requiredAuthorId} containing "${matchedPhrase}"`, {
                             commentId: comment.id,
                             authorId: comment.author_id,
                             created: comment.created_at,
@@ -2432,7 +2467,7 @@
                         });
                         return true;
                     } else {
-                        RUMILogger.debug('COMMENT', `Found comment from required author ${requiredAuthorId} but it doesn't contain required phrases ("Incident type" or "Customer words")`, {
+                        console.log('COMMENT', `Found comment from required author ${requiredAuthorId} but it doesn't contain required phrases ("Incident type" or "Customer words")`, {
                             commentId: comment.id,
                             authorId: comment.author_id,
                             created: comment.created_at,
@@ -2442,7 +2477,7 @@
                 }
             }
 
-            RUMILogger.debug('COMMENT', `No qualifying comments found from required author ${requiredAuthorId} with required phrases`);
+            console.log('COMMENT', `No qualifying comments found from required author ${requiredAuthorId} with required phrases`);
             return false;
         }
     };
@@ -2460,7 +2495,7 @@
 
         async analyzeSolvedPattern(comments) {
             if (!comments || comments.length === 0) {
-                RUMILogger.debug('SOLVED', 'No comments to analyze for solved pattern');
+                console.log('SOLVED', 'No comments to analyze for solved pattern');
                 return { matches: false, action: null };
             }
 
@@ -2469,7 +2504,7 @@
             const commentBody = latestComment.body || '';
             const htmlBody = latestComment.html_body || '';
 
-            RUMILogger.debug('SOLVED', `Analyzing latest comment for solved pattern`, {
+            console.log('SOLVED', `Analyzing latest comment for solved pattern`, {
                 commentId: latestComment.id,
                 author: latestComment.author_id,
                 created: latestComment.created_at
@@ -2480,7 +2515,7 @@
                 const authorDetails = await RUMIZendeskAPI.getUserDetails(latestComment.author_id);
                 const authorRole = authorDetails.role;
 
-                RUMILogger.debug('SOLVED', `Latest comment author role: ${authorRole}`, {
+                console.log('SOLVED', `Latest comment author role: ${authorRole}`, {
                     userId: latestComment.author_id,
                     userName: authorDetails.name,
                     role: authorRole
@@ -2504,7 +2539,7 @@
                     // New Case: Latest comment is from 34980896869267 and is private (public: false)
                     // Check if the previous comment from same author has a solved trigger
                     if (latestComment.public === false) {
-                        RUMILogger.debug('SOLVED', 'Latest comment from 34980896869267 is private, checking previous comment from same author for solved trigger');
+                        console.log('SOLVED', 'Latest comment from 34980896869267 is private, checking previous comment from same author for solved trigger');
 
                         // Look for the previous comment from the same author (34980896869267)
                         for (let i = 1; i < comments.length; i++) {
@@ -2530,7 +2565,7 @@
                                 }
 
                                 // Found previous comment from same author but no solved trigger, stop searching
-                                RUMILogger.debug('SOLVED', `Found previous comment from 34980896869267 without solved message, stopping search`);
+                                console.log('SOLVED', `Found previous comment from 34980896869267 without solved message, stopping search`);
                                 break;
                             }
                         }
@@ -2550,7 +2585,7 @@
                             const commentAuthor = await RUMIZendeskAPI.getUserDetails(comment.author_id);
                             const commentAuthorRole = commentAuthor.role;
 
-                            RUMILogger.debug('SOLVED', `Checking comment ${i + 1} from ${commentAuthorRole}`, {
+                            console.log('SOLVED', `Checking comment ${i + 1} from ${commentAuthorRole}`, {
                                 commentId: comment.id,
                                 authorId: comment.author_id,
                                 authorName: commentAuthor.name,
@@ -2577,19 +2612,19 @@
                                 }
 
                                 // Found an agent comment without solved message, stop searching
-                                RUMILogger.debug('SOLVED', `Found agent comment without solved message, stopping search`);
+                                console.log('SOLVED', `Found agent comment without solved message, stopping search`);
                                 break;
                             }
 
                             // If it's another end-user comment, continue searching backwards
                             if (commentAuthorRole === 'end-user') {
-                                RUMILogger.debug('SOLVED', `Comment ${i + 1} is also from end-user, continuing search`);
+                                console.log('SOLVED', `Comment ${i + 1} is also from end-user, continuing search`);
                                 continue;
                             }
 
                             // If it's from a different agent, stop searching
                             if (commentAuthorRole === 'agent' || commentAuthorRole === 'admin') {
-                                RUMILogger.debug('SOLVED', `Found comment from different agent (${comment.author_id}), stopping search`);
+                                console.log('SOLVED', `Found comment from different agent (${comment.author_id}), stopping search`);
                                 break;
                             }
                         } catch (userError) {
@@ -2599,7 +2634,7 @@
                     }
                 }
 
-                RUMILogger.debug('SOLVED', 'No solved message pattern found');
+                console.log('SOLVED', 'No solved message pattern found');
                 return { matches: false, action: null };
 
             } catch (error) {
@@ -2614,7 +2649,7 @@
             // Ensure solved phrase array is initialized
             if (!rumiEnhancement.enabledSolvedPhrases) {
                 rumiEnhancement.enabledSolvedPhrases = new Array(rumiEnhancement.solvedTriggerPhrases.length).fill(true);
-                RUMILogger.debug('SOLVED', 'Initialized enabledSolvedPhrases array');
+                console.log('SOLVED', 'Initialized enabledSolvedPhrases array');
             }
 
             // Check if the text contains any of the solved trigger phrases (case-insensitive)
@@ -2624,7 +2659,7 @@
 
                 // Skip disabled phrases
                 if (rumiEnhancement.enabledSolvedPhrases && !rumiEnhancement.enabledSolvedPhrases[phraseIndex]) {
-                    RUMILogger.debug('SOLVED', `Skipping disabled solved phrase ${phraseIndex + 1}: "${phrase.substring(0, 50)}..."`);
+                    console.log('SOLVED', `Skipping disabled solved phrase ${phraseIndex + 1}: "${phrase.substring(0, 50)}..."`);
                     continue;
                 }
 
@@ -2652,7 +2687,7 @@
 
             if (history.status !== currentStatus) {
                 // Status changed since last processing - allow reprocessing
-                RUMILogger.debug('PROCESS', `Ticket ${ticketId} status changed: ${history.status} → ${currentStatus}`);
+                console.log('PROCESS', `Ticket ${ticketId} status changed: ${history.status} → ${currentStatus}`);
                 return true;
             }
 
@@ -2661,7 +2696,7 @@
             const minWaitTime = 5 * 60 * 1000; // 5 minutes minimum between same-status processing
 
             if (timeSinceLastProcess < minWaitTime) {
-                RUMILogger.debug('PROCESS', `Ticket ${ticketId} processed too recently for same status (${Math.round(timeSinceLastProcess/1000)}s ago)`);
+                console.log('PROCESS', `Ticket ${ticketId} processed too recently for same status (${Math.round(timeSinceLastProcess/1000)}s ago)`);
                 return false;
             }
 
@@ -2791,7 +2826,7 @@
                     try {
                         const ticketDetails = await RUMIAPIManager.makeRequest(`/api/v2/tickets/${ticketId}.json`);
                         currentStatus = ticketDetails.ticket?.status || 'unknown';
-                        RUMILogger.debug('PROCESS', `Current ticket status: ${currentStatus}`);
+                        console.log('PROCESS', `Current ticket status: ${currentStatus}`);
 
                         // Check if we should reprocess this ticket based on status history
                         if (!this.shouldReprocessTicket(ticketId, currentStatus)) {
@@ -2903,20 +2938,20 @@
                 }
 
                 // Check if pending operations are enabled
-                RUMILogger.debug('PROCESS', `Operation modes check - Pending: ${rumiEnhancement.operationModes.pending}, Solved: ${rumiEnhancement.operationModes.solved}, RTA: ${rumiEnhancement.operationModes.rta}`);
+                console.log('PROCESS', `Operation modes check - Pending: ${rumiEnhancement.operationModes.pending}, Solved: ${rumiEnhancement.operationModes.solved}, RTA: ${rumiEnhancement.operationModes.rta}`);
                 if (!rumiEnhancement.operationModes.pending) {
                     RUMILogger.info('PROCESS', `Pending operations disabled - skipping ticket ${ticketId}`);
                     return { processed: false, reason: 'Pending operations disabled' };
                 }
 
                 // Get current ticket status before updating
-                RUMILogger.debug('PROCESS', `Ticket ${ticketId} matches criteria - getting current status`);
+                console.log('PROCESS', `Ticket ${ticketId} matches criteria - getting current status`);
 
                 let currentStatus = 'unknown';
                 try {
                     const ticketDetails = await RUMIAPIManager.makeRequest(`/api/v2/tickets/${ticketId}.json`);
                     currentStatus = ticketDetails.ticket?.status || 'unknown';
-                    RUMILogger.debug('PROCESS', `Current ticket status: ${currentStatus}`);
+                    console.log('PROCESS', `Current ticket status: ${currentStatus}`);
 
                     // Check if we should reprocess this ticket based on status history
                     if (!this.shouldReprocessTicket(ticketId, currentStatus)) {
@@ -2964,7 +2999,7 @@
                 if (existingPendingIndex !== -1) {
                     // Update existing entry instead of adding duplicate
                     rumiEnhancement.pendingTickets[existingPendingIndex] = ticketData;
-                    RUMILogger.debug('Updated existing pending ticket entry', ticketId);
+                    console.log('Updated existing pending ticket entry', ticketId);
                 } else {
                     rumiEnhancement.pendingTickets.push(ticketData);
                 }
@@ -3021,7 +3056,7 @@
 
         async checkViews() {
             if (!rumiEnhancement.isMonitoring || rumiEnhancement.selectedViews.size === 0) {
-                RUMILogger.debug('MONITOR', `Skipping check - monitoring: ${rumiEnhancement.isMonitoring}, views: ${rumiEnhancement.selectedViews.size}`);
+                console.log('MONITOR', `Skipping check - monitoring: ${rumiEnhancement.isMonitoring}, views: ${rumiEnhancement.selectedViews.size}`);
                 return;
             }
 
@@ -3030,7 +3065,7 @@
             this._checkCounter = checkCount;
 
             if (checkCount % 10 === 1) {
-                RUMILogger.debug('MONITOR', `Checking ${rumiEnhancement.selectedViews.size} views (check #${checkCount})`);
+                console.log('MONITOR', `Checking ${rumiEnhancement.selectedViews.size} views (check #${checkCount})`);
             }
 
             rumiEnhancement.lastCheckTime = new Date();
@@ -3133,7 +3168,7 @@
 
         // Batch version with minimal retry like notify extension
         async checkSingleViewBatch(viewId) {
-            RUMILogger.debug('MONITOR', `Starting batch check for view ${viewId}`);
+            console.log('MONITOR', `Starting batch check for view ${viewId}`);
             try {
                 // Simple request without aggressive retries - use direct makeRequest
                 const response = await RUMIAPIManager.makeRequest(
@@ -3148,7 +3183,7 @@
                     ticketData = response.tickets;
                 }
 
-                RUMILogger.debug('MONITOR', `Retrieved ${ticketData.length} tickets from view ${viewId}`);
+                console.log('MONITOR', `Retrieved ${ticketData.length} tickets from view ${viewId}`);
 
                 const baselineIds = rumiEnhancement.baselineTickets.get(viewId) || new Set();
 
@@ -3202,7 +3237,7 @@
                     }).filter(id => id !== null));
 
                     rumiEnhancement.baselineTickets.set(viewId, currentTicketIds);
-                    RUMILogger.debug('MONITOR', `Updated baseline for view ${viewId}: ${currentTicketIds.size} tickets`);
+                    console.log('MONITOR', `Updated baseline for view ${viewId}: ${currentTicketIds.size} tickets`);
                 }
 
                 return { success: true, newTickets: newTickets.length };
@@ -3340,10 +3375,10 @@
     // Check if a field is a system field that should never be hidden (Requester, Assignee, CCs)
     function isSystemField(field) {
         if (!field || !field.querySelector) return false;
-        
+
         const label = field.querySelector('label');
         if (!label) return false;
-        
+
         const labelText = label.textContent.trim().toLowerCase();
         const systemFieldLabels = [
             'assignee',
@@ -3352,17 +3387,17 @@
             'collaborators',
             'followers'
         ];
-        
+
         // Check if this is a system field by label text
         if (systemFieldLabels.some(sysLabel => labelText.includes(sysLabel))) {
             return true;
         }
-        
+
         // Special handling for "Requester" - only the main requester field, not device/IP fields
         if (labelText === 'requester') {
             return true;
         }
-        
+
         // Check by data-test-id patterns for system fields (be specific to avoid catching device/IP fields)
         const testIds = [
             'ticket-system-field-requester-label',  // More specific to avoid device/IP fields
@@ -3370,18 +3405,18 @@
             'assignee-field',
             'ticket-fields-collaborators'
         ];
-        
+
         if (testIds.some(testId => field.querySelector(`[data-test-id*="${testId}"]`) || field.getAttribute('data-test-id') === testId)) {
             return true;
         }
-        
+
         // Also check if the field itself has the requester system field test-id
         const fieldTestId = field.getAttribute('data-test-id') || '';
-        if (fieldTestId === 'ticket-system-field-requester-label' || 
+        if (fieldTestId === 'ticket-system-field-requester-label' ||
             fieldTestId === 'ticket-system-field-requester-select') {
             return true;
         }
-        
+
         return false;
     }
 
@@ -3396,29 +3431,29 @@
         } else {
             // In 'minimal' state, only show the specified fields
             const labelText = label.textContent.trim();
-            
+
             // Enhanced matching for different label structures
             const isMinimalField = minimalFields.some(targetText => {
                 // Exact match
                 if (labelText === targetText) return true;
-                
+
                 // Handle labels with asterisks or other suffixes
                 if (labelText.replace(/\*$/, '').trim() === targetText) return true;
-                
+
                 // Handle labels without asterisks when target has them
                 if (targetText.endsWith('*') && labelText === targetText.slice(0, -1).trim()) return true;
-                
+
                 // Case insensitive match as fallback
                 if (labelText.toLowerCase() === targetText.toLowerCase()) return true;
-                
+
                 return false;
             });
-            
+
             // Debug logging to help identify issues
             if (rumiEnhancement.isMonitoring) {
                 console.debug(`🔍 Field check: "${labelText}" -> ${isMinimalField ? 'SHOW' : 'HIDE'} (state: ${fieldVisibilityState})`);
             }
-            
+
             return isMinimalField;
         }
     }
@@ -4040,7 +4075,7 @@
         // First, perform autofill operations
         // Enhanced form detection for both old and new structures
         let allForms = DOMCache.get('section.grid-ticket-fields-panel', true, 2000);
-        
+
         // If no forms found with the old selector, try new selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4051,7 +4086,7 @@
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = DOMCache.get(selector, false, 1000);
                 if (allForms.length > 0) {
@@ -4110,7 +4145,7 @@
     function getCurrentReasonValue() {
         // Enhanced form detection for both old and new structures
         let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-        
+
         // If no forms found with the old selector, try new selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4121,7 +4156,7 @@
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) {
@@ -4150,7 +4185,7 @@
     function getCurrentSSOCIncidentSource() {
         // Enhanced form detection for both old and new structures
         let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-        
+
         // If no forms found with the old selector, try new selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4161,7 +4196,7 @@
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) {
@@ -4729,7 +4764,7 @@ ${customerWordsLine}`;
         // First, perform autofill operations
         // Enhanced form detection for both old and new structures
         let allForms = DOMCache.get('section.grid-ticket-fields-panel', true, 2000);
-        
+
         // If no forms found with the old selector, try new selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4740,7 +4775,7 @@ ${customerWordsLine}`;
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = DOMCache.get(selector, false, 1000);
                 if (allForms.length > 0) {
@@ -4894,7 +4929,7 @@ ${customerWordsLine}`;
         debounce(() => {
             // Enhanced form detection for both old and new structures
         let allForms = DOMCache.get('section.grid-ticket-fields-panel', true, 2000);
-        
+
         // If no forms found with the old selector, try new selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4905,7 +4940,7 @@ ${customerWordsLine}`;
                 '[class*="form"]',
                 'div[class*="ticket-field"]'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = DOMCache.get(selector, false, 1000);
                 if (allForms.length > 0) {
@@ -4933,27 +4968,27 @@ ${customerWordsLine}`;
                     // Enhanced field detection to handle both old and new structures
                     // Start with a broad search and then filter out system fields
                     const allPossibleFields = Array.from(form.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
-                    
+
                     const fields = [];
                     allPossibleFields.forEach(field => {
                         try {
                             // Must have a label and be connected
-                            if (!field.nodeType === Node.ELEMENT_NODE || 
-                                !field.isConnected || 
+                            if (!field.nodeType === Node.ELEMENT_NODE ||
+                                !field.isConnected ||
                                 !field.querySelector('label')) {
                                 return;
                             }
-                            
+
                             // Skip system fields (Requester, Assignee, CCs)
                             if (isSystemField(field)) {
                                 return;
                             }
-                            
+
                             // Skip duplicates
                             if (fields.includes(field)) {
                                 return;
                             }
-                            
+
                             fields.push(field);
                         } catch (e) {
                             console.debug('Error processing field:', field, e);
@@ -5176,7 +5211,7 @@ ${customerWordsLine}`;
         for (const selector of selectors) {
             zendeskIcon = document.querySelector(selector);
             if (zendeskIcon) {
-                RUMILogger.debug('UI', `Found Zendesk icon with selector: ${selector}`);
+                console.log('UI', `Found Zendesk icon with selector: ${selector}`);
                 break;
             }
         }
@@ -5196,7 +5231,7 @@ ${customerWordsLine}`;
 
         // Store original title and update with RUMI info
         const originalTitle = zendeskIcon.getAttribute('title') || 'Zendesk';
-        zendeskIcon.setAttribute('title', `${originalTitle} - Right-click for RUMI Enhancement`);
+        zendeskIcon.setAttribute('title', `${originalTitle} - RUMI Automation Active`);
 
         // Add visual indicator (small robot emoji in corner) - made invisible
         const indicator = document.createElement('div');
@@ -5215,12 +5250,12 @@ ${customerWordsLine}`;
         zendeskIcon.style.position = 'relative';
         zendeskIcon.appendChild(indicator);
 
-        // Add right-click handler for RUMI Enhancement
-        zendeskIcon.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleRUMIEnhancementPanel();
-        });
+        // Add right-click handler for RUMI Enhancement - DISABLED
+        // zendeskIcon.addEventListener('contextmenu', (e) => {
+        //     e.preventDefault();
+        //     e.stopPropagation();
+        //     toggleRUMIEnhancementPanel();
+        // });
 
         // Add subtle hover effect
         zendeskIcon.addEventListener('mouseenter', () => {
@@ -5231,7 +5266,7 @@ ${customerWordsLine}`;
             indicator.style.opacity = '0.8';
         });
 
-        RUMILogger.info('UI', 'Zendesk icon enhanced for RUMI - right-click to access');
+        RUMILogger.info('UI', 'Zendesk icon enhanced for RUMI - dashboard access disabled');
         return true; // Successfully enhanced
     }
 
@@ -7162,7 +7197,7 @@ ${customerWordsLine}`;
         // Respects dry run setting - only analyzes if dry run, processes if not dry run
         // Use provided dryRun parameter or fall back to legacy isDryRun for automatic processes
         const isDryRunMode = dryRun !== null ? dryRun : rumiEnhancement.isDryRun;
-        RUMILogger.debug('FAST_TEST', `Testing ticket ${ticketId} (dry run: ${isDryRunMode})`);
+        console.log('FAST_TEST', `Testing ticket ${ticketId} (dry run: ${isDryRunMode})`);
 
         try {
             // Get ticket basic info
@@ -7703,17 +7738,31 @@ ${customerWordsLine}`;
     }
 
     // Handle ticket view specific functionality
-    function handleTicketView() {
-        if (!isTicketView() || observerDisconnected) return;
+    let handleTicketViewTimeout = null;
+    let isHandlingTicketView = false;
 
-        // Wait a bit for content to stabilize, then add buttons and check for HALA tag
-        setTimeout(() => {
+    function handleTicketView() {
+        if (!isTicketView() || observerDisconnected || isHandlingTicketView) return;
+
+        // Debounce: clear previous timeout and set a new one
+        if (handleTicketViewTimeout) {
+            clearTimeout(handleTicketViewTimeout);
+        }
+
+        handleTicketViewTimeout = setTimeout(() => {
+            isHandlingTicketView = true;
+
             insertRumiButton();
             tryAddToggleButton();
+            tryInsertApolloButton(); // Insert Apollo button
 
             // Apply the saved field visibility state
             setTimeout(() => {
                 applyFieldVisibilityState();
+                // Reset the flag after a delay to allow future updates
+                setTimeout(() => {
+                    isHandlingTicketView = false;
+                }, 1000);
             }, 100);
 
             // HALA provider tag checking integrated into ticket processing workflow
@@ -8120,6 +8169,359 @@ ${customerWordsLine}`;
             document.querySelector('[data-test-id="views_views-pane-div"]');
     }
 
+    // ========================================
+    // Apollo Button Functions
+    // ========================================
+
+    const apolloButtonState = {
+        currentTicketId: null,
+        urlCheckInterval: null,
+        cachedUrls: new Map() // ticketId -> apolloUrl
+    };
+
+    async function fetchTicketDataForApollo(ticketId) {
+        try {
+            const response = await RUMIAPIManager.makeRequest(`/api/v2/tickets/${ticketId}.json`);
+            if (response && response.ticket) {
+                return response.ticket;
+            }
+            return null;
+        } catch (error) {
+            RUMILogger.error('APOLLO', `Failed to fetch ticket data: ${error.message}`, ticketId);
+            return null;
+        }
+    }
+
+    function getCustomFieldValue(ticket, fieldId) {
+        if (!ticket || !ticket.custom_fields) return null;
+        const field = ticket.custom_fields.find(f => f.id === parseInt(fieldId));
+        return field ? field.value : null;
+    }
+
+    async function getGroupNameFromTicket(ticket) {
+        if (!ticket || !ticket.group_id) return '';
+
+        try {
+            const response = await RUMIAPIManager.makeRequest(`/api/v2/groups/${ticket.group_id}.json`);
+            if (response && response.group && response.group.name) {
+                return response.group.name;
+            }
+        } catch (error) {
+            console.log('APOLLO', `Failed to fetch group name: ${error.message}`);
+        }
+
+        return ticket.group_id.toString();
+    }
+
+    async function getRequesterDetails(ticket) {
+        if (!ticket || !ticket.requester_id) return { email: '', phone: '' };
+
+        try {
+            const response = await RUMIAPIManager.makeRequest(`/api/v2/users/${ticket.requester_id}.json`);
+            if (response && response.user) {
+                return {
+                    email: response.user.email || '',
+                    phone: response.user.phone || ''
+                };
+            }
+        } catch (error) {
+            console.log('APOLLO', `Failed to fetch requester details: ${error.message}`);
+        }
+
+        return { email: '', phone: '' };
+    }
+
+    function convertDateTimeToEpoch(dateTime) {
+        return Math.floor(new Date(dateTime).getTime() / 1000);
+    }
+
+    async function buildApolloUrl(ticketData) {
+        if (!ticketData) return null;
+
+        // Build URL parameters manually to match exact encoding format
+        const urlParts = [];
+
+        // sourceInteractionId = ticket.id
+        urlParts.push(`sourceInteractionId=${ticketData.id}`);
+
+        // activityId = custom_field_15220303991955
+        const activityId = getCustomFieldValue(ticketData, '15220303991955');
+        if (activityId) {
+            urlParts.push(`activityId=${activityId}`);
+        }
+
+        // zendeskQueueName = ticket.assignee.group.name
+        const groupName = await getGroupNameFromTicket(ticketData);
+        if (groupName) {
+            // Encode spaces as %20 and & as %26, but keep other chars readable
+            const encodedGroupName = groupName.replace(/ /g, '%20').replace(/&/g, '&');
+            urlParts.push(`zendeskQueueName=${encodedGroupName}`);
+        }
+
+        // Get requester details
+        const requesterDetails = await getRequesterDetails(ticketData);
+
+        // email = ticket.requester.email (no encoding for @ symbol)
+        if (requesterDetails.email) {
+            urlParts.push(`email=${requesterDetails.email}`);
+        }
+
+        // channel = 2 (hardcoded)
+        urlParts.push('channel=2');
+
+        // source = 2 (hardcoded)
+        urlParts.push('source=2');
+
+        // queueName = uber (hardcoded)
+        urlParts.push('queueName=uber');
+
+        // phoneNumber = custom_field_47477248
+        const phoneNumber = getCustomFieldValue(ticketData, '47477248');
+        urlParts.push(`phoneNumber=${phoneNumber || ''}`);
+
+        // phoneNumber2 = ticket.requester.phone (always include even if empty)
+        urlParts.push(`phoneNumber2=${requesterDetails.phone || ''}`);
+
+        // threadId = custom_field_23786173 (always include even if empty)
+        const threadId = getCustomFieldValue(ticketData, '23786173');
+        urlParts.push(`threadId=${threadId || ''}`);
+
+        // sourceTime = ticket.created_at (converted to epoch time in seconds)
+        if (ticketData.created_at) {
+            const epochTime = convertDateTimeToEpoch(ticketData.created_at);
+            urlParts.push(`sourceTime=${epochTime}`);
+        }
+
+        return `https://apollo.careempartner.com/uber/issue-selection?${urlParts.join('&')}`;
+    }
+
+    function getTicketIdFromUrl() {
+        const match = window.location.pathname.match(/\/agent\/tickets\/(\d+)/);
+        return match ? match[1] : null;
+    }
+
+    async function prefetchApolloUrl(ticketId) {
+        // Check if already cached
+        if (apolloButtonState.cachedUrls.has(ticketId)) {
+            console.log(`📦 APOLLO: URL already cached for ticket ${ticketId}`);
+            return;
+        }
+
+        console.log(`⚡ APOLLO: Pre-fetching data for ticket ${ticketId}`);
+
+        try {
+            const ticketData = await fetchTicketDataForApollo(ticketId);
+            if (ticketData) {
+                const apolloUrl = await buildApolloUrl(ticketData);
+                if (apolloUrl) {
+                    apolloButtonState.cachedUrls.set(ticketId, apolloUrl);
+                    console.log(`✅ APOLLO: URL cached for ticket ${ticketId}`);
+                }
+            }
+        } catch (error) {
+            console.warn(`⚠️ APOLLO: Failed to pre-fetch for ticket ${ticketId}:`, error);
+        }
+    }
+
+    function checkAndUpdateApolloButton() {
+        const currentTicketId = getTicketIdFromUrl();
+
+        if (!currentTicketId) {
+            return; // Not on a ticket page
+        }
+
+        if (currentTicketId !== apolloButtonState.currentTicketId) {
+            console.log(`🔄 APOLLO: Ticket changed from ${apolloButtonState.currentTicketId} to ${currentTicketId}`);
+
+            // Update current ticket ID
+            apolloButtonState.currentTicketId = currentTicketId;
+
+            // Try to insert button for the new ticket
+            insertApolloButton();
+
+            // Pre-fetch the Apollo URL in the background
+            prefetchApolloUrl(currentTicketId);
+        }
+    }
+
+    function startApolloUrlMonitoring() {
+        // Check for ticket changes every 500ms
+        if (!apolloButtonState.urlCheckInterval) {
+            apolloButtonState.urlCheckInterval = setInterval(checkAndUpdateApolloButton, 500);
+            console.log('✅ APOLLO: Started URL monitoring for ticket changes');
+        }
+    }
+
+    function stopApolloUrlMonitoring() {
+        if (apolloButtonState.urlCheckInterval) {
+            clearInterval(apolloButtonState.urlCheckInterval);
+            apolloButtonState.urlCheckInterval = null;
+            console.log('🛑 APOLLO: Stopped URL monitoring');
+        }
+    }
+
+    function createApolloButton() {
+        const apolloButton = document.createElement('li');
+        apolloButton.className = 'sc-1xt32ep-0 fZnAAO';
+        apolloButton.setAttribute('tabindex', '-1');
+        apolloButton.setAttribute('data-apollo-button', 'true');
+
+        apolloButton.innerHTML = `
+            <button
+                aria-pressed="false"
+                aria-label="Open in Apollo"
+                class="StyledButton-sc-qe3ace-0 StyledIconButton-sc-1t0ughp-0 eUFUgT iQoDao sc-2ax5cx-0 hmFTsS"
+                data-garden-id="buttons.icon_button"
+                data-garden-version="9.11.3"
+                type="button"
+                style="position: relative;"
+            >
+                <svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="16" height="16" aria-hidden="true" focusable="false" data-garden-id="buttons.icon" data-garden-version="9.11.3" class="StyledBaseIcon-sc-1moykgb-0 StyledIcon-sc-19meqgg-0 eWlVPJ cxMMcO">
+                    <defs><style>.cls-1{fill-rule:evenodd;}.cls-2{fill:#fff;}</style></defs>
+                    <path class="cls-1" d="M7.27,0H88.73A7.28,7.28,0,0,1,96,7.27V88.73A7.28,7.28,0,0,1,88.73,96H7.27A7.28,7.28,0,0,1,0,88.73V7.27A7.28,7.28,0,0,1,7.27,0Z"/>
+                    <path class="cls-2" d="M18.8,52.91A5.61,5.61,0,0,0,20,54.81,5,5,0,0,0,21.71,56a5.71,5.71,0,0,0,2.2.42,5.34,5.34,0,0,0,3.95-1.66A5.54,5.54,0,0,0,29,52.89a6.75,6.75,0,0,0,.42-2.44V36.54h3.38V59.07H29.48V57a7.77,7.77,0,0,1-2.65,1.83,8.41,8.41,0,0,1-3.3.65,8.89,8.89,0,0,1-3.36-.63A8,8,0,0,1,17.46,57a8.44,8.44,0,0,1-1.8-2.78A9.53,9.53,0,0,1,15,50.64V36.54h3.38V50.45a6.9,6.9,0,0,0,.42,2.46ZM77,46.68a4.34,4.34,0,0,0-1,3.06v9.33H72.73V42.66H76v2a4.54,4.54,0,0,1,1.59-1.58,4.45,4.45,0,0,1,2.33-.58H81v3H79.65A3.42,3.42,0,0,0,77,46.68Zm-22.08.9a8.87,8.87,0,0,1,1.77-2.72A8.29,8.29,0,0,1,59.38,43,8.69,8.69,0,0,1,66,43a7.69,7.69,0,0,1,2.61,1.79,8.18,8.18,0,0,1,1.71,2.7,9.37,9.37,0,0,1,.61,3.39v1.07H57.57a5.44,5.44,0,0,0,.65,1.85,5.74,5.74,0,0,0,1.2,1.48,5.9,5.9,0,0,0,1.64,1,5.52,5.52,0,0,0,1.95.35,5.62,5.62,0,0,0,4.73-2.41l2.35,1.74A8.55,8.55,0,0,1,63,59.42a9.1,9.1,0,0,1-3.43-.64A8.38,8.38,0,0,1,55,54.26a8.46,8.46,0,0,1-.68-3.4,8.63,8.63,0,0,1,.64-3.28Zm4.53-1.27a5.45,5.45,0,0,0-1.82,3h10a5.29,5.29,0,0,0-1.78-3,5.06,5.06,0,0,0-6.4,0ZM38.65,36.54v8.21A8.6,8.6,0,0,1,41.26,43a7.83,7.83,0,0,1,3.22-.66,8.65,8.65,0,0,1,6.11,2.51,8.77,8.77,0,0,1,1.83,2.74,8.26,8.26,0,0,1,.68,3.35,8.13,8.13,0,0,1-.68,3.33A8.8,8.8,0,0,1,50.59,57a8.65,8.65,0,0,1-6.11,2.51,8,8,0,0,1-3.24-.66A8.65,8.65,0,0,1,38.62,57v2.06H35.4V36.54ZM39,53.12a5.65,5.65,0,0,0,1.21,1.8A5.79,5.79,0,0,0,42,56.14a5.51,5.51,0,0,0,2.22.45,5.43,5.43,0,0,0,2.19-.45,5.74,5.74,0,0,0,1.79-1.22,6.16,6.16,0,0,0,1.2-1.8,5.51,5.51,0,0,0,.45-2.22,5.6,5.6,0,0,0-.45-2.24,6,6,0,0,0-1.2-1.82,5.55,5.55,0,0,0-1.79-1.21,5.64,5.64,0,0,0-6.18,1.21A5.88,5.88,0,0,0,39,48.66a5.6,5.6,0,0,0-.45,2.24A5.67,5.67,0,0,0,39,53.12Z"/>
+                </svg>
+            </button>
+        `;
+
+        const button = apolloButton.querySelector('button');
+        button.addEventListener('click', async () => {
+            // Get ticket ID from current URL at click time
+            const ticketId = getTicketIdFromUrl();
+
+            if (!ticketId) {
+                console.warn('⚠️ APOLLO: No ticket ID in URL');
+                return;
+            }
+
+            // Try to use cached URL first for instant opening
+            let apolloUrl = apolloButtonState.cachedUrls.get(ticketId);
+
+            if (apolloUrl) {
+                // Instant open with cached URL
+                window.open(apolloUrl, '_blank');
+                console.log(`⚡ APOLLO: Opened cached URL for ticket ${ticketId}`);
+                return;
+            }
+
+            // Fallback: Fetch on-demand if not cached
+            console.log(`🔗 APOLLO: Cache miss, fetching data for ticket ${ticketId}`);
+
+            const ticketData = await fetchTicketDataForApollo(ticketId);
+            if (!ticketData) {
+                console.warn('⚠️ APOLLO: Failed to fetch ticket data');
+                return;
+            }
+
+            apolloUrl = await buildApolloUrl(ticketData);
+            if (apolloUrl) {
+                // Cache for future use
+                apolloButtonState.cachedUrls.set(ticketId, apolloUrl);
+
+                window.open(apolloUrl, '_blank');
+                console.log(`✅ APOLLO: Opened URL for ticket ${ticketId}`);
+            } else {
+                console.warn('⚠️ APOLLO: Failed to build Apollo URL');
+            }
+        });
+
+        apolloButtonState.buttonElement = apolloButton;
+        return apolloButton;
+    }
+
+    function insertApolloButton() {
+        // Get current ticket ID from URL
+        const currentTicketId = getTicketIdFromUrl();
+        if (!currentTicketId) {
+            console.log('APOLLO: No ticket ID in URL');
+            return false;
+        }
+
+        // Find all omnipanel selector lists on the page
+        const omnipanelLists = document.querySelectorAll('ul.sc-1vuz3kl-1.iUAIrg');
+
+        if (omnipanelLists.length === 0) {
+            console.log('APOLLO: No omnipanel lists found');
+            return false;
+        }
+
+        let inserted = false;
+
+        // Insert button into all visible omnipanels
+        omnipanelLists.forEach((omnipanelList) => {
+            // Check if this omnipanel is visible
+            const style = window.getComputedStyle(omnipanelList);
+            if (style.display === 'none' || style.visibility === 'hidden') {
+                return; // Skip hidden omnipanels
+            }
+
+            // Check if button already exists in THIS omnipanel for THIS ticket
+            const existingButton = omnipanelList.querySelector('[data-apollo-button="true"]');
+            if (existingButton) {
+                // Update the ticket ID attribute to ensure it's current
+                const buttonTicketId = existingButton.getAttribute('data-ticket-id');
+                if (buttonTicketId === currentTicketId) {
+                    inserted = true;
+                    return; // Button already exists for this ticket
+                } else {
+                    // Remove old button if it's for a different ticket
+                    existingButton.remove();
+                }
+            }
+
+            // Find the Apps button (3rd button)
+            const appsButton = omnipanelList.querySelector('[data-test-id="omnipanel-selector-item-apps"]');
+
+            if (!appsButton) {
+                console.log('APOLLO: Apps button not found in this omnipanel');
+                return;
+            }
+
+            const apolloButton = createApolloButton();
+            apolloButton.setAttribute('data-ticket-id', currentTicketId);
+
+            // Insert after the Apps button's parent li
+            const appsLi = appsButton.closest('li');
+            if (appsLi && appsLi.parentNode) {
+                appsLi.parentNode.insertBefore(apolloButton, appsLi.nextSibling);
+                console.log(`✅ APOLLO: Button inserted for ticket ${currentTicketId}`);
+                inserted = true;
+            }
+        });
+
+        return inserted;
+    }
+
+    function tryInsertApolloButton(attempts = 0) {
+        const maxAttempts = 10;
+
+        if (insertApolloButton()) {
+            // Button inserted successfully
+            const ticketId = getTicketIdFromUrl();
+            if (ticketId) {
+                apolloButtonState.currentTicketId = ticketId;
+                console.log(`✅ APOLLO: Button ready for ticket ${ticketId}`);
+
+                // Pre-fetch the Apollo URL in the background for instant opening
+                prefetchApolloUrl(ticketId);
+
+                // Start monitoring for ticket tab changes
+                startApolloUrlMonitoring();
+            }
+            return;
+        }
+
+        if (attempts < maxAttempts) {
+            setTimeout(() => tryInsertApolloButton(attempts + 1), 500);
+        } else {
+            console.log('APOLLO: Max attempts reached for Apollo button insertion');
+        }
+    }
+
+    // ========================================
+    // End Apollo Button Functions
+    // ========================================
+
     function handleViewsPage() {
         if (!isViewsPage()) return;
 
@@ -8149,12 +8551,20 @@ ${customerWordsLine}`;
         loadFieldVisibilityState();
 
         // Set up observer for dynamic content and URL changes
+        let observerDebounceTimeout = null;
         const observer = new MutationObserver(() => {
-            // Check for ticket view whenever DOM changes
-            handleTicketView();
-            // Check for views page whenever DOM changes
-            handleViewsPage();
-            // Note: RUMI Enhancement system loads immediately now, no need for delayed init
+            // Debounce observer callbacks to prevent excessive calls
+            if (observerDebounceTimeout) {
+                clearTimeout(observerDebounceTimeout);
+            }
+
+            observerDebounceTimeout = setTimeout(() => {
+                // Check for ticket view whenever DOM changes
+                handleTicketView();
+                // Check for views page whenever DOM changes
+                handleViewsPage();
+                // Note: RUMI Enhancement system loads immediately now, no need for delayed init
+            }, 200);
         });
 
         // Start observing (always, not just on ticket pages)
@@ -8179,6 +8589,7 @@ ${customerWordsLine}`;
             setTimeout(() => {
                 insertRumiButton();
                 tryAddToggleButton();
+                tryInsertApolloButton(); // Insert Apollo button
 
                 // Apply the saved field visibility state
                 setTimeout(() => {
@@ -8219,18 +8630,18 @@ ${customerWordsLine}`;
 
         tryCreateOverlayButton();
 
-        // Add keyboard shortcut as fallback (Ctrl+Shift+R)
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-                e.preventDefault();
-                toggleRUMIEnhancementPanel();
-                RUMILogger.info('UI', 'RUMI Enhancement opened via keyboard shortcut (Ctrl+Shift+R)');
-            }
-        });
+        // Add keyboard shortcut as fallback (Ctrl+Shift+R) - DISABLED
+        // document.addEventListener('keydown', (e) => {
+        //     if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        //         e.preventDefault();
+        //         toggleRUMIEnhancementPanel();
+        //         RUMILogger.info('UI', 'RUMI Enhancement opened via keyboard shortcut (Ctrl+Shift+R)');
+        //     }
+        // });
 
         RUMILogger.info('SYSTEM', 'RUMI Enhancement system initialized and data restored');
-        console.log('✅ RUMI Automation system ready - Use Ctrl+Shift+R or right-click Zendesk icon');
-        console.log('🎯 RUMI Automation: Keyboard shortcut Ctrl+Shift+R available as fallback');
+        console.log('✅ RUMI Automation system ready - Dashboard access disabled');
+        console.log('🎯 RUMI Automation: Running in background mode');
 
         console.log('✅ RUMI script initialized - Automation ready immediately, ticket features wait for page navigation');
     }
