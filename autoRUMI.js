@@ -30,7 +30,6 @@
         DEFAULT_INTERVAL_SECONDS: 10,
         MIN_INTERVAL_SECONDS: 5,
         MAX_INTERVAL_SECONDS: 60,
-        LOG_DISPLAY_LIMIT: 50,
         TRACE_BACK_COMMENT_LIMIT: 50,
         CAREEM_CARE_ID: '34980896869267'
     };
@@ -246,7 +245,7 @@
         }
 
         static matchesAnyTrigger(normalizedComment, triggerPhrases) {
-            return triggerPhrases.some(phrase =>
+            return triggerPhrases.some(phrase => 
                 this.matchesTrigger(normalizedComment, phrase)
             );
         }
@@ -367,18 +366,18 @@
                     if (careRoutingResult.action === 'care') {
                         // Apply Care routing
                         const payload = careRoutingResult.payload;
-
+                        
                         const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
                         const newGroupId = payload?.ticket?.group_id || ticketData.group_id;
                         const newGroupName = await this.fetchAndCacheGroupName(newGroupId);
-
+                        
                         if (this.isDryRun) {
                             RUMILogger.info('PROCESSOR', '[DRY RUN] Would route to Care via pin', { ticketId });
                         } else {
                             await this.applyChanges(ticketId, payload);
                             RUMILogger.info('PROCESSOR', 'Routed to Care via pin', { ticketId });
                         }
-
+                        
                         // Store care routing pin in processed table
                         const carePinData = {
                             ticketId: ticketId,
@@ -437,7 +436,7 @@
                 // Check if ticket is already in desired state
                 const targetStatus = result.payload?.ticket?.status;
                 const targetGroupId = result.payload?.ticket?.group_id;
-                const alreadyCorrect = (targetStatus && targetStatus === originalStatus) ||
+                const alreadyCorrect = (targetStatus && targetStatus === originalStatus) || 
                                        (targetGroupId && targetGroupId === originalGroupId);
 
                 // Fetch group names for display
@@ -468,11 +467,11 @@
                 // Apply changes or log dry run
                 if (this.isDryRun) {
                     RUMILogger.info('PROCESSOR', '[DRY RUN] Would apply', { ticketId, ...result, alreadyCorrect });
-
+                    
                     // Store processed ticket even in dry run
                     RUMIStorage.addProcessedTicket(processedTicketData);
                     RUMIStorage.updateProcessingStats(result.action);
-
+                    
                     return { ...result, dryRun: true, ticketData: processedTicketData };
                 } else {
                     // Only apply changes if ticket is not already in desired state
@@ -486,11 +485,11 @@
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
                     }
-
+                    
                     // Store processed ticket regardless
                     RUMIStorage.addProcessedTicket(processedTicketData);
                     RUMIStorage.updateProcessingStats(result.action);
-
+                    
                     return { ...result, ticketData: processedTicketData };
                 }
 
@@ -526,7 +525,7 @@
                         note: 'Ticket is pinned as blocked',
                         isBlockedPin: true
                     };
-
+                    
                     // Use appropriate storage based on manual flag
                     if (isManual) {
                         RUMIStorage.addManualProcessedTicket(blockedPinData);
@@ -543,14 +542,14 @@
                     if (careRoutingResult.action === 'care') {
                         // Apply Care routing
                         const payload = careRoutingResult.payload;
-
+                        
                         const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
                         const newGroupId = payload?.ticket?.group_id || ticketData.group_id;
                         const newGroupName = await this.fetchAndCacheGroupName(newGroupId);
-
+                        
                         // Determine which dry run mode to use
                         const isDryRunMode = isManual ? RUMIStorage.getManualProcessingSettings().dryRunMode : this.isDryRun;
-
+                        
                         if (isDryRunMode) {
                             const prefix = isManual ? '[MANUAL DRY RUN]' : '[DRY RUN]';
                             RUMILogger.info('PROCESSOR', `${prefix} Would route to Care via pin`, { ticketId });
@@ -559,7 +558,7 @@
                             const prefix = isManual ? '[MANUAL]' : '';
                             RUMILogger.info('PROCESSOR', `${prefix} Routed to Care via pin`, { ticketId });
                         }
-
+                        
                         // Store care routing pin in processed table
                         const carePinData = {
                             ticketId: ticketId,
@@ -579,7 +578,7 @@
                             alreadyCorrect: false,
                             note: null
                         };
-
+                        
                         // Use appropriate storage based on manual flag
                         if (isManual) {
                             RUMIStorage.addManualProcessedTicket(carePinData);
@@ -613,12 +612,12 @@
 
                 if (result.action === 'none') {
                     RUMILogger.debug('PROCESSOR', 'No action needed - ticket does not match any rules', { ticketId });
-
+                    
                     // Store unprocessed tickets (only for manual processing)
                     if (isManual) {
                         // Determine which dry run mode to use
                         const isDryRunMode = RUMIStorage.getManualProcessingSettings().dryRunMode;
-
+                        
                         const unprocessedTicketData = {
                             ticketId: ticketId,
                             subject: ticketData.subject || 'N/A',
@@ -639,7 +638,7 @@
                         };
                         RUMIStorage.addManualProcessedTicket(unprocessedTicketData);
                     }
-
+                    
                     return result;
                 }
 
@@ -653,7 +652,7 @@
                 // Check if ticket is already in desired state
                 const targetStatus = result.payload?.ticket?.status;
                 const targetGroupId = result.payload?.ticket?.group_id;
-                const alreadyCorrect = (targetStatus && targetStatus === originalStatus) ||
+                const alreadyCorrect = (targetStatus && targetStatus === originalStatus) || 
                                        (targetGroupId && targetGroupId === originalGroupId);
 
                 // Fetch group names for display
@@ -688,7 +687,7 @@
                 if (isDryRunMode) {
                     const prefix = isManual ? '[MANUAL DRY RUN]' : '[DRY RUN]';
                     RUMILogger.info('PROCESSOR', `${prefix} Would apply`, { ticketId, ...result, alreadyCorrect });
-
+                    
                     // Store processed ticket even in dry run (use appropriate storage based on manual flag)
                     if (isManual) {
                         RUMIStorage.addManualProcessedTicket(processedTicketData);
@@ -697,7 +696,7 @@
                         RUMIStorage.addProcessedTicket(processedTicketData);
                         RUMIStorage.updateProcessingStats(result.action);
                     }
-
+                    
                     return { ...result, dryRun: true, ticketData: processedTicketData };
                 } else {
                     // Only apply changes if ticket is not already in desired state
@@ -712,7 +711,7 @@
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
                     }
-
+                    
                     // Store processed ticket regardless (use appropriate storage based on manual flag)
                     if (isManual) {
                         RUMIStorage.addManualProcessedTicket(processedTicketData);
@@ -721,7 +720,7 @@
                         RUMIStorage.addProcessedTicket(processedTicketData);
                         RUMIStorage.updateProcessingStats(result.action);
                     }
-
+                    
                     return { ...result, ticketData: processedTicketData };
                 }
 
@@ -807,7 +806,7 @@
             const commentToCheck = await this.findCommentToCheck(comments);
             if (commentToCheck) {
                 const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
-
+                
                 if (triggerResult && triggerResult.type === 'care') {
                     const payload = { ticket: { group_id: GROUP_IDS.CARE } };
                     // If ticket is pending or solved, change to open
@@ -820,17 +819,17 @@
                         payload: payload
                     };
                 }
-
+                
                 // No triggers found in commentToCheck - check if it's internal, then check one comment before
                 if (!triggerResult && commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                     const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-
+                    
                     if (commentIndex > 0) {
                         const precedingComment = comments[commentIndex - 1];
-
+                        
                         if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                             const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
+                            
                             if (precedingTriggerResult && precedingTriggerResult.type === 'care') {
                                 const payload = { ticket: { group_id: GROUP_IDS.CARE } };
                                 if (ticket.status === 'pending' || ticket.status === 'solved') {
@@ -848,10 +847,10 @@
             }
 
             // Care routing - subject-based (no activity details)
-            if (ticket.subject &&
+            if (ticket.subject && 
                 ticket.subject.toLowerCase().includes('no activity details available') &&
                 ticket.status === 'new') {
-
+                
                 const hasPrivateComments = comments.some(c => c.public === false);
                 if (!hasPrivateComments) {
                     return {
@@ -914,13 +913,13 @@
             // Stop at the first comment that is neither
             const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
             let commentBeforeChain = null;
-
+            
             for (let i = comments.length - 2; i >= startIndex; i--) {
                 const comment = comments[i];
                 const author = await this.getUserRole(comment.author_id);
                 const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
                 const isRFR = normalized.includes('careem.rfr') || normalized.includes('global.rfr');
-
+                
                 // If this comment is NOT (end-user OR RFR), it breaks the chain
                 if (!author.isEndUser && !isRFR) {
                     // Found the first comment that breaks the chain
@@ -937,24 +936,24 @@
             // Check if this comment is internal (public = false) and contains ESCALATED_BUT_NO_RESPONSE
             if (commentBeforeChain.public === false) {
                 const normalized = RUMICommentProcessor.normalizeForMatching(commentBeforeChain.html_body);
-
+                
                 if (normalized.includes(escalationPhrase)) {
                     // User or RFR responded after escalation - set to pending and assign to CAREEM_CARE_ID
                     const viewId = RUMIUI.viewsMap.get(viewName);
                     const specialViewIds = ['360069695114', '360000843468'];
                     const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
+                    
                     const payload = {
                         ticket: {
                             status: 'pending',
                             assignee_id: CONFIG.CAREEM_CARE_ID
                         }
                     };
-
+                    
                     if (shouldSetPriorityNormal) {
                         payload.ticket.priority = 'normal';
                     }
-
+                    
                     return {
                         action: 'pending',
                         trigger: 'ESCALATED_BUT_NO_RESPONSE',
@@ -990,18 +989,18 @@
                     const viewId = RUMIUI.viewsMap.get(viewName);
                     const specialViewIds = ['360069695114', '360000843468'];
                     const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
+                    
                     const payload = {
                         ticket: {
                             status: 'pending',
                             assignee_id: CONFIG.CAREEM_CARE_ID
                         }
                     };
-
+                    
                     if (shouldSetPriorityNormal) {
                         payload.ticket.priority = 'normal';
                     }
-
+                    
                     return {
                         action: 'pending',
                         trigger: triggerResult.trigger.substring(0, 500) + (triggerResult.trigger.length > 500 ? '...' : ''),
@@ -1016,30 +1015,30 @@
             // Check if commentToCheck is internal (private) - if so, check one comment before
             if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                 const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-
+                
                 if (commentIndex > 0) {
                     const precedingComment = comments[commentIndex - 1];
-
+                    
                     // Check if preceding is from CAREEM_CARE_ID
                     if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                         const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
+                        
                         if (precedingTriggerResult && precedingTriggerResult.type === 'pending') {
                             const viewId = RUMIUI.viewsMap.get(viewName);
                             const specialViewIds = ['360069695114', '360000843468'];
                             const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
+                            
                             const payload = {
                                 ticket: {
                                     status: 'pending',
                                     assignee_id: CONFIG.CAREEM_CARE_ID
                                 }
                             };
-
+                            
                             if (shouldSetPriorityNormal) {
                                 payload.ticket.priority = 'normal';
                             }
-
+                            
                             return {
                                 action: 'pending',
                                 trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
@@ -1074,10 +1073,10 @@
             if (triggerResult) {
                 if (triggerResult.type === 'solved') {
                     const userId = await this.ensureCurrentUserId();
-
+                    
                     return {
                         action: 'solved',
-                        trigger: triggerResult.trigger.substring(0, 50) + (triggerResult.trigger.length > 50 ? '...' : ''),
+                        trigger: triggerResult.trigger.substring(0, 500) + (triggerResult.trigger.length > 500 ? '...' : ''),
                         payload: {
                             ticket: {
                                 status: 'solved',
@@ -1094,17 +1093,17 @@
             // Check if commentToCheck is internal (private) - if so, check one comment before
             if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                 const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-
+                
                 if (commentIndex > 0) {
                     const precedingComment = comments[commentIndex - 1];
-
+                    
                     // Check if preceding is from CAREEM_CARE_ID
                     if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                         const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
+                        
                         if (precedingTriggerResult && precedingTriggerResult.type === 'solved') {
                             const userId = await this.ensureCurrentUserId();
-
+                            
                             return {
                                 action: 'solved',
                                 trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
@@ -1329,14 +1328,14 @@
         static updateProcessingStats(action) {
             const stats = this.getProcessingStats();
             stats.totalProcessed++;
-
+            
             if (action === 'pending') stats.pending++;
             else if (action === 'solved') stats.solved++;
             else if (action === 'care') stats.care++;
             else if (action === 'hala') stats.hala++;
             else if (action === 'casablanca') stats.casablanca++;
             else if (action === 'error') stats.errors++;
-
+            
             this.set('processing_stats', stats);
         }
 
@@ -1360,14 +1359,14 @@
         static updateManualProcessingStats(action) {
             const stats = this.getManualProcessingStats();
             stats.totalProcessed++;
-
+            
             if (action === 'pending') stats.pending++;
             else if (action === 'solved') stats.solved++;
             else if (action === 'care') stats.care++;
             else if (action === 'hala') stats.hala++;
             else if (action === 'casablanca') stats.casablanca++;
             else if (action === 'error') stats.errors++;
-
+            
             this.set('manual_processing_stats', stats);
         }
 
@@ -1385,12 +1384,12 @@
                 ...ticketData,
                 timestamp: new Date().toISOString()
             });
-
+            
             // Keep last 1500 processed tickets
             if (tickets.length > 1500) {
                 tickets.splice(0, tickets.length - 1500);
             }
-
+            
             this.set('processed_tickets', tickets);
         }
 
@@ -1409,12 +1408,12 @@
                 ...ticketData,
                 timestamp: new Date().toISOString()
             });
-
+            
             // Keep last 1500 processed tickets
             if (tickets.length > 1500) {
                 tickets.splice(0, tickets.length - 1500);
             }
-
+            
             this.set('manual_processed_tickets', tickets);
         }
 
@@ -1515,10 +1514,10 @@
         static isTicketPinned(ticketId) {
             const blockedPins = this.getPinnedBlocked();
             const careRoutingPins = this.getPinnedCareRouting();
-
+            
             const isBlocked = blockedPins.some(p => p.ticketId === ticketId);
             const isCareRouting = careRoutingPins.some(p => p.ticketId === ticketId);
-
+            
             return isBlocked || isCareRouting;
         }
 
@@ -1537,7 +1536,7 @@
                     careRouting: {}
                 }
             };
-
+            
             const stored = this.get('rumi_settings_automatic', null);
             if (!stored) {
                 // First time - initialize with all enabled
@@ -1545,13 +1544,13 @@
                 this.setAutomaticSettings(initialized);
                 return initialized;
             }
-
+            
             // Sync with current trigger phrases (add new ones, keep existing settings)
             const synced = this.syncTriggerPhrases(stored);
             if (synced !== stored) {
                 this.setAutomaticSettings(synced);
             }
-
+            
             return synced;
         }
 
@@ -1574,7 +1573,7 @@
                     careRouting: {}
                 }
             };
-
+            
             const stored = this.get('rumi_settings_manual', null);
             if (!stored) {
                 // First time - initialize with all enabled
@@ -1582,13 +1581,13 @@
                 this.setManualSettings(initialized);
                 return initialized;
             }
-
+            
             // Sync with current trigger phrases (add new ones, keep existing settings)
             const synced = this.syncTriggerPhrases(stored);
             if (synced !== stored) {
                 this.setManualSettings(synced);
             }
-
+            
             return synced;
         }
 
@@ -1599,19 +1598,19 @@
         static initializeSettings(defaults) {
             // Initialize all trigger phrases from RUMIRules with enabled = true
             const settings = JSON.parse(JSON.stringify(defaults)); // Deep clone
-
+            
             RUMIRules.PENDING_TRIGGERS.forEach(phrase => {
                 settings.triggerPhrases.pending[phrase] = true;
             });
-
+            
             RUMIRules.SOLVED_TRIGGERS.forEach(phrase => {
                 settings.triggerPhrases.solved[phrase] = true;
             });
-
+            
             RUMIRules.CARE_ROUTING_PHRASES.forEach(phrase => {
                 settings.triggerPhrases.careRouting[phrase] = true;
             });
-
+            
             return settings;
         }
 
@@ -1621,7 +1620,7 @@
             // and removes phrases that are no longer in the code
             let modified = false;
             const synced = JSON.parse(JSON.stringify(settings)); // Deep clone
-
+            
             // Ensure structure exists
             if (!synced.triggerPhrases) {
                 synced.triggerPhrases = { pending: {}, solved: {}, careRouting: {} };
@@ -1639,52 +1638,52 @@
                 synced.triggerPhrases.careRouting = {};
                 modified = true;
             }
-
+            
             // Create sets of current phrases for efficient lookup
             const currentPendingPhrases = new Set(RUMIRules.PENDING_TRIGGERS);
             const currentSolvedPhrases = new Set(RUMIRules.SOLVED_TRIGGERS);
             const currentCareRoutingPhrases = new Set(RUMIRules.CARE_ROUTING_PHRASES);
-
+            
             // Remove phrases that are no longer in the code
             const pendingPhrasesToRemove = Object.keys(synced.triggerPhrases.pending).filter(
                 phrase => !currentPendingPhrases.has(phrase)
             );
             if (pendingPhrasesToRemove.length > 0) {
-                RUMILogger.info('STORAGE', 'Removing obsolete pending trigger phrases', {
-                    removedPhrases: pendingPhrasesToRemove
+                RUMILogger.info('STORAGE', 'Removing obsolete pending trigger phrases', { 
+                    removedPhrases: pendingPhrasesToRemove 
                 });
                 pendingPhrasesToRemove.forEach(phrase => {
                     delete synced.triggerPhrases.pending[phrase];
                     modified = true;
                 });
             }
-
+            
             const solvedPhrasesToRemove = Object.keys(synced.triggerPhrases.solved).filter(
                 phrase => !currentSolvedPhrases.has(phrase)
             );
             if (solvedPhrasesToRemove.length > 0) {
-                RUMILogger.info('STORAGE', 'Removing obsolete solved trigger phrases', {
-                    removedPhrases: solvedPhrasesToRemove
+                RUMILogger.info('STORAGE', 'Removing obsolete solved trigger phrases', { 
+                    removedPhrases: solvedPhrasesToRemove 
                 });
                 solvedPhrasesToRemove.forEach(phrase => {
                     delete synced.triggerPhrases.solved[phrase];
                     modified = true;
                 });
             }
-
+            
             const careRoutingPhrasesToRemove = Object.keys(synced.triggerPhrases.careRouting).filter(
                 phrase => !currentCareRoutingPhrases.has(phrase)
             );
             if (careRoutingPhrasesToRemove.length > 0) {
-                RUMILogger.info('STORAGE', 'Removing obsolete care routing trigger phrases', {
-                    removedPhrases: careRoutingPhrasesToRemove
+                RUMILogger.info('STORAGE', 'Removing obsolete care routing trigger phrases', { 
+                    removedPhrases: careRoutingPhrasesToRemove 
                 });
                 careRoutingPhrasesToRemove.forEach(phrase => {
                     delete synced.triggerPhrases.careRouting[phrase];
                     modified = true;
                 });
             }
-
+            
             // Add any new pending triggers
             const newPendingPhrases = [];
             RUMIRules.PENDING_TRIGGERS.forEach(phrase => {
@@ -1695,11 +1694,11 @@
                 }
             });
             if (newPendingPhrases.length > 0) {
-                RUMILogger.info('STORAGE', 'Adding new pending trigger phrases', {
-                    newPhrases: newPendingPhrases
+                RUMILogger.info('STORAGE', 'Adding new pending trigger phrases', { 
+                    newPhrases: newPendingPhrases 
                 });
             }
-
+            
             // Add any new solved triggers
             const newSolvedPhrases = [];
             RUMIRules.SOLVED_TRIGGERS.forEach(phrase => {
@@ -1710,11 +1709,11 @@
                 }
             });
             if (newSolvedPhrases.length > 0) {
-                RUMILogger.info('STORAGE', 'Adding new solved trigger phrases', {
-                    newPhrases: newSolvedPhrases
+                RUMILogger.info('STORAGE', 'Adding new solved trigger phrases', { 
+                    newPhrases: newSolvedPhrases 
                 });
             }
-
+            
             // Add any new care routing phrases
             const newCareRoutingPhrases = [];
             RUMIRules.CARE_ROUTING_PHRASES.forEach(phrase => {
@@ -1725,11 +1724,11 @@
                 }
             });
             if (newCareRoutingPhrases.length > 0) {
-                RUMILogger.info('STORAGE', 'Adding new care routing trigger phrases', {
-                    newPhrases: newCareRoutingPhrases
+                RUMILogger.info('STORAGE', 'Adding new care routing trigger phrases', { 
+                    newPhrases: newCareRoutingPhrases 
                 });
             }
-
+            
             return modified ? synced : settings;
         }
 
@@ -1780,7 +1779,7 @@
                 } else if (pinType === 'care_routing') {
                     // Fetch ticket to get latest comment ID
                     const comments = await RUMIAPIManager.get(`/api/v2/tickets/${trimmedTicketId}/comments.json`);
-
+                    
                     if (!comments || !comments.comments || comments.comments.length === 0) {
                         RUMIUI.showToast(`Cannot pin ticket ${trimmedTicketId}: No comments found`, 'error');
                         return false;
@@ -1788,14 +1787,14 @@
 
                     const latestCommentId = comments.comments[comments.comments.length - 1].id;
                     RUMIStorage.addPinnedCareRouting(trimmedTicketId, latestCommentId);
-                    RUMILogger.info('PIN_MANAGER', 'Care routing pin added', {
-                        ticketId: trimmedTicketId,
-                        commentId: latestCommentId
+                    RUMILogger.info('PIN_MANAGER', 'Care routing pin added', { 
+                        ticketId: trimmedTicketId, 
+                        commentId: latestCommentId 
                     });
 
                     // Immediately route to Care
                     await this.processCareRoutingPin(trimmedTicketId);
-
+                    
                     RUMIUI.showToast(`Ticket ${trimmedTicketId} pinned for Care routing`, 'success');
                 }
 
@@ -1837,12 +1836,12 @@
         static checkBlockedPin(ticketId) {
             const blockedPins = RUMIStorage.getPinnedBlocked();
             const isBlocked = blockedPins.some(p => p.ticketId === ticketId);
-
+            
             if (isBlocked) {
                 RUMILogger.info('PIN_MANAGER', 'Ticket skipped due to blocked pin', { ticketId });
                 return true;
             }
-
+            
             return false;
         }
 
@@ -1851,7 +1850,7 @@
         static async checkCareRoutingPin(ticketId, ticketData = null, commentsList = null) {
             const careRoutingPins = RUMIStorage.getPinnedCareRouting();
             const pin = careRoutingPins.find(p => p.ticketId === ticketId);
-
+            
             if (!pin) {
                 return null; // No care routing pin for this ticket
             }
@@ -1886,7 +1885,7 @@
                         commentsList = commentsList.comments;
                     }
                 }
-
+                
                 if (!commentsList || commentsList.length === 0) {
                     RUMILogger.warn('PIN_MANAGER', 'No comments found for care routing pin', { ticketId });
                     return { action: 'skipped', reason: 'no_comments' };
@@ -1897,27 +1896,27 @@
                 // Compare comment IDs
                 if (latestCommentId === pin.lastCommentId) {
                     // Comment unchanged, route to Care
-                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: comment unchanged, routing to Care', {
-                        ticketId,
+                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: comment unchanged, routing to Care', { 
+                        ticketId, 
                         commentId: latestCommentId,
                         currentStatus: ticketData.status
                     });
-
+                    
                     // Build payload - only set status to 'open' if not already 'open'
                     const payload = {
                         ticket: {
                             group_id: CONFIG.CARE_GROUP_ID
                         }
                     };
-
+                    
                     if (ticketData.status !== 'open') {
                         payload.ticket.status = 'open';
-                        RUMILogger.info('PIN_MANAGER', 'Care routing pin: will also set status to open', {
-                            ticketId,
-                            currentStatus: ticketData.status
+                        RUMILogger.info('PIN_MANAGER', 'Care routing pin: will also set status to open', { 
+                            ticketId, 
+                            currentStatus: ticketData.status 
                         });
                     }
-
+                    
                     return {
                         action: 'care',
                         trigger: 'Care Routing Pin',
@@ -1925,15 +1924,15 @@
                     };
                 } else {
                     // Comment changed, update pin status
-                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: new comment detected, marking as changed', {
-                        ticketId,
-                        oldCommentId: pin.lastCommentId,
-                        newCommentId: latestCommentId
+                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: new comment detected, marking as changed', { 
+                        ticketId, 
+                        oldCommentId: pin.lastCommentId, 
+                        newCommentId: latestCommentId 
                     });
-
+                    
                     RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'changed');
                     RUMIUI.renderPinnedList(); // Update UI to show changed status
-
+                    
                     return { action: 'skipped', reason: 'care_pin_comment_changed' };
                 }
 
@@ -1961,21 +1960,21 @@
                         group_id: CONFIG.CARE_GROUP_ID
                     }
                 };
-
+                
                 if (ticketData.status !== 'open') {
                     payload.ticket.status = 'open';
                 }
 
                 // Respect dry run mode
                 if (RUMIProcessor.isDryRun) {
-                    RUMILogger.info('PIN_MANAGER', '[DRY RUN] Would apply initial Care routing', {
+                    RUMILogger.info('PIN_MANAGER', '[DRY RUN] Would apply initial Care routing', { 
                         ticketId,
                         payload,
                         currentStatus: ticketData.status
                     });
                 } else {
                     await RUMIProcessor.applyChanges(ticketId, payload);
-                    RUMILogger.info('PIN_MANAGER', 'Initial Care routing applied', {
+                    RUMILogger.info('PIN_MANAGER', 'Initial Care routing applied', { 
                         ticketId,
                         statusChanged: ticketData.status !== 'open'
                     });
@@ -2161,16 +2160,16 @@
 
             } catch (error) {
                 const duration = Date.now() - startTime;
-
+                
                 // If it's not our custom error, it's a network error
-                if (!error.message.startsWith('Rate limit') &&
-                    !error.message.startsWith('Server error') &&
+                if (!error.message.startsWith('Rate limit') && 
+                    !error.message.startsWith('Server error') && 
                     !error.message.startsWith('Permission denied') &&
                     !error.message.startsWith('API Error')) {
-                    RUMILogger.error('API', 'Network error', {
-                        endpoint,
+                    RUMILogger.error('API', 'Network error', { 
+                        endpoint, 
                         error: error.message,
-                        duration
+                        duration 
                     });
                 }
                 throw error;
@@ -2189,14 +2188,14 @@
         static async batchGetTickets(ticketIds) {
             const BATCH_SIZE = 200; // Zendesk limit
             const allTickets = [];
-
+            
             for (let i = 0; i < ticketIds.length; i += BATCH_SIZE) {
                 const batch = ticketIds.slice(i, i + BATCH_SIZE);
                 const idsParam = batch.join(',');
                 const response = await this.get(`/api/v2/tickets/show_many.json?ids=${idsParam}`);
                 allTickets.push(...(response.tickets || []));
             }
-
+            
             return allTickets;
         }
 
@@ -2204,10 +2203,10 @@
         static async batchGetTicketsWithComments(ticketIds) {
             const CONCURRENT_LIMIT = 50; // Process 50 tickets at once
             const results = [];
-
+            
             for (let i = 0; i < ticketIds.length; i += CONCURRENT_LIMIT) {
                 const batch = ticketIds.slice(i, i + CONCURRENT_LIMIT);
-
+                
                 // Fetch tickets and comments in parallel for this batch
                 const batchPromises = batch.map(async (ticketId) => {
                     try {
@@ -2215,7 +2214,7 @@
                             this.get(`/api/v2/tickets/${ticketId}.json`),
                             this.get(`/api/v2/tickets/${ticketId}/comments.json`)
                         ]);
-
+                        
                         return {
                             ticketId,
                             ticket: ticketResponse.ticket,
@@ -2236,11 +2235,11 @@
                         };
                     }
                 });
-
+                
                 const batchResults = await Promise.all(batchPromises);
                 results.push(...batchResults);
             }
-
+            
             return results;
         }
 
@@ -2317,12 +2316,12 @@
 
         static async processExistingAndEstablishBaseline() {
             this.baselineTickets.clear();
-
+            
             for (const viewId of this.selectedViews) {
                 try {
                     const viewName = await RUMIUI.getViewName(viewId);
                     const data = await RUMIAPIManager.get(`/api/v2/views/${viewId}/execute.json`);
-
+                    
                     // Handle different API response structures (like tempRUMI.js)
                     let ticketData = [];
                     if (data.rows && Array.isArray(data.rows)) {
@@ -2330,7 +2329,7 @@
                     } else if (data.tickets && Array.isArray(data.tickets)) {
                         ticketData = data.tickets;
                     }
-
+                    
                     // Extract ticket IDs - handle multiple ID field locations
                     const ticketIds = ticketData.map(item => {
                         // Try different ways to extract ticket ID
@@ -2343,14 +2342,14 @@
                         }
                         return null;
                     }).filter(id => id !== null);
-
+                    
                     RUMILogger.info('MONITOR', `Found ${ticketIds.length} existing tickets in view "${viewName}" - processing now`, {
                         viewId,
                         viewName,
                         ticketCount: ticketIds.length,
                         responseType: data.rows ? 'rows' : (data.tickets ? 'tickets' : 'unknown')
                     });
-
+                    
                     // Process all existing tickets
                     if (ticketIds.length > 0) {
                         for (const ticketId of ticketIds) {
@@ -2363,17 +2362,17 @@
                             // Small delay between processing to avoid overwhelming the API
                             await new Promise(resolve => setTimeout(resolve, 300));
                         }
-
+                        
                         RUMILogger.info('MONITOR', `Finished processing ${ticketIds.length} existing tickets in view "${viewName}"`, {
                             viewId,
                             viewName,
                             ticketCount: ticketIds.length
                         });
                     }
-
+                    
                     // Now establish baseline with these tickets so they won't be processed again
                     this.baselineTickets.set(viewId, new Set(ticketIds));
-
+                    
                     RUMILogger.info('MONITOR', `Baseline established for view "${viewName}"`, {
                         viewId,
                         viewName,
@@ -2404,7 +2403,7 @@
 
             // Clear baseline so that restarting monitoring will process existing tickets again
             this.baselineTickets.clear();
-
+            
             // Clear failed polls tracking
             this.failedPolls.clear();
 
@@ -2442,16 +2441,16 @@
                         }
                         return null;
                     }).filter(id => id !== null);
-
+                    
                     const currentTicketIds = new Set(ticketIds);
-
+                    
                     // Check if this view had failed polls previously
                     const hadFailedPoll = this.failedPolls.has(viewId);
                     const failureCount = this.failedPolls.get(viewId) || 0;
-
+                    
                     // Get baseline for this view
                     const baselineIds = this.baselineTickets.get(viewId) || new Set();
-
+                    
                     // CATCH-UP MODE: If we had failed polls, process ALL tickets in view (like startup)
                     // This ensures we don't miss any tickets that were added during rate limit period
                     if (hadFailedPoll) {
@@ -2462,9 +2461,9 @@
                             ticketsToProcess: ticketIds.length,
                             totalInView: ticketIds.length
                         });
-
+                        
                         RUMIUI.showToast(`Recovering view "${viewName}" - processing ${ticketIds.length} tickets`, 'warning');
-
+                        
                         // Process ALL tickets in the view (like initial baseline establishment)
                         for (const ticketId of ticketIds) {
                             const result = await RUMIProcessor.processTicket(ticketId, viewName);
@@ -2474,16 +2473,16 @@
                             }
                             await new Promise(resolve => setTimeout(resolve, 300));
                         }
-
+                        
                         // Clear the failed poll flag for this view
                         this.failedPolls.delete(viewId);
-
+                        
                         RUMILogger.info('MONITOR', `CATCH-UP COMPLETE: View "${viewName}" recovered successfully`, {
                             viewId,
                             viewName,
                             processedCount: ticketIds.length
                         });
-
+                        
                         RUMIUI.showToast(`View "${viewName}" recovered - ${ticketIds.length} tickets processed`, 'success');
                     } else {
                         // NORMAL MODE: Find NEW tickets (not in baseline)
@@ -2517,7 +2516,7 @@
                             });
                         }
                     }
-
+                    
                     // Update baseline with current tickets (both catch-up and normal mode)
                     this.baselineTickets.set(viewId, currentTicketIds);
                     RUMILogger.debug('MONITOR', `Updated baseline for view "${viewName}"`, {
@@ -2529,11 +2528,11 @@
 
                 } catch (error) {
                     const viewName = await RUMIUI.getViewName(viewId);
-
+                    
                     // Track this failed poll
                     const currentFailureCount = this.failedPolls.get(viewId) || 0;
                     this.failedPolls.set(viewId, currentFailureCount + 1);
-
+                    
                     RUMILogger.error('MONITOR', `Failed to poll view "${viewName}" (failure #${currentFailureCount + 1})`, {
                         viewId,
                         viewName,
@@ -2541,7 +2540,7 @@
                         failureCount: currentFailureCount + 1,
                         willCatchUp: true
                     });
-
+                    
                     // Show toast for rate limit errors specifically
                     if (error.message.includes('Rate limit')) {
                         RUMIUI.showToast(`Rate limited on view "${viewName}" - will catch up on next poll`, 'error');
@@ -2568,10 +2567,10 @@
             this.manualProcessingCancelled = false;
 
             RUMILogger.info('MONITOR', 'Starting manual processing', { ticketCount: ticketIds.length });
-
+            
             // Enable batch processing mode to suppress verbose DEBUG logs
             RUMILogger.isManualProcessing = true;
-
+            
             let processedCount = 0;
             let actionCount = 0;
             const totalCount = ticketIds.length;
@@ -2589,12 +2588,12 @@
                         RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`),
                         RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`)
                     ]);
-
+                    
                     // Check cancellation again before processing
                     if (this.manualProcessingCancelled) {
                         return { success: false, ticketId, cancelled: true };
                     }
-
+                    
                     // Process immediately after fetching (with isManual=true)
                     const result = await RUMIProcessor.processTicketWithData(
                         ticketId,
@@ -2603,13 +2602,13 @@
                         'Manual',
                         true  // isManual flag to use separate manual storage
                     );
-
+                    
                     // Update progress immediately
                     processedCount++;
                     if (progressCallback) {
                         progressCallback(processedCount, totalCount);
                     }
-
+                    
                     if (result.action !== 'none' && result.action !== 'skipped') {
                         actionCount++;
                     }
@@ -2620,7 +2619,7 @@
                     if (progressCallback) {
                         progressCallback(processedCount, totalCount);
                     }
-
+                    
                     RUMILogger.error('MONITOR', `Manual processing failed for ticket ${ticketId}`, {
                         ticketId,
                         error: error.message
@@ -2628,7 +2627,7 @@
                     return { success: false, ticketId, error: error.message };
                 }
             });
-
+            
             // Wait for ALL tickets to complete
             await Promise.all(allPromises);
 
@@ -2636,39 +2635,39 @@
             RUMILogger.isManualProcessing = false;
 
             const status = this.manualProcessingCancelled ? 'cancelled' : 'complete';
-            RUMILogger.info('MONITOR', `Manual processing ${status}`, {
-                processedCount,
-                actionCount
+            RUMILogger.info('MONITOR', `Manual processing ${status}`, { 
+                processedCount, 
+                actionCount 
             });
-
+            
             return { processed: processedCount, actioned: actionCount, cancelled: this.manualProcessingCancelled };
         }
 
         static async processView(viewId, viewName, progressCallback = null) {
             // Fetches all tickets from a view and processes them (with pagination support)
             RUMILogger.info('MONITOR', `Starting view processing for "${viewName}"`, { viewId, viewName });
-
+            
             try {
                 // Phase 1: Fetch ALL tickets from the view (handle pagination)
                 if (progressCallback) {
                     progressCallback({ phase: 'fetching', current: 0, total: 0, viewName });
                 }
-
+                
                 let allTicketIds = [];
                 let nextPageUrl = `/api/v2/views/${viewId}/execute.json?page[size]=100`;
                 let pageCount = 0;
-
+                
                 // Fetch all pages
                 while (nextPageUrl) {
                     pageCount++;
-                    RUMILogger.debug('MONITOR', `Fetching page ${pageCount} for view "${viewName}"`, {
-                        viewId,
-                        viewName,
-                        currentTicketCount: allTicketIds.length
+                    RUMILogger.debug('MONITOR', `Fetching page ${pageCount} for view "${viewName}"`, { 
+                        viewId, 
+                        viewName, 
+                        currentTicketCount: allTicketIds.length 
                     });
-
+                    
                     const data = await RUMIAPIManager.get(nextPageUrl);
-
+                    
                     // Handle different API response structures
                     let ticketData = [];
                     if (data.rows && Array.isArray(data.rows)) {
@@ -2688,20 +2687,20 @@
                         }
                         return null;
                     }).filter(id => id !== null);
-
+                    
                     allTicketIds.push(...pageTicketIds);
-
+                    
                     // Update progress with fetching count
                     if (progressCallback) {
-                        progressCallback({
-                            phase: 'fetching',
-                            current: allTicketIds.length,
-                            total: allTicketIds.length,
+                        progressCallback({ 
+                            phase: 'fetching', 
+                            current: allTicketIds.length, 
+                            total: allTicketIds.length, 
                             viewName,
                             page: pageCount
                         });
                     }
-
+                    
                     // Check for next page
                     // Zendesk uses different pagination formats:
                     // 1. meta.has_more + links.next (cursor-based)
@@ -2724,7 +2723,7 @@
                         // No more pages
                         nextPageUrl = null;
                     }
-
+                    
                     // Safety limit: don't fetch more than 1000 pages
                     if (pageCount >= 1000) {
                         RUMILogger.warn('MONITOR', `Reached page limit (1000) for view "${viewName}"`, {
@@ -2747,7 +2746,7 @@
                     ticketCount: allTicketIds.length,
                     pageCount: pageCount
                 });
-
+                
                 const ticketIds = allTicketIds;
 
                 // Phase 2: Process the tickets
@@ -2757,7 +2756,7 @@
 
                 // Enable batch processing mode to suppress verbose DEBUG logs
                 RUMILogger.isManualProcessing = true;
-
+                
                 let processedCount = 0;
                 let actionCount = 0;
                 const totalCount = ticketIds.length;
@@ -2770,7 +2769,7 @@
                             RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`),
                             RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`)
                         ]);
-
+                        
                         // Process immediately after fetching (with isManual=true)
                         const result = await RUMIProcessor.processTicketWithData(
                             ticketId,
@@ -2779,13 +2778,13 @@
                             viewName,
                             true  // isManual flag to use separate manual storage
                         );
-
+                        
                         // Update progress immediately
                         processedCount++;
                         if (progressCallback) {
                             progressCallback({ phase: 'processing', current: processedCount, total: totalCount, viewName });
                         }
-
+                        
                         if (result.action !== 'none' && result.action !== 'skipped') {
                             actionCount++;
                         }
@@ -2821,7 +2820,7 @@
             } catch (error) {
                 // Restore normal logging mode
                 RUMILogger.isManualProcessing = false;
-
+                
                 RUMILogger.error('MONITOR', `Failed to process view "${viewName}"`, {
                     viewId,
                     viewName,
@@ -2888,7 +2887,7 @@
             flex: 1;
             overflow: hidden;
         }
-
+        
         .rumi-main-tab-panel {
             display: none;
             flex: 1;
@@ -2896,7 +2895,7 @@
             width: 100%;
             height: 100%;
         }
-
+        
         .rumi-main-tab-panel[style*="display: flex"] {
             display: flex !important;
             visibility: visible !important;
@@ -2921,7 +2920,7 @@
             overflow: hidden;
             min-width: 0;
         }
-
+        
         #rumi-work-area-manual {
             flex: 1;
             padding: 20px;
@@ -2930,7 +2929,7 @@
             overflow: hidden;
             min-width: 0;
         }
-
+        
         #rumi-left-panel-manual {
             width: 350px;
             min-width: 350px;
@@ -3432,7 +3431,7 @@
             position: relative;
             background: var(--rumi-panel-bg);
         }
-
+        
         .rumi-table th:last-child {
             border-right: none;
         }
@@ -3472,7 +3471,7 @@
             z-index: 50;
             border-right: 1px solid var(--rumi-border);
         }
-
+        
         .rumi-table-filter-row td:last-child {
             border-right: none;
         }
@@ -3702,7 +3701,7 @@
             overflow-wrap: break-word;
             color: var(--rumi-text);
         }
-
+        
         .rumi-table td:last-child {
             border-right: none;
         }
@@ -4604,7 +4603,7 @@
             height: 16px;
             flex-shrink: 0;
         }
-
+        
         .rumi-export-btn svg {
             flex-shrink: 0;
         }
@@ -4900,7 +4899,7 @@
                     <hr class="rumi-divider">
 
                     <h2 class="rumi-section-title">Monitoring</h2>
-
+                    
                     <label style="display:block; margin:12px 0 8px 0;">
                         Interval (seconds):
                         <input type="number" id="rumi-interval" class="rumi-input-number" min="5" max="60" value="10">
@@ -4946,7 +4945,7 @@
                     <button id="rumi-reset-counters" class="rumi-btn rumi-btn-secondary" style="width:100%; margin-top:8px; font-size:11px; padding:4px 8px;">
                         Clear Data
                     </button>
-
+                    
                     <!-- Export Button with Dropdown -->
                     <div class="rumi-export-dropdown" id="rumi-export-dropdown-auto">
                         <button class="rumi-export-btn" id="rumi-export-btn-auto">
@@ -4984,28 +4983,28 @@
 
                     <h2 class="rumi-section-title">Pinned Tickets</h2>
                     <div class="rumi-pin-input-group">
-                        <input
-                            type="text"
-                            id="rumi-pin-ticket-id"
-                            class="rumi-pin-input"
+                        <input 
+                            type="text" 
+                            id="rumi-pin-ticket-id" 
+                            class="rumi-pin-input" 
                             placeholder="Enter Ticket ID"
                             aria-label="Ticket ID to pin"
                         >
                         <div class="rumi-pin-radio-group" role="radiogroup" aria-label="Pin type">
                             <label class="rumi-pin-radio-label">
-                                <input
-                                    type="radio"
-                                    name="rumi-pin-type"
-                                    value="blocked"
+                                <input 
+                                    type="radio" 
+                                    name="rumi-pin-type" 
+                                    value="blocked" 
                                     checked
                                     aria-label="Block Processing"
                                 >
                                 <span>Block Processing</span>
                             </label>
                             <label class="rumi-pin-radio-label">
-                                <input
-                                    type="radio"
-                                    name="rumi-pin-type"
+                                <input 
+                                    type="radio" 
+                                    name="rumi-pin-type" 
                                     value="care_routing"
                                     aria-label="Care Routing"
                                 >
@@ -5200,15 +5199,15 @@
                 <div id="rumi-left-panel-manual">
                     <h2 class="rumi-section-title">Manual Processing</h2>
                     <textarea id="rumi-manual-ids" class="rumi-textarea" placeholder="Enter ticket IDs (comma-separated)&#10;Example: 12345, 67890, 54321"></textarea>
-
+                    
                     <div id="rumi-ticket-count" style="margin-top:8px; font-size:13px; color:var(--rumi-text-secondary); font-weight:500;">
                         <span id="rumi-ticket-count-value">0</span> tickets ready to process
                     </div>
-
+                    
                     <div id="rumi-manual-progress" style="display:none; margin-top:8px; padding:8px; background:var(--rumi-bg); border-radius:4px; text-align:center; font-weight:600; color:var(--rumi-accent-blue); font-size:12px;">
                         Processing 0/0 tickets...
                     </div>
-
+                    
                     <label class="rumi-checkbox-label" style="margin-top:12px;">
                         <input type="checkbox" id="rumi-manual-dry-run" checked aria-label="Enable manual dry run mode">
                         <span style="font-weight:600; color:var(--rumi-accent-red);">DRY RUN MODE</span>
@@ -5260,7 +5259,7 @@
                     <button id="rumi-reset-manual-counters" class="rumi-btn rumi-btn-secondary" style="width:100%; margin-top:8px; font-size:11px; padding:4px 8px;">
                         Clear Data
                     </button>
-
+                    
                     <!-- Export Button with Dropdown -->
                     <div class="rumi-export-dropdown" id="rumi-export-dropdown-manual">
                         <button class="rumi-export-btn" id="rumi-export-btn-manual">
@@ -5554,7 +5553,7 @@
         static async init() {
             try {
                 console.log('[RUMI DEBUG] UI.init() starting');
-
+                
                 // Initialize settings storage (will create defaults if not exist)
                 RUMIStorage.getAutomaticSettings();
                 RUMIStorage.getManualSettings();
@@ -5567,9 +5566,9 @@
 
                 this.attachEventListeners();
                 await this.loadViews();
-
+                
                 // Views are already restored in loadViews()
-
+                
                 // Restore dry run setting from previous session (automatic processing)
                 const settings = RUMIStorage.getProcessingSettings();
                 document.getElementById('rumi-dry-run-global').checked = settings.dryRunMode;
@@ -5600,7 +5599,7 @@
                 this.updateManualProcessedTicketsDisplay();
                 this.renderLogs();
                 this.renderPinnedList();
-
+                
                 // Set up filters and sorting ONCE during initialization
                 // This should NOT be called during updates to prevent loss of focus
                 this.setupAllTableFiltersAndSorting();
@@ -5638,7 +5637,7 @@
                 } else {
                     // Start monitoring - wait for validation
                     const started = await RUMIMonitor.start();
-
+                    
                     // Only update button if monitoring actually started
                     if (started) {
                         monitorToggleBtn.textContent = 'Stop Monitoring';
@@ -5686,7 +5685,7 @@
                 RUMIStorage.setProcessingSettings(settings);
                 RUMIProcessor.isDryRun = e.target.checked;
                 RUMILogger.info('UI', 'Dry run mode toggled', { enabled: e.target.checked });
-
+                
                 // Visual feedback
                 if (e.target.checked) {
                     this.showToast('DRY RUN MODE ENABLED - No tickets will be modified', 'warning');
@@ -5707,7 +5706,7 @@
             // Real-time ticket counter for manual processing textarea
             const manualTextarea = document.getElementById('rumi-manual-ids');
             const ticketCountValue = document.getElementById('rumi-ticket-count-value');
-
+            
             // Fast ticket counting function
             const updateTicketCount = () => {
                 const text = manualTextarea.value;
@@ -5716,21 +5715,21 @@
                     ticketCountValue.style.color = 'var(--rumi-text-secondary)';
                     return;
                 }
-
+                
                 // Quick parse: split by comma and count valid ticket IDs
                 const validCount = text
                     .split(',')
                     .map(id => id.trim())
                     .filter(id => id.length > 0 && /^\d+$/.test(id))
                     .length;
-
+                
                 ticketCountValue.textContent = validCount.toString();
                 ticketCountValue.style.color = validCount > 0 ? 'var(--rumi-accent-blue)' : 'var(--rumi-accent-red)';
             };
-
+            
             // Update counter on every keystroke (input event)
             manualTextarea.addEventListener('input', updateTicketCount);
-
+            
             // Also update on paste
             manualTextarea.addEventListener('paste', () => {
                 // Small delay to let paste complete
@@ -5742,7 +5741,7 @@
                 const btn = document.getElementById('rumi-manual-process');
                 const textarea = document.getElementById('rumi-manual-ids');
                 const progressDiv = document.getElementById('rumi-manual-progress');
-
+                
                 // Check if we're currently processing (button shows "Stop Processing")
                 if (btn.textContent.includes('Stop')) {
                     // Cancel the processing
@@ -5752,7 +5751,7 @@
                     this.showToast('Stopping manual processing...', 'warning');
                     return;
                 }
-
+                
                 const ticketIds = textarea.value;
 
                 if (!ticketIds.trim()) {
@@ -5775,20 +5774,20 @@
                 btn.textContent = 'Stop Processing';
                 btn.classList.remove('rumi-btn-primary');
                 btn.classList.add('rumi-btn-secondary');
-
+                
                 // Show progress indicator with correct total from the start
                 progressDiv.style.display = 'block';
                 progressDiv.textContent = `Processing 0/${parsedIds.length} tickets...`;
-
+                
                 try {
                     let lastUpdateTime = 0;
                     const UPDATE_THROTTLE_MS = 500; // Update UI max once per 500ms for maximum performance
-
+                    
                     // Progress callback with aggressive throttling to minimize UI update overhead
                     const progressCallback = (current, total) => {
                         // Always update the progress text (very cheap operation)
                         progressDiv.textContent = `Processing ${current}/${total} tickets...`;
-
+                        
                         const now = Date.now();
                         // Only do expensive table/counter updates if 500ms has passed or it's the last ticket
                         if (now - lastUpdateTime > UPDATE_THROTTLE_MS || current === total) {
@@ -5797,16 +5796,16 @@
                             this.updateManualProcessedTicketsDisplay();
                         }
                     };
-
+                    
                     const result = await RUMIMonitor.manualProcess(ticketIds, progressCallback);
-
+                    
                     // Final UI update
                     this.updateManualCounters();
                     this.updateManualProcessedTicketsDisplay();
-
+                    
                     const manualDryRun = RUMIStorage.getManualProcessingSettings().dryRunMode;
                     const mode = manualDryRun ? 'MANUAL DRY RUN' : 'MANUAL LIVE';
-
+                    
                     if (result.cancelled) {
                         this.showToast(`[${mode}] Processing stopped - Processed ${result.processed} tickets, ${result.actioned} actions taken`, 'warning');
                     } else {
@@ -5849,11 +5848,11 @@
                 const settings = RUMIStorage.getManualProcessingSettings();
                 settings.dryRunMode = isDryRun;
                 RUMIStorage.setManualProcessingSettings(settings);
-
+                
                 const mode = isDryRun ? 'enabled' : 'disabled';
                 this.showToast(`Manual dry run mode ${mode}`, isDryRun ? 'warning' : 'info');
                 RUMILogger.info('UI', `Manual dry run mode ${mode}`, { isDryRun });
-
+                
                 if (!isDryRun) {
                     if (!confirm('⚠ WARNING ⚠\n\nYou are about to DISABLE manual dry run mode.\n\nThis means manually processed tickets WILL BE MODIFIED in Zendesk.\n\nAre you absolutely sure?')) {
                         e.target.checked = true;
@@ -5953,7 +5952,7 @@
                 const data = await RUMIAPIManager.get('/api/v2/views.json');
                 const allViews = data.views || [];
 
-                // Zendesk returns all views for this agent, but we only care about specific SSOC views
+                // Zendesk returns all views for this agent, but we only care about SSOC views
                 const targetViews = allViews.filter(view =>
                     TARGET_VIEWS.includes(view.title)
                 );
@@ -5997,12 +5996,12 @@
 
                 // Restore previously selected views
                 const selectedViews = RUMIStorage.getSelectedViews();
-                RUMILogger.info('UI', 'Restoring selected views from storage', {
+                RUMILogger.info('UI', 'Restoring selected views from storage', { 
                     selectedViews,
                     selectedCount: selectedViews.length,
                     availableViews: sortedViews.map(v => v.id)
                 });
-
+                
                 let restoredCount = 0;
                 selectedViews.forEach(viewId => {
                     const checkbox = container.querySelector(`input[data-view-id="${viewId}"]`);
@@ -6015,8 +6014,8 @@
                     }
                 });
 
-                RUMILogger.info('UI', 'Loaded views successfully', {
-                    totalViews: sortedViews.length,
+                RUMILogger.info('UI', 'Loaded views successfully', { 
+                    totalViews: sortedViews.length, 
                     selectedCount: selectedViews.length,
                     restoredCount: restoredCount,
                     eventListenersAttached: checkboxes.length
@@ -6031,10 +6030,10 @@
 
         static saveSelectedViews() {
             console.log('[RUMI DEBUG] saveSelectedViews() called');
-
+            
             const checkboxes = document.querySelectorAll('.rumi-view-checkbox input');
             console.log('[RUMI DEBUG] Found checkboxes:', checkboxes.length);
-
+            
             const selected = Array.from(checkboxes)
                 .filter(cb => cb.checked)
                 .map(cb => String(cb.getAttribute('data-view-id'))); // Ensure strings
@@ -6042,12 +6041,12 @@
             console.log('[RUMI DEBUG] Selected view IDs:', selected);
 
             RUMIStorage.setSelectedViews(selected);
-
+            
             // Verify it was saved by reading it back
             const verification = RUMIStorage.getSelectedViews();
             console.log('[RUMI DEBUG] Verification read back:', verification);
-
-            RUMILogger.info('UI', 'Saved selected views', {
+            
+            RUMILogger.info('UI', 'Saved selected views', { 
                 count: selected.length,
                 viewIds: selected,
                 totalCheckboxes: checkboxes.length,
@@ -6058,7 +6057,7 @@
         static populateViewProcessButtons(targetViews) {
             // Populate the manual processing view buttons
             const container = document.getElementById('rumi-view-buttons-container');
-
+            
             // Preserve the order defined in TARGET_VIEWS for consistency
             const sortedViews = TARGET_VIEWS
                 .map(title => targetViews.find(v => v.title === title))
@@ -6087,22 +6086,22 @@
         static async handleViewProcess(viewId, viewName, button) {
             // Handle processing a specific view
             const progressDiv = document.getElementById('rumi-manual-progress');
-
+            
             // Disable all view buttons during processing
             const allButtons = document.querySelectorAll('.rumi-view-process-btn');
             allButtons.forEach(btn => btn.disabled = true);
-
+            
             const originalText = button.textContent;
             button.textContent = 'Processing...';
-
+            
             // Show progress indicator
             progressDiv.style.display = 'block';
             progressDiv.textContent = `Fetching tickets from "${viewName}"...`;
-
+            
             try {
                 let lastUpdateTime = 0;
                 const UPDATE_THROTTLE_MS = 500; // Update UI max once per 500ms
-
+                
                 // Progress callback with throttling
                 const progressCallback = (progress) => {
                     if (progress.phase === 'fetching') {
@@ -6110,7 +6109,7 @@
                         progressDiv.textContent = `Fetching tickets from "${viewName}"${pageInfo}... (${progress.current} tickets so far)`;
                     } else if (progress.phase === 'processing') {
                         progressDiv.textContent = `Processing ${progress.current}/${progress.total} tickets from "${viewName}"...`;
-
+                        
                         const now = Date.now();
                         // Only do expensive table/counter updates if 500ms has passed or it's the last ticket
                         if (now - lastUpdateTime > UPDATE_THROTTLE_MS || progress.current === progress.total) {
@@ -6120,17 +6119,17 @@
                         }
                     }
                 };
-
+                
                 const result = await RUMIMonitor.processView(viewId, viewName, progressCallback);
-
+                
                 // Final UI update
                 this.updateManualCounters();
                 this.updateManualProcessedTicketsDisplay();
-
+                
                 const manualDryRun = RUMIStorage.getManualProcessingSettings().dryRunMode;
                 const mode = manualDryRun ? 'MANUAL DRY RUN' : 'MANUAL LIVE';
                 this.showToast(`[${mode}] View "${viewName}": Fetched ${result.fetched} tickets, Processed ${result.processed}, ${result.actioned} actions taken`, 'success');
-
+                
             } catch (error) {
                 this.showToast(`Failed to process view "${viewName}": ${error.message}`, 'error');
                 RUMILogger.error('UI', `Failed to process view "${viewName}"`, { viewId, viewName, error: error.message });
@@ -6142,7 +6141,7 @@
                         btn.textContent = originalText;
                     }
                 });
-
+                
                 // Hide progress indicator after a delay
                 setTimeout(() => {
                     progressDiv.style.display = 'none';
@@ -6181,7 +6180,7 @@
             document.getElementById('rumi-counter-care').textContent = stats.care;
             document.getElementById('rumi-counter-hala').textContent = stats.hala;
             document.getElementById('rumi-counter-casablanca').textContent = stats.casablanca;
-
+            
             // Update tab counts
             const tickets = RUMIStorage.getProcessedTickets();
             const counts = {
@@ -6209,7 +6208,7 @@
             document.getElementById('rumi-manual-counter-care').textContent = stats.care;
             document.getElementById('rumi-manual-counter-hala').textContent = stats.hala;
             document.getElementById('rumi-manual-counter-casablanca').textContent = stats.casablanca;
-
+            
             // Update manual tab counts
             const tickets = RUMIStorage.getManualProcessedTickets();
             const counts = {
@@ -6233,7 +6232,7 @@
 
         static switchMainTab(tabName) {
             console.log('[RUMI DEBUG] switchMainTab called with:', tabName);
-
+            
             // Update main tab buttons
             document.querySelectorAll('.rumi-tab-btn[data-main-tab]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.mainTab === tabName);
@@ -6248,13 +6247,13 @@
             // Show the selected main tab panel
             const selectedPanel = document.getElementById(`rumi-main-${tabName}`);
             console.log('[RUMI DEBUG] selectedPanel:', selectedPanel);
-
+            
             if (selectedPanel) {
                 selectedPanel.style.display = 'flex';
                 selectedPanel.style.visibility = 'visible';
                 selectedPanel.style.flex = '1';
                 selectedPanel.style.overflow = 'hidden';
-
+                
                 console.log('[RUMI DEBUG] Panel display set to flex, visibility visible');
             } else {
                 console.error('[RUMI DEBUG] Panel not found for tab:', tabName);
@@ -6280,7 +6279,7 @@
         static switchAutoTab(tabName) {
             // Track current active tab
             this.currentAutoTab = tabName;
-
+            
             // Update automatic tab buttons
             document.querySelectorAll('.rumi-tab-btn[data-auto-tab]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.autoTab === tabName);
@@ -6290,7 +6289,7 @@
             document.querySelectorAll('#rumi-tab-all, #rumi-tab-pending, #rumi-tab-solved, #rumi-tab-care, #rumi-tab-hala, #rumi-tab-casablanca').forEach(panel => {
                 panel.classList.toggle('active', panel.id === `rumi-tab-${tabName}`);
             });
-
+            
             // Render only the active tab
             this.renderActiveAutoTab();
         }
@@ -6298,7 +6297,7 @@
         static switchManualTab(tabName) {
             // Track current active tab
             this.currentManualTab = tabName;
-
+            
             // Update manual tab buttons
             document.querySelectorAll('.rumi-tab-btn[data-manual-tab]').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.manualTab === tabName);
@@ -6308,7 +6307,7 @@
             document.querySelectorAll('#rumi-manual-tab-all, #rumi-manual-tab-pending, #rumi-manual-tab-solved, #rumi-manual-tab-care, #rumi-manual-tab-hala, #rumi-manual-tab-casablanca, #rumi-manual-tab-unprocessed').forEach(panel => {
                 panel.classList.toggle('active', panel.id === panelId);
             });
-
+            
             // Render only the active tab
             this.renderActiveManualTab();
         }
@@ -6316,19 +6315,19 @@
         static async updateProcessedTicketsDisplay() {
             // Update counters
             this.updateCounters();
-
+            
             // Only render the currently active tab (memory optimization)
             await this.renderActiveAutoTab();
-
+            
             // Note: Don't call setupAllTableFiltersAndSorting() here as it destroys and recreates
             // filter inputs, causing loss of focus. Filters are set up once during initialization.
         }
-
+        
         static async renderActiveAutoTab() {
             // Get all tickets and filter based on active tab
             const tickets = RUMIStorage.getProcessedTickets();
             const tabName = this.currentAutoTab;
-
+            
             let filteredTickets;
             switch(tabName) {
                 case 'pending':
@@ -6349,26 +6348,26 @@
                 default: // 'all'
                     filteredTickets = tickets;
             }
-
+            
             await this.renderTicketsTable(tabName, filteredTickets);
         }
 
         static async updateManualProcessedTicketsDisplay() {
             // Update counters
             this.updateManualCounters();
-
+            
             // Only render the currently active tab (memory optimization)
             await this.renderActiveManualTab();
-
+            
             // Note: Don't call setupAllTableFiltersAndSorting() here as it destroys and recreates
             // filter inputs, causing loss of focus. Filters are set up once during initialization.
         }
-
+        
         static async renderActiveManualTab() {
             // Get all tickets and filter based on active tab
             const tickets = RUMIStorage.getManualProcessedTickets();
             const tabName = this.currentManualTab;
-
+            
             let filteredTickets;
             switch(tabName) {
                 case 'manual-pending':
@@ -6392,22 +6391,22 @@
                 default: // 'manual-all'
                     filteredTickets = tickets;
             }
-
+            
             await this.renderManualTicketsTable(tabName, filteredTickets);
         }
 
         static filterTickets(tickets, filters, timeFilters, tableType) {
             let filtered = tickets;
-
+            
             // Apply regular filters
             if (filters && Object.keys(filters).length > 0) {
                 filtered = filtered.filter(ticket => {
                     for (const [column, filterValue] of Object.entries(filters)) {
                         if (!filterValue) continue;
-
+                        
                         const filterLower = filterValue.toLowerCase();
                         let cellValue = '';
-
+                        
                         switch (column) {
                             case 'ticketId':
                                 cellValue = String(ticket.ticketId);
@@ -6443,7 +6442,7 @@
                                 cellValue = ticket.alreadyCorrect ? 'yes' : 'no';
                                 break;
                         }
-
+                        
                         if (!cellValue.toLowerCase().includes(filterLower)) {
                             return false;
                         }
@@ -6451,7 +6450,7 @@
                     return true;
                 });
             }
-
+            
             // Apply time filters
             if (timeFilters && timeFilters[tableType]) {
                 const timeFilter = timeFilters[tableType];
@@ -6459,10 +6458,10 @@
                     filtered = filtered.filter(ticket => {
                         const ticketDate = new Date(ticket.timestamp);
                         const ticketTime = ticketDate.getHours() * 60 + ticketDate.getMinutes();
-
+                        
                         const [hours, minutes] = timeFilter.time.split(':').map(Number);
                         const filterTime = hours * 60 + minutes;
-
+                        
                         switch (timeFilter.operator) {
                             case 'at':
                                 return ticketTime === filterTime;
@@ -6476,7 +6475,7 @@
                     });
                 }
             }
-
+            
             return filtered;
         }
 
@@ -6488,7 +6487,7 @@
             return [...tickets].sort((a, b) => {
                 let aVal = '';
                 let bVal = '';
-
+                
                 switch (column) {
                     case 'ticketId':
                         aVal = Number(a.ticketId);
@@ -6541,7 +6540,7 @@
                     default:
                         return 0;
                 }
-
+                
                 if (typeof aVal === 'number' && typeof bVal === 'number') {
                     return direction === 'asc' ? aVal - bVal : bVal - aVal;
                 } else {
@@ -6554,7 +6553,7 @@
 
         static async renderTicketsTable(type, tickets) {
             const tbody = document.getElementById(`rumi-table-${type}`);
-
+            
             if (tickets.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
                 return;
@@ -6562,7 +6561,7 @@
 
             // Apply filters (including time filters)
             const filteredTickets = this.filterTickets(tickets, this.tableFilters.automatic, this.timeFilters, 'automatic');
-
+            
             // Apply sorting or default to most recent first
             let processedTickets;
             if (this.tableSortState.automatic.column && this.tableSortState.automatic.direction) {
@@ -6588,14 +6587,14 @@
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
                 const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
                 const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
-                const dryRunBadge = ticket.dryRun
-                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
+                const dryRunBadge = ticket.dryRun 
+                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>' 
                     : '<span class="rumi-badge rumi-badge-no">NO</span>';
-
+                
                 const updatedBadge = ticket.alreadyCorrect
-                    ? '<span class="rumi-badge rumi-badge-no">NO</span>'
+                    ? '<span class="rumi-badge rumi-badge-no">NO</span>' 
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
-
+                
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
                 if (ticket.isBlockedPin) {
@@ -6603,7 +6602,7 @@
                 } else if (ticket.dryRun) {
                     rowClass = 'rumi-dry-run';
                 }
-
+                
                 return `
                     <tr class="${rowClass}">
                         <td>${rowNumber}</td>
@@ -6622,19 +6621,19 @@
                     </tr>
                 `;
             }).join('');
-
+            
             // Update tab count to reflect filtered results
             this.updateTabCount(type, ticketsWithResolvedNames.length);
         }
 
         static async renderManualTicketsTable(type, tickets) {
             const tbody = document.getElementById(`rumi-${type === 'manual-all' ? 'manual-table-all' : type.replace('manual-', 'manual-table-')}`);
-
+            
             if (!tbody) {
                 // Table doesn't exist yet, skip rendering
                 return;
             }
-
+            
             if (tickets.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
                 return;
@@ -6642,7 +6641,7 @@
 
             // Apply filters (including time filters)
             const filteredTickets = this.filterTickets(tickets, this.tableFilters.manual, this.timeFilters, 'manual');
-
+            
             // Apply sorting or default to most recent first
             let processedTickets;
             if (this.tableSortState.manual.column && this.tableSortState.manual.direction) {
@@ -6661,20 +6660,20 @@
                 }
                 return ticket;
             }));
-
+            
             tbody.innerHTML = ticketsWithResolvedNames.map((ticket, index) => {
                 const rowNumber = ticketsWithResolvedNames.length - index; // Last processed is #1
                 const actionBadge = `<span class="rumi-badge rumi-badge-${ticket.action}">${ticket.action}</span>`;
                 const previousStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.previousStatus}">${ticket.previousStatus}</span>`;
                 const newStatusBadge = `<span class="rumi-status-badge rumi-status-badge-${ticket.newStatus}">${ticket.newStatus}</span>`;
-                const dryRunBadge = ticket.dryRun
-                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>'
+                const dryRunBadge = ticket.dryRun 
+                    ? '<span class="rumi-badge rumi-badge-yes">YES</span>' 
                     : '<span class="rumi-badge rumi-badge-no">NO</span>';
-
+                
                 const updatedBadge = ticket.alreadyCorrect
-                    ? '<span class="rumi-badge rumi-badge-no">NO</span>'
+                    ? '<span class="rumi-badge rumi-badge-no">NO</span>' 
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
-
+                
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
                 if (ticket.isBlockedPin) {
@@ -6682,7 +6681,7 @@
                 } else if (ticket.dryRun) {
                     rowClass = 'rumi-dry-run';
                 }
-
+                
                 return `
                     <tr class="${rowClass}">
                         <td>${rowNumber}</td>
@@ -6701,7 +6700,7 @@
                     </tr>
                 `;
             }).join('');
-
+            
             // Update tab count to reflect filtered results
             this.updateManualTabCount(type, ticketsWithResolvedNames.length);
         }
@@ -6774,55 +6773,55 @@
         static createCustomDropdown(options, selectedValue, onChange) {
             const container = document.createElement('div');
             container.classList.add('rumi-custom-select');
-
+            
             const trigger = document.createElement('div');
             trigger.classList.add('rumi-custom-select-trigger');
             trigger.textContent = selectedValue || options[0] || 'All';
-
+            
             const arrow = document.createElement('div');
             arrow.classList.add('rumi-custom-select-arrow');
             arrow.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
             trigger.appendChild(arrow);
-
+            
             const dropdown = document.createElement('div');
             dropdown.classList.add('rumi-custom-select-dropdown');
-
+            
             options.forEach(option => {
                 const optionEl = document.createElement('div');
                 optionEl.classList.add('rumi-custom-select-option');
                 optionEl.textContent = option;
                 optionEl.dataset.value = option;
-
+                
                 if (option === selectedValue) {
                     optionEl.classList.add('selected');
                 }
-
+                
                 optionEl.onclick = (e) => {
                     e.stopPropagation();
-
+                    
                     // Update selection
                     dropdown.querySelectorAll('.rumi-custom-select-option').forEach(opt => {
                         opt.classList.remove('selected');
                     });
                     optionEl.classList.add('selected');
                     trigger.childNodes[0].textContent = option;
-
+                    
                     // Close dropdown
                     trigger.classList.remove('active');
                     dropdown.classList.remove('active');
-
+                    
                     // Trigger callback
                     if (onChange) {
                         onChange(option === 'All' ? '' : option);
                     }
                 };
-
+                
                 dropdown.appendChild(optionEl);
             });
-
+            
             trigger.onclick = (e) => {
                 e.stopPropagation();
-
+                
                 // Close all other dropdowns
                 document.querySelectorAll('.rumi-custom-select-trigger.active').forEach(t => {
                     if (t !== trigger) {
@@ -6830,12 +6829,12 @@
                         t.nextElementSibling.classList.remove('active');
                     }
                 });
-
+                
                 // Toggle this dropdown
                 const isOpening = !trigger.classList.contains('active');
                 trigger.classList.toggle('active');
                 dropdown.classList.toggle('active');
-
+                
                 // Position dropdown using fixed positioning
                 if (isOpening) {
                     const rect = trigger.getBoundingClientRect();
@@ -6844,10 +6843,10 @@
                     dropdown.style.minWidth = `${rect.width}px`;
                 }
             };
-
+            
             container.appendChild(trigger);
             container.appendChild(dropdown);
-
+            
             return container;
         }
 
@@ -6861,30 +6860,30 @@
         static setupTableFiltersAndSorting(tableId, tableType, columnMap, allTickets) {
             const table = document.getElementById(tableId)?.closest('.rumi-table');
             if (!table) return;
-
+            
             const thead = table.querySelector('thead');
             if (!thead) return;
-
+            
             const headerRow = thead.querySelector('tr:first-child');
             if (!headerRow) return;
-
+            
             // Add sortable class and click handlers to headers (3-state sorting)
             const headers = headerRow.querySelectorAll('th');
             headers.forEach((th, index) => {
                 const columnName = columnMap[index];
                 if (!columnName || columnName === 'note' || columnName === 'rowNumber') return;
-
+                
                 th.classList.add('sortable');
                 th.style.cursor = 'pointer';
                 th.dataset.column = columnName;
-
+                
                 // Remove old listeners by cloning
                 const newTh = th.cloneNode(true);
                 th.parentNode.replaceChild(newTh, th);
-
+                
                 newTh.onclick = () => {
                     const currentSort = this.tableSortState[tableType];
-
+                    
                     if (currentSort.column === columnName) {
                         // 3-state toggle: asc -> desc -> null
                         if (currentSort.direction === 'asc') {
@@ -6898,16 +6897,16 @@
                         currentSort.column = columnName;
                         currentSort.direction = 'asc';
                     }
-
+                    
                     // Update header classes
                     headerRow.querySelectorAll('th').forEach(h => {
                         h.classList.remove('sorted-asc', 'sorted-desc');
                     });
-
+                    
                     if (currentSort.column === columnName && currentSort.direction) {
                         newTh.classList.add(currentSort.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
                     }
-
+                    
                     // Re-render the table
                     if (tableType === 'automatic') {
                         this.updateProcessedTicketsDisplay();
@@ -6916,26 +6915,26 @@
                     }
                 };
             });
-
+            
             // Remove existing filter row if present
             const existingFilterRow = thead.querySelector('.rumi-table-filter-row');
             if (existingFilterRow) {
                 existingFilterRow.remove();
             }
-
+            
             // Add filter row
             const filterRow = document.createElement('tr');
             filterRow.classList.add('rumi-table-filter-row');
-
+            
             headers.forEach((th, index) => {
                 const td = document.createElement('td');
                 const columnName = columnMap[index];
-
+                
                 if (!columnName || columnName === 'note' || columnName === 'rowNumber') {
                     filterRow.appendChild(td);
                     return;
                 }
-
+                
                 // Determine filter type based on column
                 if (columnName === 'ticketId' || columnName === 'subject') {
                     // Text input for Ticket ID and Subject
@@ -6945,7 +6944,7 @@
                     input.classList.add(`rumi-table-filter-input-${columnName}`);
                     input.placeholder = 'Filter...';
                     input.value = this.tableFilters[tableType][columnName] || '';
-
+                    
                     input.oninput = (e) => {
                         const value = e.target.value.trim();
                         if (value) {
@@ -6953,7 +6952,7 @@
                         } else {
                             delete this.tableFilters[tableType][columnName];
                         }
-
+                        
                         clearTimeout(this.filterTimeout);
                         this.filterTimeout = setTimeout(() => {
                             if (tableType === 'automatic') {
@@ -6963,50 +6962,50 @@
                             }
                         }, 300);
                     };
-
+                    
                     td.appendChild(input);
                 } else if (columnName === 'dryRun' || columnName === 'alreadyCorrect') {
                     // Static custom dropdown for Dry Run and Updated?
                     const options = ['All', 'yes', 'no'];
                     const currentValue = this.tableFilters[tableType][columnName] || '';
                     const displayValue = currentValue || 'All';
-
+                    
                     const dropdown = this.createCustomDropdown(options, displayValue, (value) => {
                         if (value) {
                             this.tableFilters[tableType][columnName] = value;
                         } else {
                             delete this.tableFilters[tableType][columnName];
                         }
-
+                        
                         if (tableType === 'automatic') {
                             this.updateProcessedTicketsDisplay();
                         } else {
                             this.updateManualProcessedTicketsDisplay();
                         }
                     });
-
+                    
                     td.appendChild(dropdown);
                 } else if (columnName === 'timestamp') {
                     // Time filter with operator
                     const container = document.createElement('div');
                     container.classList.add('rumi-time-filter-container');
-
+                    
                     // Create custom dropdown for operator
                     const operatorOptions = ['=', '≥', '≤'];
                     const operatorMapping = { '=': 'at', '≥': 'after', '≤': 'before' };
                     const reverseMapping = { 'at': '=', 'after': '≥', 'before': '≤' };
                     const currentOperator = this.timeFilters[tableType]?.operator || 'at';
                     const displayOperator = reverseMapping[currentOperator];
-
+                    
                     let selectedOperator = currentOperator;
-
+                    
                     const operatorDropdown = this.createCustomDropdown(operatorOptions, displayOperator, (value) => {
                         selectedOperator = operatorMapping[value];
                         const time = timeInput.value;
-
+                        
                         if (time) {
                             this.timeFilters[tableType] = { operator: selectedOperator, time };
-
+                            
                             clearTimeout(this.filterTimeout);
                             this.filterTimeout = setTimeout(() => {
                                 if (tableType === 'automatic') {
@@ -7017,28 +7016,28 @@
                             }, 300);
                         }
                     });
-
+                    
                     operatorDropdown.style.width = '60px';
                     operatorDropdown.style.minWidth = '60px';
-
+                    
                     const timeInput = document.createElement('input');
                     timeInput.type = 'time';
                     timeInput.classList.add('rumi-time-filter-time');
-
+                    
                     // Restore time value
                     if (this.timeFilters[tableType]?.time) {
                         timeInput.value = this.timeFilters[tableType].time;
                     }
-
+                    
                     timeInput.onchange = () => {
                         const time = timeInput.value;
-
+                        
                         if (time) {
                             this.timeFilters[tableType] = { operator: selectedOperator, time };
                         } else {
                             delete this.timeFilters[tableType];
                         }
-
+                        
                         clearTimeout(this.filterTimeout);
                         this.filterTimeout = setTimeout(() => {
                             if (tableType === 'automatic') {
@@ -7048,7 +7047,7 @@
                             }
                         }, 300);
                     };
-
+                    
                     container.appendChild(operatorDropdown);
                     container.appendChild(timeInput);
                     td.appendChild(container);
@@ -7058,27 +7057,27 @@
                     const options = ['All', ...uniqueValues];
                     const currentValue = this.tableFilters[tableType][columnName] || '';
                     const displayValue = currentValue || 'All';
-
+                    
                     const dropdown = this.createCustomDropdown(options, displayValue, (value) => {
                         if (value) {
                             this.tableFilters[tableType][columnName] = value;
                         } else {
                             delete this.tableFilters[tableType][columnName];
                         }
-
+                        
                         if (tableType === 'automatic') {
                             this.updateProcessedTicketsDisplay();
                         } else {
                             this.updateManualProcessedTicketsDisplay();
                         }
                     });
-
+                    
                     td.appendChild(dropdown);
                 }
-
+                
                 filterRow.appendChild(td);
             });
-
+            
             thead.appendChild(filterRow);
         }
 
@@ -7086,7 +7085,7 @@
             // Get all tickets for dynamic dropdown generation
             const autoTickets = RUMIStorage.getProcessedTickets();
             const manualTickets = RUMIStorage.getManualProcessedTickets();
-
+            
             // Automatic processing tables
             const autoColumnMap = {
                 0: 'rowNumber', // Row counter (not filterable)
@@ -7103,12 +7102,12 @@
                 11: 'dryRun',
                 12: 'alreadyCorrect'
             };
-
+            
             ['all', 'pending', 'solved', 'care', 'hala', 'casablanca'].forEach(type => {
                 const typeTickets = type === 'all' ? autoTickets : autoTickets.filter(t => t.action === type);
                 this.setupTableFiltersAndSorting(`rumi-table-${type}`, 'automatic', autoColumnMap, autoTickets);
             });
-
+            
             // Manual processing tables
             const manualColumnMap = {
                 0: 'rowNumber', // Row counter (not filterable)
@@ -7125,7 +7124,7 @@
                 11: 'dryRun',
                 12: 'alreadyCorrect'
             };
-
+            
             ['manual-all', 'manual-pending', 'manual-solved', 'manual-care', 'manual-hala', 'manual-casablanca', 'manual-unprocessed'].forEach(type => {
                 const tableId = type === 'manual-all' ? 'rumi-manual-table-all' : `rumi-${type.replace('manual-', 'manual-table-')}`;
                 this.setupTableFiltersAndSorting(tableId, 'manual', manualColumnMap, manualTickets);
@@ -7167,7 +7166,7 @@
             const filtered = filter === 'all'
                 ? logs
                 : logs.filter(log => log.level === filter);
-
+            
             // Only render last 200 logs for performance (all logs still stored)
             const logsToRender = filtered.slice(-200);
 
@@ -7179,7 +7178,7 @@
                 this.lastRenderedLogTimestamp = null;
                 return;
             }
-
+            
             if (logsToRender.length === 0) {
                 // All logs are filtered out by limit, but there are logs
                 this.lastRenderedLogTimestamp = null;
@@ -7250,7 +7249,7 @@
         static createLogElement(log) {
             const div = document.createElement('div');
             div.className = `rumi-log-entry rumi-${log.level}`;
-
+            
             const escapedMessage = this.escapeHtml(log.message);
             const metaKeys = Object.keys(log.meta);
             const metaHtml = metaKeys.length > 0
@@ -7261,12 +7260,12 @@
             const logDate = new Date(log.timestamp);
             const gmt3Date = new Date(logDate.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
             const displayTimestamp = gmt3Date.toISOString().replace('T', ' ').substring(0, 19);
-
+            
             div.innerHTML = `
                 <strong>${displayTimestamp}</strong> [${log.level.toUpperCase()}] ${log.module}: ${escapedMessage}
                 ${metaHtml}
             `;
-
+            
             return div;
         }
 
@@ -7289,9 +7288,9 @@
                 max-width: 400px;
                 animation: rumi-toast-in 0.3s ease-out;
             `;
-
+            
             document.body.appendChild(toast);
-
+            
             setTimeout(() => {
                 toast.style.animation = 'rumi-toast-out 0.3s ease-out';
                 setTimeout(() => toast.remove(), 300);
@@ -7304,7 +7303,7 @@
 
             const blockedPins = RUMIStorage.getPinnedBlocked();
             const careRoutingPins = RUMIStorage.getPinnedCareRouting();
-
+            
             // Combine all pins for display
             const allPins = [
                 ...blockedPins.map(pin => ({ ...pin, type: 'blocked' })),
@@ -7333,7 +7332,7 @@
                         <div class="rumi-pinned-item" role="listitem">
                             <div class="rumi-pinned-item-header">
                                 <span class="rumi-pinned-item-badge rumi-pinned-badge-blocked">BLOCKED</span>
-                                <button class="rumi-pinned-item-remove"
+                                <button class="rumi-pinned-item-remove" 
                                         data-ticket-id="${pin.ticketId}"
                                         data-pin-type="blocked"
                                         aria-label="Remove blocked pin for ticket ${pin.ticketId}">
@@ -7350,10 +7349,10 @@
                     `;
                 } else {
                     // Care routing pin
-                    const statusBadge = pin.status === 'active'
+                    const statusBadge = pin.status === 'active' 
                         ? '<span class="rumi-pinned-item-badge rumi-pinned-badge-care-active">CARE ROUTING - ACTIVE</span>'
                         : '<span class="rumi-pinned-item-badge rumi-pinned-badge-care-changed">CARE ROUTING - CHANGED</span>';
-
+                    
                     const commentInfo = pin.status === 'active' && pin.lastCommentId
                         ? `<div style="font-size:11px;">Comment ID: ${pin.lastCommentId}</div>`
                         : '<div style="font-size:11px; color: var(--rumi-accent-yellow);">Comment changed - routing stopped</div>';
@@ -7362,7 +7361,7 @@
                         <div class="rumi-pinned-item" role="listitem">
                             <div class="rumi-pinned-item-header">
                                 ${statusBadge}
-                                <button class="rumi-pinned-item-remove"
+                                <button class="rumi-pinned-item-remove" 
                                         data-ticket-id="${pin.ticketId}"
                                         data-pin-type="care_routing"
                                         aria-label="Remove care routing pin for ticket ${pin.ticketId}">
@@ -7393,43 +7392,43 @@
             // Setup for automatic processing export
             const autoDropdown = document.getElementById('rumi-export-dropdown-auto');
             const autoBtn = document.getElementById('rumi-export-btn-auto');
-
+            
             // Setup for manual processing export
             const manualDropdown = document.getElementById('rumi-export-dropdown-manual');
             const manualBtn = document.getElementById('rumi-export-btn-manual');
-
+            
             // Toggle dropdown on button click
             autoBtn.onclick = (e) => {
                 e.stopPropagation();
                 autoDropdown.classList.toggle('active');
                 manualDropdown.classList.remove('active');
             };
-
+            
             manualBtn.onclick = (e) => {
                 e.stopPropagation();
                 manualDropdown.classList.toggle('active');
                 autoDropdown.classList.remove('active');
             };
-
+            
             // Close dropdowns when clicking outside
             document.addEventListener('click', () => {
                 autoDropdown.classList.remove('active');
                 manualDropdown.classList.remove('active');
             });
-
+            
             // Handle export options
             document.querySelectorAll('.rumi-export-option').forEach(option => {
                 option.onclick = (e) => {
                     e.stopPropagation();
                     const exportType = option.getAttribute('data-export-type');
                     const tab = option.getAttribute('data-tab');
-
+                    
                     if (exportType === 'csv') {
                         this.exportAsCSV(tab);
                     } else if (exportType === 'html') {
                         this.exportAsHTML(tab);
                     }
-
+                    
                     // Close dropdown
                     autoDropdown.classList.remove('active');
                     manualDropdown.classList.remove('active');
@@ -7439,15 +7438,15 @@
 
         static exportAsCSV(tab) {
             try {
-                const tickets = tab === 'auto'
+                const tickets = tab === 'auto' 
                     ? RUMIStorage.getProcessedTickets()
                     : RUMIStorage.getManualProcessedTickets();
-
+                
                 if (tickets.length === 0) {
                     this.showToast('No tickets to export', 'warning');
                     return;
                 }
-
+                
                 // CSV Headers
                 const headers = [
                     'Ticket ID',
@@ -7463,17 +7462,17 @@
                     'Dry Run',
                     'Updated?'
                 ];
-
+                
                 // Create CSV content with UTF-8 BOM
                 const BOM = '\uFEFF';
                 let csvContent = BOM + headers.join(',') + '\n';
-
+                
                 tickets.forEach(ticket => {
                     // Format date without commas to prevent column splitting (convert UTC to GMT+3)
                     const processedDate = new Date(ticket.timestamp);
                     const gmt3Date = new Date(processedDate.getTime() + (3 * 60 * 60 * 1000)); // Add 3 hours
                     const formattedDate = gmt3Date.toISOString().replace('T', ' ').substring(0, 19);
-
+                    
                     const row = [
                         ticket.ticketId || '',
                         `"${(ticket.subject || 'N/A').replace(/"/g, '""')}"`,
@@ -7490,20 +7489,20 @@
                     ];
                     csvContent += row.join(',') + '\n';
                 });
-
+                
                 // Download CSV with UTF-8 BOM
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
                 const url = URL.createObjectURL(blob);
                 const filename = `rumi-${tab}-processed-tickets-${new Date().toISOString().split('T')[0]}.csv`;
-
+                
                 link.setAttribute('href', url);
                 link.setAttribute('download', filename);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-
+                
                 this.showToast(`Exported ${tickets.length} tickets as CSV`, 'success');
                 RUMILogger.info('Export', `Exported ${tickets.length} tickets as CSV`, { tab });
             } catch (error) {
@@ -7514,26 +7513,26 @@
 
         static exportAsHTML(tab) {
             try {
-                const tickets = tab === 'auto'
+                const tickets = tab === 'auto' 
                     ? RUMIStorage.getProcessedTickets()
                     : RUMIStorage.getManualProcessedTickets();
-
+                
                 if (tickets.length === 0) {
                     this.showToast('No tickets to export', 'warning');
                     return;
                 }
-
+                
                 const workAreaId = tab === 'auto' ? 'rumi-work-area' : 'rumi-work-area-manual';
                 const workArea = document.getElementById(workAreaId);
-
+                
                 if (!workArea) {
                     this.showToast('Work area not found', 'error');
                     return;
                 }
-
+                
                 // Clone the work area to avoid modifying the original
                 const clonedArea = workArea.cloneNode(true);
-
+                
                 // Get all styles from the page
                 const styles = Array.from(document.styleSheets)
                     .map(styleSheet => {
@@ -7546,10 +7545,10 @@
                         }
                     })
                     .join('\n');
-
+                
                 // Serialize tickets data for JavaScript
                 const ticketsJSON = JSON.stringify(tickets).replace(/</g, '\\u003c');
-
+                
                 // Create HTML document with interactive functionality
                 const htmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -7559,14 +7558,14 @@
     <title>RUMI ${tab === 'auto' ? 'Automatic' : 'Manual'} Processing - Exported ${new Date().toLocaleString()}</title>
     <style>
         ${styles}
-
+        
         body {
             margin: 0;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: var(--rumi-bg, #F5F6F7);
         }
-
+        
         #${workAreaId} {
             max-width: 100%;
             margin: 0 auto;
@@ -7574,7 +7573,7 @@
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-
+        
         .rumi-export-header {
             background: white;
             padding: 20px;
@@ -7582,12 +7581,12 @@
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-
+        
         .rumi-export-header h1 {
             margin: 0 0 10px 0;
             color: #2563EB;
         }
-
+        
         .rumi-export-header p {
             margin: 5px 0;
             color: #6B7280;
@@ -7602,28 +7601,28 @@
         <p><strong>Tab:</strong> ${tab === 'auto' ? 'Automatic Processing' : 'Manual Processing'}</p>
     </div>
     ${clonedArea.outerHTML}
-
+    
     <script>
         // Data
         const allTickets = ${ticketsJSON};
         const isAutoTab = ${tab === 'auto'};
-
+        
         // Tab switching functionality
         function setupTabs() {
             const tabButtons = document.querySelectorAll('.rumi-tab-btn');
             const tabPanels = document.querySelectorAll('.rumi-tab-panel');
-
+            
             tabButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     const tabType = button.getAttribute('data-auto-tab') || button.getAttribute('data-manual-tab');
-
+                    
                     // Remove active class from all buttons and panels
                     tabButtons.forEach(btn => btn.classList.remove('active'));
                     tabPanels.forEach(panel => panel.classList.remove('active'));
-
+                    
                     // Add active class to clicked button
                     button.classList.add('active');
-
+                    
                     // Show corresponding panel
                     const targetPanel = document.getElementById(\`rumi-\${tabType === 'all' ? 'tab-all' : tabType.includes('manual') ? tabType.replace('manual-', 'manual-tab-') : 'tab-' + tabType}\`);
                     if (targetPanel) {
@@ -7632,57 +7631,57 @@
                 });
             });
         }
-
+        
         // Sorting functionality
         function setupSorting() {
             const tables = document.querySelectorAll('.rumi-table');
-
+            
             tables.forEach(table => {
                 const headers = table.querySelectorAll('th.sortable');
-
+                
                 headers.forEach((header, columnIndex) => {
                     header.addEventListener('click', () => {
                         const tbody = table.querySelector('tbody');
                         const rows = Array.from(tbody.querySelectorAll('tr:not(.rumi-table-filter-row)'));
-
+                        
                         // Determine sort direction
                         const isAsc = header.classList.contains('sorted-asc');
-
+                        
                         // Remove sorting classes from all headers
                         headers.forEach(h => {
                             h.classList.remove('sorted-asc', 'sorted-desc');
                         });
-
+                        
                         // Add appropriate class to current header
                         if (isAsc) {
                             header.classList.add('sorted-desc');
                         } else {
                             header.classList.add('sorted-asc');
                         }
-
+                        
                         // Sort rows
                         rows.sort((a, b) => {
                             const aText = a.cells[columnIndex].textContent.trim();
                             const bText = b.cells[columnIndex].textContent.trim();
-
+                            
                             // Try to parse as number
                             const aNum = parseFloat(aText);
                             const bNum = parseFloat(bText);
-
+                            
                             let comparison = 0;
                             if (!isNaN(aNum) && !isNaN(bNum)) {
                                 comparison = aNum - bNum;
                             } else {
                                 comparison = aText.localeCompare(bText);
                             }
-
+                            
                             return isAsc ? -comparison : comparison;
                         });
-
+                        
                         // Re-append rows in sorted order
                         const filterRow = tbody.querySelector('.rumi-table-filter-row');
                         rows.forEach(row => tbody.appendChild(row));
-
+                        
                         // Keep filter row at top if it exists
                         if (filterRow) {
                             tbody.insertBefore(filterRow, tbody.firstChild);
@@ -7691,28 +7690,28 @@
                 });
             });
         }
-
+        
         // Filtering functionality
         function setupFiltering() {
             const filterInputs = document.querySelectorAll('.rumi-table-filter-input');
             const filterSelects = document.querySelectorAll('.rumi-custom-select-trigger');
-
+            
             function applyFilters(table) {
                 const tbody = table.querySelector('tbody');
                 const rows = tbody.querySelectorAll('tr:not(.rumi-table-filter-row)');
                 const filterRow = tbody.querySelector('.rumi-table-filter-row');
-
+                
                 if (!filterRow) return;
-
+                
                 const filters = {};
-
+                
                 // Get text input filters
                 filterRow.querySelectorAll('.rumi-table-filter-input').forEach((input, index) => {
                     if (input.value) {
                         filters[index] = input.value.toLowerCase();
                     }
                 });
-
+                
                 // Get dropdown filters
                 filterRow.querySelectorAll('.rumi-custom-select-trigger').forEach((trigger, index) => {
                     const value = trigger.textContent.trim();
@@ -7721,11 +7720,11 @@
                         filters[cellIndex] = value.toLowerCase();
                     }
                 });
-
+                
                 // Apply filters to rows
                 rows.forEach(row => {
                     let shouldShow = true;
-
+                    
                     for (const [columnIndex, filterValue] of Object.entries(filters)) {
                         const cellText = row.cells[columnIndex].textContent.toLowerCase();
                         if (!cellText.includes(filterValue)) {
@@ -7733,24 +7732,24 @@
                             break;
                         }
                     }
-
+                    
                     row.style.display = shouldShow ? '' : 'none';
                 });
             }
-
+            
             // Setup text input filtering
             filterInputs.forEach(input => {
                 const table = input.closest('table');
                 input.addEventListener('input', () => applyFilters(table));
             });
-
+            
             // Setup dropdown filtering
             filterSelects.forEach(trigger => {
                 trigger.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const parent = this.closest('.rumi-custom-select');
                     const dropdown = parent.querySelector('.rumi-custom-select-dropdown');
-
+                    
                     // Close other dropdowns
                     document.querySelectorAll('.rumi-custom-select-dropdown.active').forEach(d => {
                         if (d !== dropdown) d.classList.remove('active');
@@ -7758,13 +7757,13 @@
                     document.querySelectorAll('.rumi-custom-select-trigger.active').forEach(t => {
                         if (t !== this) t.classList.remove('active');
                     });
-
+                    
                     // Toggle current dropdown
                     dropdown.classList.toggle('active');
                     this.classList.toggle('active');
                 });
             });
-
+            
             // Setup dropdown options
             document.querySelectorAll('.rumi-custom-select-option').forEach(option => {
                 option.addEventListener('click', function() {
@@ -7772,27 +7771,27 @@
                     const trigger = parent.querySelector('.rumi-custom-select-trigger');
                     const dropdown = parent.querySelector('.rumi-custom-select-dropdown');
                     const table = this.closest('table');
-
+                    
                     // Update trigger text
                     const arrow = trigger.querySelector('.rumi-custom-select-arrow');
                     trigger.textContent = this.textContent;
                     trigger.appendChild(arrow);
-
+                    
                     // Update selected state
                     parent.querySelectorAll('.rumi-custom-select-option').forEach(opt => {
                         opt.classList.remove('selected');
                     });
                     this.classList.add('selected');
-
+                    
                     // Close dropdown
                     dropdown.classList.remove('active');
                     trigger.classList.remove('active');
-
+                    
                     // Apply filters
                     applyFilters(table);
                 });
             });
-
+            
             // Close dropdowns when clicking outside
             document.addEventListener('click', () => {
                 document.querySelectorAll('.rumi-custom-select-dropdown.active').forEach(d => {
@@ -7803,7 +7802,7 @@
                 });
             });
         }
-
+        
         // Initialize all functionality
         document.addEventListener('DOMContentLoaded', () => {
             setupTabs();
@@ -7813,20 +7812,20 @@
     </script>
 </body>
 </html>`;
-
+                
                 // Download HTML
                 const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
                 const link = document.createElement('a');
                 const url = URL.createObjectURL(blob);
                 const filename = `rumi-${tab}-interactive-table-${new Date().toISOString().split('T')[0]}.html`;
-
+                
                 link.setAttribute('href', url);
                 link.setAttribute('download', filename);
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-
+                
                 this.showToast('Exported interactive HTML table', 'success');
                 RUMILogger.info('Export', `Exported ${tickets.length} tickets as HTML`, { tab });
             } catch (error) {
@@ -7948,7 +7947,7 @@
                     <span>←</span>
                     <span>Back to Settings</span>
                 </button>
-
+                
                 <div class="rumi-settings-detail-view active">
                     <div class="rumi-settings-sub-tabs">
                         <button class="rumi-settings-sub-tab ${mode === 'automatic' ? 'active' : ''}" data-settings-mode="automatic">
@@ -8007,13 +8006,13 @@
                     <span>←</span>
                     <span>Back to Settings</span>
                 </button>
-
+                
                 <div class="rumi-settings-detail-view active">
                     <div class="rumi-settings-section">
                         <div class="rumi-settings-section-title">
                             <span>Appearance</span>
                         </div>
-
+                        
                         <div class="rumi-settings-item">
                             <div>
                                 <div class="rumi-settings-item-label">Theme</div>
@@ -8064,7 +8063,7 @@
                     <span>←</span>
                     <span>Back to Settings</span>
                 </button>
-
+                
                 <div class="rumi-settings-detail-view active">
                     <div class="rumi-settings-section">
                         <div class="rumi-settings-section-title">
@@ -8086,7 +8085,7 @@
             try {
                 // Fetch current user information
                 let currentUser = RUMIStorage.getCurrentUser();
-
+                
                 // If not cached or cache is old, fetch fresh data
                 if (!currentUser || !currentUser.lastFetched || (Date.now() - currentUser.lastFetched > 3600000)) {
                     const userData = await RUMIAPIManager.get('/api/v2/users/me.json');
@@ -8105,13 +8104,13 @@
                         <span>←</span>
                         <span>Back to Settings</span>
                     </button>
-
+                    
                     <div class="rumi-settings-detail-view active">
                         <div class="rumi-settings-section">
                             <div class="rumi-settings-section-title">
                                 <span>Account Information</span>
                             </div>
-
+                            
                             <div class="rumi-settings-item">
                                 <div>
                                     <div class="rumi-settings-item-label">User ID</div>
@@ -8167,13 +8166,13 @@
 
             } catch (error) {
                 RUMILogger.error('Settings', 'Failed to fetch user information', { error: error.message });
-
+                
                 container.innerHTML = `
                     <button class="rumi-settings-back-button" id="rumi-settings-back">
                         <span>←</span>
                         <span>Back to Settings</span>
                     </button>
-
+                    
                     <div class="rumi-settings-detail-view active">
                         <div class="rumi-settings-section">
                             <div class="rumi-settings-section-title">
@@ -8205,14 +8204,14 @@
                     <span>←</span>
                     <span>Back to Settings</span>
                 </button>
-
+                
                 <div class="rumi-visual-rules-container">
                     <div class="rumi-visual-rules-header">
                         <div class="rumi-visual-rules-controls">
-                            <input
-                                type="text"
-                                id="rumi-visual-rules-ticket-input"
-                                class="rumi-visual-rules-ticket-input"
+                            <input 
+                                type="text" 
+                                id="rumi-visual-rules-ticket-input" 
+                                class="rumi-visual-rules-ticket-input" 
                                 placeholder="Enter ticket ID..."
                                 aria-label="Ticket ID for visualization"
                             />
@@ -8227,14 +8226,14 @@
                             </button>
                         </div>
                     </div>
-
+                    
                     <div class="rumi-visual-rules-canvas-wrapper" id="rumi-visual-rules-canvas-wrapper">
                         <div class="rumi-visual-rules-loading" id="rumi-visual-rules-loading">
                             <div class="rumi-visual-rules-loading-spinner"></div>
                             <div>Generating flowchart...</div>
                         </div>
                         <canvas id="rumi-visual-rules-canvas" class="rumi-visual-rules-canvas"></canvas>
-
+                        
                         <div class="rumi-visual-rules-legend" id="rumi-visual-rules-legend">
                             <div class="rumi-visual-rules-legend-title">Legend</div>
                             <div class="rumi-visual-rules-legend-item">
@@ -8273,29 +8272,29 @@
                                 Collapse
                             </div>
                         </div>
-
+                        
                         <div class="rumi-visual-rules-zoom-controls">
-                            <button
-                                class="rumi-visual-rules-zoom-btn"
+                            <button 
+                                class="rumi-visual-rules-zoom-btn" 
                                 id="rumi-visual-rules-zoom-in"
                                 aria-label="Zoom in"
                                 title="Zoom in"
                             >+</button>
-                            <button
-                                class="rumi-visual-rules-zoom-btn"
+                            <button 
+                                class="rumi-visual-rules-zoom-btn" 
                                 id="rumi-visual-rules-zoom-out"
                                 aria-label="Zoom out"
                                 title="Zoom out"
                             >−</button>
-                            <button
-                                class="rumi-visual-rules-zoom-btn"
+                            <button 
+                                class="rumi-visual-rules-zoom-btn" 
                                 id="rumi-visual-rules-fit"
                                 aria-label="Fit to screen"
                                 title="Fit to screen"
                                 style="font-size: 14px;"
                             >⊡</button>
-                            <button
-                                class="rumi-visual-rules-zoom-btn"
+                            <button 
+                                class="rumi-visual-rules-zoom-btn" 
                                 id="rumi-visual-rules-reset"
                                 aria-label="Reset view"
                                 title="Reset view"
@@ -8417,10 +8416,10 @@
                 <div class="rumi-settings-item">
                     <span class="rumi-settings-item-label">${this.escapeHtml(actionTypeNames[key] || key)}</span>
                     <label class="rumi-toggle-switch">
-                        <input type="checkbox"
-                               data-type="actionType"
-                               data-key="${key}"
-                               data-mode="${mode}"
+                        <input type="checkbox" 
+                               data-type="actionType" 
+                               data-key="${key}" 
+                               data-mode="${mode}" 
                                ${enabled ? 'checked' : ''}
                                aria-label="Toggle ${actionTypeNames[key] || key}">
                         <span class="rumi-toggle-slider"></span>
@@ -8434,11 +8433,11 @@
                 <div class="rumi-settings-item">
                     <span class="rumi-settings-item-label">${this.escapeHtml(phrase)}</span>
                     <label class="rumi-toggle-switch">
-                        <input type="checkbox"
-                               data-type="triggerPhrase"
-                               data-category="${category}"
-                               data-phrase="${this.escapeHtml(phrase)}"
-                               data-mode="${mode}"
+                        <input type="checkbox" 
+                               data-type="triggerPhrase" 
+                               data-category="${category}" 
+                               data-phrase="${this.escapeHtml(phrase)}" 
+                               data-mode="${mode}" 
                                ${enabled ? 'checked' : ''}
                                aria-label="Toggle phrase: ${this.escapeHtml(phrase)}">
                         <span class="rumi-toggle-slider"></span>
@@ -8461,7 +8460,7 @@
                     mode === 'automatic' ? RUMIStorage.setAutomaticSettings(settings) : RUMIStorage.setManualSettings(settings);
                     RUMILogger.info('Settings', `Action type ${key} ${enabled ? 'enabled' : 'disabled'}`, { mode, key, enabled });
                     this.showToast(`${key} action type ${enabled ? 'enabled' : 'disabled'}`, 'success');
-
+                    
                     // Update button text for this section
                     this.updateSectionButtonText(mode, 'actionTypes', settings);
                 };
@@ -8476,8 +8475,8 @@
                     const settings = mode === 'automatic' ? RUMIStorage.getAutomaticSettings() : RUMIStorage.getManualSettings();
                     settings.triggerPhrases[category][phrase] = enabled;
                     mode === 'automatic' ? RUMIStorage.setAutomaticSettings(settings) : RUMIStorage.setManualSettings(settings);
-                    RUMILogger.info('Settings', `Trigger phrase ${enabled ? 'enabled' : 'disabled'}`, { mode, category, phrase: phrase.substring(0, 50), enabled });
-
+                    RUMILogger.info('Settings', `Trigger phrase ${enabled ? 'enabled' : 'disabled'}`, { mode, category, phrase: phrase.substring(0, 500), enabled });
+                    
                     // Update button text for this section
                     this.updateSectionButtonText(mode, category, settings);
                 };
@@ -8563,7 +8562,7 @@
             const dataStr = JSON.stringify(logs, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
-
+            
             const link = document.createElement('a');
             link.href = url;
             link.download = `rumi-logs-${new Date().toISOString().replace(/:/g, '-')}.json`;
@@ -8571,7 +8570,7 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-
+            
             this.showToast(`Downloaded ${logs.length} logs`, 'success');
             RUMILogger.info('UI', 'All logs downloaded', { logCount: logs.length });
         }
@@ -8671,23 +8670,23 @@
             // Build COMPLETE flowchart showing EVERY decision point and edge case
             // Uses ACTUAL processor logic to ensure 100% accuracy
             const ticketId = ticket.id;
-
+            
             // Load actual settings for accurate trigger checking
             const settings = RUMIStorage.getAutomaticSettings();
-
+            
             let xPos = 150;
             const columnSpacing = 280;
             const nodeWidth = 200;
             const nodeHeight = 65;
             let yPos = 200;
             const rowHeight = 100;
-
+            
             // ENTRY NODE - Show ticket details
-            const statusEmoji = ticket.status === 'closed' ? '🔒' :
+            const statusEmoji = ticket.status === 'closed' ? '🔒' : 
                                ticket.status === 'pending' ? '⏱' :
                                ticket.status === 'solved' ? '✓' :
                                ticket.status === 'open' ? '📂' : '📄';
-
+            
             this.addNode({
                 id: 'start',
                 label: `${statusEmoji} Ticket #${ticketId}`,
@@ -8696,16 +8695,16 @@
                 y: yPos,
                 width: nodeWidth,
                 height: nodeHeight,
-                description: `Status: ${ticket.status}\nSubject: ${ticket.subject ? ticket.subject.substring(0, 50) + '...' : 'No subject'}`
+                description: `Status: ${ticket.status}\nSubject: ${ticket.subject ? ticket.subject.substring(0, 500) + '...' : 'No subject'}`
             });
-
+            
             let lastNodeId = 'start';
             let currentRow = 0;
-
+            
             // PRIORITY 1: Check blocked pin
             const blockedPins = RUMIStorage.getPinnedBlocked() || [];
             const isBlocked = blockedPins.some(p => String(p.ticketId) === String(ticketId));
-
+            
             this.addNode({
                 id: 'check-blocked',
                 label: '① Blocked Pin?',
@@ -8718,7 +8717,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-blocked', 'Priority 1');
-
+            
             if (isBlocked) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8736,11 +8735,11 @@
             }
             lastNodeId = 'check-blocked';
             currentRow++;
-
+            
             // PRIORITY 2: Check care routing pin
             const careRoutingPins = RUMIStorage.getPinnedCareRouting() || [];
             const isCarePinned = careRoutingPins.some(p => String(p.ticketId) === String(ticketId) && p.status === 'active');
-
+            
             this.addNode({
                 id: 'check-care-pin',
                 label: '② Care Pin?',
@@ -8753,7 +8752,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-care-pin', 'Not blocked');
-
+            
             if (isCarePinned) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8771,7 +8770,7 @@
             }
             lastNodeId = 'check-care-pin';
             currentRow++;
-
+            
             // PRIORITY 3: Check closed status
             const isClosed = ticket.status === 'closed';
             this.addNode({
@@ -8786,7 +8785,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-closed', 'Not pinned');
-
+            
             if (isClosed) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8804,19 +8803,19 @@
             }
             lastNodeId = 'check-closed';
             currentRow++;
-
+            
             // ============================================================================
             // COMMENT ANALYSIS PHASE - Determine which comment to check for triggers
             // ============================================================================
-
+            
             let latestCommenter = 'none';
             let commentToCheckInfo = 'No comments';
             let globalCommentToCheck = null;
-
+            
             if (comments.length > 0) {
                 const latestComment = comments[comments.length - 1];
                 const latestAuthor = await RUMIProcessor.getUserRole(latestComment.author_id);
-
+                
                 if (latestAuthor.isEndUser) {
                     latestCommenter = 'END-USER';
                     // Trace back to find first CAREEM_CARE_ID comment
@@ -8838,7 +8837,7 @@
                     commentToCheckInfo = 'No action (not end-user or CAREEM_CARE_ID)';
                 }
             }
-
+            
             this.addNode({
                 id: 'comment-analysis',
                 label: '◈ COMMENT ANALYSIS',
@@ -8853,31 +8852,31 @@
             this.addConnection(lastNodeId, 'comment-analysis', 'Analyze comments');
             lastNodeId = 'comment-analysis';
             currentRow++;
-
+            
             // ============================================================================
             // PRIORITY 4: Check #notsafety / care routing phrases (using trace-back logic)
             // ============================================================================
             let carePhrase = null;
             let careCommentDescription = '';
             const careCommentToCheck = await RUMIProcessor.findCommentToCheck(comments);
-
+            
             if (careCommentToCheck) {
                 const careTriggerResult = await RUMIProcessor.checkCommentForTriggers(careCommentToCheck, settings);
-
+                
                 if (careTriggerResult && careTriggerResult.type === 'care') {
                     carePhrase = careTriggerResult.trigger;
                     careCommentDescription = `Trigger: ${careTriggerResult.trigger}`;
-                } else if (!careTriggerResult && careCommentToCheck.public === false &&
+                } else if (!careTriggerResult && careCommentToCheck.public === false && 
                     careCommentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                     // Internal comment without trigger - check preceding
                     const commentIndex = comments.findIndex(c => c.id === careCommentToCheck.id);
-
+                    
                     if (commentIndex > 0) {
                         const precedingComment = comments[commentIndex - 1];
-
+                        
                         if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                             const precedingTriggerResult = await RUMIProcessor.checkCommentForTriggers(precedingComment, settings);
-
+                            
                             if (precedingTriggerResult && precedingTriggerResult.type === 'care') {
                                 carePhrase = precedingTriggerResult.trigger;
                                 careCommentDescription = `(Found in preceding comment)\nTrigger: ${precedingTriggerResult.trigger}`;
@@ -8886,11 +8885,11 @@
                     }
                 }
             }
-
+            
             if (!carePhrase) {
                 careCommentDescription = 'No Care routing triggers found';
             }
-
+            
             this.addNode({
                 id: 'check-notsafety',
                 label: '④ #notsafety?',
@@ -8899,13 +8898,13 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: carePhrase ?
-                    `● Found: "${carePhrase.substring(0, 40)}..."${careCommentDescription}` :
+                description: carePhrase ? 
+                    `● Found: "${carePhrase.substring(0, 40)}..."${careCommentDescription}` : 
                     '○ No Care routing phrases\n(Used trace-back logic)',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-notsafety', 'Not closed');
-
+            
             if (carePhrase) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8923,7 +8922,7 @@
             }
             lastNodeId = 'check-notsafety';
             currentRow++;
-
+            
             // PRIORITY 5: Check Hala tag
             const hasHalaTag = ticket.tags && ticket.tags.includes('ghc_provider_hala-rides');
             this.addNode({
@@ -8938,7 +8937,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-hala', 'No Care phrase');
-
+            
             if (hasHalaTag) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8956,7 +8955,7 @@
             }
             lastNodeId = 'check-hala';
             currentRow++;
-
+            
             // PRIORITY 6: Check Casablanca tag
             const hasCasablancaTag = ticket.tags && ticket.tags.includes('casablanca');
             this.addNode({
@@ -8971,7 +8970,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-casablanca', 'No Hala tag');
-
+            
             if (hasCasablancaTag) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -8989,14 +8988,14 @@
             }
             lastNodeId = 'check-casablanca';
             currentRow++;
-
+            
             // PRIORITY 7: Check subject-based Care routing (no activity details)
-            const hasNoActivitySubject = ticket.subject &&
+            const hasNoActivitySubject = ticket.subject && 
                                         ticket.subject.toLowerCase().includes('no activity details available');
             const isNew = ticket.status === 'new';
             const hasPrivateComments = comments.some(c => c.public === false);
             const subjectCareTriggers = hasNoActivitySubject && isNew && !hasPrivateComments;
-
+            
             this.addNode({
                 id: 'check-subject-care',
                 label: '⑦ No Activity Subject?',
@@ -9005,13 +9004,13 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: subjectCareTriggers ?
+                description: subjectCareTriggers ? 
                     '● Subject match + status new + no private comments' :
                     `○ Subject: ${hasNoActivitySubject ? 'Match' : 'No match'}\nStatus: ${ticket.status}\nPrivate comments: ${hasPrivateComments ? 'Yes' : 'No'}`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-subject-care', 'No Casablanca');
-
+            
             if (subjectCareTriggers) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -9029,11 +9028,11 @@
             }
             lastNodeId = 'check-subject-care';
             currentRow++;
-
+            
             // PRIORITY 8: Check IRT concern
             let hasIRTConcern = false;
-            const isSSocRequester = ticket.requester_id && ticket.requester_id.toString() === CONFIG.CAREEM_CARE_ID;
-            if (isSSocRequester) {
+            const isCareemCare = ticket.requester_id && ticket.requester_id.toString() === CONFIG.CAREEM_CARE_ID;
+            if (isCareemCare) {
                 for (const comment of comments) {
                     const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
                     if (normalized.includes('irt concern has been handled')) {
@@ -9042,7 +9041,7 @@
                     }
                 }
             }
-
+            
             this.addNode({
                 id: 'check-irt',
                 label: '⑧ IRT Concern?',
@@ -9051,13 +9050,13 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: hasIRTConcern ?
+                description: hasIRTConcern ? 
                     '● IRT concern comment found' :
-                    `○ Requester: ${isSSocRequester ? 'SSOC (checking...)' : 'Not SSOC'}\nIRT phrase: ${isSSocRequester ? 'Not found' : 'N/A'}`,
+                    `○ Requester: ${isCareemCare ? 'Careem Care (checking...)' : 'Not Careem Care'}\nIRT phrase: ${isCareemCare ? 'Not found' : 'N/A'}`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-irt', 'No subject match');
-
+            
             if (hasIRTConcern) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -9068,23 +9067,23 @@
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: 'REASON: IRT concern handled\nREQUESTER: SSOC Agent\nACTION: group_id = 20705088\nRULE: IRT concern routing'
+                    description: 'REASON: IRT concern handled\nREQUESTER: Careem Care Agent\nACTION: group_id = 20705088\nRULE: IRT concern routing'
                 });
                 this.addConnection('check-irt', 'action-irt-care', 'IRT FOUND');
                 return;
             }
             lastNodeId = 'check-irt';
             currentRow++;
-
+            
             // ============================================================================
             // PRIORITY 9: Escalation Response Rule (using ACTUAL processor logic)
             // ============================================================================
             const escalationResult = await RUMIProcessor.evaluateEscalationResponseRules(ticket, comments, settings, null);
             const hasEscalationResponse = escalationResult.action === 'pending';
-            let escalationDescription = hasEscalationResponse ?
+            let escalationDescription = hasEscalationResponse ? 
                 `● User/RFR replied after internal ESCALATED phrase\nTrigger: ${escalationResult.trigger}` :
                 '○ No escalation response detected';
-
+            
             this.addNode({
                 id: 'check-escalation',
                 label: '⑨ Escalation Response?',
@@ -9097,7 +9096,7 @@
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-escalation', 'No IRT');
-
+            
             if (hasEscalationResponse) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -9108,24 +9107,24 @@
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: 'REASON: User/RFR responded after escalation\nTRIGGER: ESCALATED_BUT_NO_RESPONSE\nACTION: status = pending, assignee = SSOC\nRULE: Escalation response handling'
+                    description: 'REASON: User/RFR responded after escalation\nTRIGGER: ESCALATED_BUT_NO_RESPONSE\nACTION: status = pending, assignee = Careem Care\nRULE: Escalation response handling'
                 });
                 this.addConnection('check-escalation', 'action-escalation-pending', 'RESPONDED');
                 return;
             }
             lastNodeId = 'check-escalation';
             currentRow++;
-
+            
             // ============================================================================
             // PRIORITY 10: Check pending triggers (using ACTUAL processor logic)
             // ============================================================================
             const pendingResult = await RUMIProcessor.evaluatePendingRules(ticket, comments, settings, null);
             const hasPending = pendingResult.action === 'pending';
             let pendingPhrase = hasPending ? pendingResult.trigger : null;
-            let pendingCommentDescription = hasPending ?
+            let pendingCommentDescription = hasPending ? 
                 `Trigger: ${pendingResult.trigger}` :
                 'No pending trigger phrases found';
-
+            
             this.addNode({
                 id: 'check-pending',
                 label: '⑩ Pending Trigger?',
@@ -9134,13 +9133,13 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: pendingPhrase ?
+                description: pendingPhrase ? 
                     `● Found: "${pendingPhrase.substring(0, 35)}..."${pendingCommentDescription}` :
                     '○ No pending trigger phrases\n(Used trace-back + preceding check)',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-pending', 'No escalation');
-
+            
             if (pendingPhrase) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -9151,24 +9150,24 @@
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: `REASON: Pending phrase matched\nPHRASE: "${pendingPhrase.substring(0, 30)}..."\nACTION: status = pending, assignee = SSOC\nRULE: Trace-back + preceding check`
+                    description: `REASON: Pending phrase matched\nPHRASE: "${pendingPhrase.substring(0, 30)}..."\nACTION: status = pending, assignee = Careem Care\nRULE: Trace-back + preceding check`
                 });
                 this.addConnection('check-pending', 'action-pending', 'MATCHED');
                 return;
             }
             lastNodeId = 'check-pending';
             currentRow++;
-
+            
             // ============================================================================
             // PRIORITY 11: Check solved triggers (using ACTUAL processor logic)
             // ============================================================================
             const solvedResult = await RUMIProcessor.evaluateSolvedRules(ticket, comments, settings);
             const hasSolved = solvedResult.action === 'solved';
             let solvedPhrase = hasSolved ? solvedResult.trigger : null;
-            let solvedCommentDescription = hasSolved ?
+            let solvedCommentDescription = hasSolved ? 
                 `Trigger: ${solvedResult.trigger}` :
                 'No solved trigger phrases found';
-
+            
             this.addNode({
                 id: 'check-solved',
                 label: '⑪ Solved Trigger?',
@@ -9177,13 +9176,13 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: solvedPhrase ?
+                description: solvedPhrase ? 
                     `● Found: "${solvedPhrase.substring(0, 35)}..."${solvedCommentDescription}` :
                     '○ No solved trigger phrases\n(Used trace-back + preceding check)',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-solved', 'No pending');
-
+            
             if (solvedPhrase) {
                 xPos += columnSpacing;
                 this.addNode({
@@ -9201,7 +9200,7 @@
             }
             lastNodeId = 'check-solved';
             currentRow++;
-
+            
             // ============================================================================
             // No action - all checks failed
             // ============================================================================
@@ -9291,7 +9290,7 @@
                 this.ctx.strokeStyle = isHighlighted ? highlightColor : lineColor;
                 this.ctx.lineWidth = isHighlighted ? 3 : 2;
                 this.ctx.setLineDash(isHighlighted ? [] : []);
-
+                
                 // Draw connection with right-angled lines for clean lane-based flow
                 this.ctx.beginPath();
                 const fromX = fromNode.x + fromNode.width / 2;
@@ -9311,7 +9310,7 @@
                     this.ctx.lineTo(midX, toY);
                     this.ctx.lineTo(toX, toY);
                 }
-
+                
                 this.ctx.stroke();
 
                 // Draw arrow pointing left (into the node)
@@ -9323,16 +9322,16 @@
                     this.ctx.font = 'bold 11px -apple-system, sans-serif';
                     this.ctx.textAlign = 'center';
                     this.ctx.textBaseline = 'middle';
-
+                    
                     // Position label near the connection line
                     const labelX = fromX + (toX - fromX) * 0.7;
                     const labelY = Math.abs(fromY - toY) < 5 ? fromY - 12 : (fromY + toY) / 2;
-
+                    
                     // Background for label readability
                     const labelWidth = this.ctx.measureText(conn.label).width + 8;
                     this.ctx.fillStyle = theme === 'dark' ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)';
                     this.ctx.fillRect(labelX - labelWidth / 2, labelY - 8, labelWidth, 16);
-
+                    
                     // Draw label text
                     this.ctx.fillStyle = isHighlighted ? highlightColor : (theme === 'dark' ? '#F9FAFB' : '#111827');
                     this.ctx.fillText(conn.label, labelX, labelY);
@@ -9375,7 +9374,7 @@
 
                 const x = node.x - node.width / 2;
                 const y = node.y - node.height / 2;
-
+                
                 this.ctx.beginPath();
                 this.roundRect(x, y, node.width, node.height, 8);
                 this.ctx.fill();
@@ -9386,13 +9385,13 @@
                 this.ctx.font = `600 ${node.type === 'entry' ? '14px' : '12px'} -apple-system, sans-serif`;
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
-
+                
                 // Text wrapping for long labels
                 const maxWidth = node.width - 20;
                 const words = node.label.split(' ');
                 let line = '';
                 let lines = [];
-
+                
                 words.forEach(word => {
                     const testLine = line + word + ' ';
                     const metrics = this.ctx.measureText(testLine);
@@ -9519,7 +9518,7 @@
                 if (hoveredNode !== this.hoveredNode) {
                     this.hoveredNode = hoveredNode;
                     this.render();
-
+                    
                     if (hoveredNode) {
                         const node = this.nodes.find(n => n.id === hoveredNode);
                         this.showTooltip(e.clientX, e.clientY, node);
@@ -9539,16 +9538,16 @@
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = this.zoom * delta;
-
+            
             if (newZoom >= 0.3 && newZoom <= 3) {
                 const rect = this.canvas.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
-
+                
                 this.panX = mouseX - (mouseX - this.panX) * (newZoom / this.zoom);
                 this.panY = mouseY - (mouseY - this.panY) * (newZoom / this.zoom);
                 this.zoom = newZoom;
-
+                
                 this.render();
             }
         }
@@ -9600,7 +9599,7 @@
                 const node = this.nodes[i];
                 const halfWidth = node.width / 2;
                 const halfHeight = node.height / 2;
-
+                
                 if (x >= node.x - halfWidth && x <= node.x + halfWidth &&
                     y >= node.y - halfHeight && y <= node.y + halfHeight) {
                     return node.id;
@@ -9659,7 +9658,7 @@
             if (this.nodes.length === 0) return;
 
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
+            
             this.nodes.forEach(node => {
                 minX = Math.min(minX, node.x - node.width / 2);
                 maxX = Math.max(maxX, node.x + node.width / 2);
@@ -9748,10 +9747,10 @@
                 }
 
                 RUMIUI.showToast(`Ticket #${ticketId} visualized: ${result}`, 'success');
-                RUMILogger.info('VisualRules', 'Ticket visualization completed', {
-                    ticketId,
+                RUMILogger.info('VisualRules', 'Ticket visualization completed', { 
+                    ticketId, 
                     nodeCount: this.nodes.length,
-                    result
+                    result 
                 });
 
             } catch (error) {
