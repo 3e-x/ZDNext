@@ -8385,27 +8385,25 @@
             // sourceInteractionId = ticket.id
             urlParts.push(`sourceInteractionId=${ticketData.id}`);
 
-            // activityId = custom_field_15220303991955
-            const activityId = getCustomFieldValue(ticketData, '15220303991955');
-            if (activityId) {
-                urlParts.push(`activityId=${activityId}`);
-            }
+        // activityId = custom_field_15220303991955
+        const activityId = getCustomFieldValue(ticketData, '15220303991955');
+        urlParts.push(`activityId=${activityId || ''}`);
 
-            // zendeskQueueName = ticket.assignee.group.name
-            const groupName = await getGroupNameFromTicket(ticketData);
-            if (groupName) {
-                // Encode spaces as %20 and & as %26, but keep other chars readable
-                const encodedGroupName = groupName.replace(/ /g, '%20').replace(/&/g, '&');
-                urlParts.push(`zendeskQueueName=${encodedGroupName}`);
-            }
+        // zendeskQueueName = ticket.assignee.group.name
+        const groupName = await getGroupNameFromTicket(ticketData);
+        if (groupName) {
+            // Encode spaces as %20 and & as %26, but keep other chars readable
+            const encodedGroupName = groupName.replace(/ /g, '%20').replace(/&/g, '&');
+            urlParts.push(`zendeskQueueName=${encodedGroupName}`);
+        } else {
+            urlParts.push(`zendeskQueueName=`);
+        }
 
             // Get requester details
             const requesterDetails = await getRequesterDetails(ticketData);
 
-            // email = ticket.requester.email (no encoding for @ symbol)
-            if (requesterDetails.email) {
-                urlParts.push(`email=${requesterDetails.email}`);
-            }
+        // email = ticket.requester.email (no encoding for @ symbol)
+        urlParts.push(`email=${requesterDetails.email || ''}`);
 
             // channel = 2 (hardcoded)
             urlParts.push('channel=2');
@@ -8427,11 +8425,13 @@
             const threadId = getCustomFieldValue(ticketData, '23786173');
             urlParts.push(`threadId=${threadId || ''}`);
 
-            // sourceTime = ticket.created_at (converted to epoch time in seconds)
-            if (ticketData.created_at) {
-                const epochTime = convertDateTimeToEpoch(ticketData.created_at);
-                urlParts.push(`sourceTime=${epochTime}`);
-            }
+        // sourceTime = ticket.created_at (converted to epoch time in seconds)
+        if (ticketData.created_at) {
+            const epochTime = convertDateTimeToEpoch(ticketData.created_at);
+            urlParts.push(`sourceTime=${epochTime}`);
+        } else {
+            urlParts.push(`sourceTime=`);
+        }
 
             return `https://apollo.careempartner.com/uber/issue-selection?${urlParts.join('&')}`;
         }
