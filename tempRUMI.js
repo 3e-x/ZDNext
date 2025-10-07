@@ -8324,6 +8324,9 @@
             try {
                 const response = await RUMIAPIManager.makeRequest(`/api/v2/tickets/${ticketId}.json`);
                 if (response && response.ticket) {
+                    console.log('🔍 DEBUG: Full API response:', response);
+                    console.log('🔍 DEBUG: Ticket data:', response.ticket);
+                    console.log('🔍 DEBUG: Ticket tags:', response.ticket.tags);
                     return response.ticket;
                 }
                 return null;
@@ -8376,6 +8379,55 @@
             return Math.floor(new Date(dateTime).getTime() / 1000);
         }
 
+        function encodeUuidToCustomBase64(uuid) {
+            // The binary prefix: 0x10 followed by 7 zeros and 0x01
+            const prefix = new Uint8Array([0x10, 0, 0, 0, 0, 0, 0, 0, 0x01]);
+
+            // Convert UUID string to a Uint8Array of ASCII codes
+            const uuidBytes = new TextEncoder().encode(uuid);
+
+            // Combine prefix + UUID bytes
+            const combined = new Uint8Array(prefix.length + uuidBytes.length);
+            combined.set(prefix);
+            combined.set(uuidBytes, prefix.length);
+
+            // Convert combined bytes to Base64
+            let binary = '';
+            combined.forEach(byte => binary += String.fromCharCode(byte));
+            return btoa(binary);
+        }
+
+        function parseSsocVoiceComment(commentBody) {
+            if (!commentBody) return { phoneNumber: null, tripId: null };
+
+            const lines = commentBody.split('\n');
+            let phoneNumber = null;
+            let tripId = null;
+
+            // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f)
+            const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+
+                // Look for Customer Phone Number
+                if (trimmedLine.startsWith('Customer Phone Number:')) {
+                    phoneNumber = trimmedLine.replace('Customer Phone Number:', '').trim();
+                }
+            }
+
+            // Search for UUID anywhere in the comment body
+            const uuidMatch = commentBody.match(uuidRegex);
+            if (uuidMatch) {
+                tripId = uuidMatch[0];
+                console.log('🔍 DEBUG: Extracted UUID from comment body:', tripId);
+            } else {
+                console.log('🔍 DEBUG: No UUID found in comment body');
+            }
+
+            return { phoneNumber, tripId };
+        }
+
         async function buildApolloUrl(ticketData) {
             if (!ticketData) return null;
 
@@ -8385,9 +8437,56 @@
             // sourceInteractionId = ticket.id
             urlParts.push(`sourceInteractionId=${ticketData.id}`);
 
-        // activityId = custom_field_15220303991955
-        const activityId = getCustomFieldValue(ticketData, '15220303991955');
-        urlParts.push(`activityId=${activityId || ''}`);
+            // Check for ssoc_voice_created_ticket tag
+            console.log('🔍 DEBUG: ticketData structure:', ticketData);
+            console.log('🔍 DEBUG: ticketData.tags:', ticketData.tags);
+
+            const hasSsocVoiceTag = ticketData.tags && ticketData.tags.includes('ssoc_voice_created_ticket');
+            console.log('🔍 DEBUG: hasSsocVoiceTag:', hasSsocVoiceTag);
+
+            let activityId = '';
+            let phoneNumber = '';
+
+            if (hasSsocVoiceTag) {
+                console.log('🔍 DEBUG: Processing ssoc_voice_created_ticket');
+                // Get the first comment to extract phone number and trip ID
+                try {
+                    const comments = await fetchTicketComments(ticketData.id);
+                    console.log('🔍 DEBUG: comments:', comments);
+
+                    if (comments && comments.length > 0) {
+                        const firstComment = comments[0];
+                        console.log('🔍 DEBUG: firstComment:', firstComment);
+                        console.log('🔍 DEBUG: firstComment.body:', firstComment.body);
+
+                        const { phoneNumber: extractedPhone, tripId } = parseSsocVoiceComment(firstComment.body);
+                        console.log('🔍 DEBUG: extractedPhone:', extractedPhone);
+                        console.log('🔍 DEBUG: tripId:', tripId);
+
+                        if (extractedPhone) {
+                            phoneNumber = extractedPhone;
+                            console.log('🔍 DEBUG: Using extracted phone:', phoneNumber);
+                        }
+
+                        if (tripId) {
+                            // Convert trip ID to activityId using the custom encoding
+                            activityId = encodeUuidToCustomBase64(tripId);
+                            console.log('🔍 DEBUG: Using encoded tripId as activityId:', activityId);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to get ticket comments for ssoc_voice_created_ticket:', error);
+                }
+            } else {
+                console.log('🔍 DEBUG: No ssoc_voice_created_ticket tag found, using default values');
+            }
+
+            // If not ssoc_voice_created_ticket or extraction failed, use default values
+            if (!activityId) {
+                activityId = getCustomFieldValue(ticketData, '15220303991955') || '';
+            }
+
+            urlParts.push(`activityId=${activityId}`);
 
         // zendeskQueueName = ticket.assignee.group.name
         const groupName = await getGroupNameFromTicket(ticketData);
@@ -8414,9 +8513,11 @@
             // queueName = uber (hardcoded)
             urlParts.push('queueName=uber');
 
-            // phoneNumber = custom_field_47477248
-            const phoneNumber = getCustomFieldValue(ticketData, '47477248');
-            urlParts.push(`phoneNumber=${phoneNumber || ''}`);
+            // phoneNumber = custom_field_47477248 (or extracted from ssoc_voice_created_ticket)
+            if (!phoneNumber) {
+                phoneNumber = getCustomFieldValue(ticketData, '47477248') || '';
+            }
+            urlParts.push(`phoneNumber=${phoneNumber}`);
 
             // phoneNumber2 = ticket.requester.phone (always include even if empty)
             urlParts.push(`phoneNumber2=${requesterDetails.phone || ''}`);
