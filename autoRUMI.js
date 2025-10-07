@@ -326,18 +326,51 @@
 
         static async processTicket(ticketId, viewName = null) {
             try {
+                // Fetch ticket data first (needed for both pins and normal processing)
+                const ticket = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`);
+                const comments = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`);
+
+                const ticketData = ticket.ticket;
+                const commentsList = comments.comments || [];
+
                 // PRIORITY 1: Check if ticket is blocked (highest priority)
                 if (RUMIPinManager.checkBlockedPin(ticketId)) {
+                    // Store blocked pin in processed table
+                    const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
+                    const blockedPinData = {
+                        ticketId: ticketId,
+                        subject: ticketData.subject || 'N/A',
+                        viewName: viewName || 'Manual',
+                        action: 'skipped',
+                        trigger: 'Blocked Pin',
+                        previousStatus: ticketData.status,
+                        newStatus: ticketData.status,
+                        previousGroupId: ticketData.group_id,
+                        previousGroupName: previousGroupName,
+                        newGroupId: ticketData.group_id,
+                        newGroupName: previousGroupName,
+                        previousAssigneeId: ticketData.assignee_id,
+                        newAssigneeId: ticketData.assignee_id,
+                        dryRun: false,
+                        alreadyCorrect: false,
+                        note: 'Ticket is pinned as blocked',
+                        isBlockedPin: true
+                    };
+                    RUMIStorage.addProcessedTicket(blockedPinData);
                     return { action: 'skipped', reason: 'blocked_pin' };
                 }
 
                 // PRIORITY 2: Check for care routing pin
-                const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId);
+                const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId, ticketData, commentsList);
                 if (careRoutingResult) {
                     // If care routing pin returned a result, process it or skip
                     if (careRoutingResult.action === 'care') {
                         // Apply Care routing
                         const payload = careRoutingResult.payload;
+
+                        const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
+                        const newGroupId = payload?.ticket?.group_id || ticketData.group_id;
+                        const newGroupName = await this.fetchAndCacheGroupName(newGroupId);
 
                         if (this.isDryRun) {
                             RUMILogger.info('PROCESSOR', '[DRY RUN] Would route to Care via pin', { ticketId });
@@ -345,15 +378,30 @@
                             await this.applyChanges(ticketId, payload);
                             RUMILogger.info('PROCESSOR', 'Routed to Care via pin', { ticketId });
                         }
+
+                        // Store care routing pin in processed table
+                        const carePinData = {
+                            ticketId: ticketId,
+                            subject: ticketData.subject || 'N/A',
+                            viewName: viewName || 'Manual',
+                            action: 'care',
+                            trigger: 'Pinned Ticket',
+                            previousStatus: ticketData.status,
+                            newStatus: payload?.ticket?.status || ticketData.status,
+                            previousGroupId: ticketData.group_id,
+                            previousGroupName: previousGroupName,
+                            newGroupId: newGroupId,
+                            newGroupName: newGroupName,
+                            previousAssigneeId: ticketData.assignee_id,
+                            newAssigneeId: payload?.ticket?.assignee_id || ticketData.assignee_id,
+                            dryRun: this.isDryRun,
+                            alreadyCorrect: false,
+                            note: null
+                        };
+                        RUMIStorage.addProcessedTicket(carePinData);
                     }
                     return careRoutingResult;
                 }
-
-                const ticket = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`);
-                const comments = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`);
-
-                const ticketData = ticket.ticket;
-                const commentsList = comments.comments || [];
 
                 // Store original ticket state
                 const originalStatus = ticketData.status;
@@ -457,6 +505,34 @@
             try {
                 // PRIORITY 1: Check if ticket is blocked (highest priority)
                 if (RUMIPinManager.checkBlockedPin(ticketId)) {
+                    // Store blocked pin in processed table
+                    const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
+                    const blockedPinData = {
+                        ticketId: ticketId,
+                        subject: ticketData.subject || 'N/A',
+                        viewName: viewName || 'Manual',
+                        action: 'skipped',
+                        trigger: 'Blocked Pin',
+                        previousStatus: ticketData.status,
+                        newStatus: ticketData.status,
+                        previousGroupId: ticketData.group_id,
+                        previousGroupName: previousGroupName,
+                        newGroupId: ticketData.group_id,
+                        newGroupName: previousGroupName,
+                        previousAssigneeId: ticketData.assignee_id,
+                        newAssigneeId: ticketData.assignee_id,
+                        dryRun: false,
+                        alreadyCorrect: false,
+                        note: 'Ticket is pinned as blocked',
+                        isBlockedPin: true
+                    };
+
+                    // Use appropriate storage based on manual flag
+                    if (isManual) {
+                        RUMIStorage.addManualProcessedTicket(blockedPinData);
+                    } else {
+                        RUMIStorage.addProcessedTicket(blockedPinData);
+                    }
                     return { action: 'skipped', reason: 'blocked_pin' };
                 }
 
@@ -468,11 +544,49 @@
                         // Apply Care routing
                         const payload = careRoutingResult.payload;
 
-                        if (this.isDryRun) {
-                            RUMILogger.info('PROCESSOR', '[DRY RUN] Would route to Care via pin', { ticketId });
+                        const previousGroupName = await this.fetchAndCacheGroupName(ticketData.group_id);
+                        const newGroupId = payload?.ticket?.group_id || ticketData.group_id;
+                        const newGroupName = await this.fetchAndCacheGroupName(newGroupId);
+
+                        // Determine which dry run mode to use
+                        const isDryRunMode = isManual ? RUMIStorage.getManualProcessingSettings().dryRunMode : this.isDryRun;
+
+                        if (isDryRunMode) {
+                            const prefix = isManual ? '[MANUAL DRY RUN]' : '[DRY RUN]';
+                            RUMILogger.info('PROCESSOR', `${prefix} Would route to Care via pin`, { ticketId });
                         } else {
                             await this.applyChanges(ticketId, payload);
-                            RUMILogger.info('PROCESSOR', 'Routed to Care via pin', { ticketId });
+                            const prefix = isManual ? '[MANUAL]' : '';
+                            RUMILogger.info('PROCESSOR', `${prefix} Routed to Care via pin`, { ticketId });
+                        }
+
+                        // Store care routing pin in processed table
+                        const carePinData = {
+                            ticketId: ticketId,
+                            subject: ticketData.subject || 'N/A',
+                            viewName: viewName || 'Manual',
+                            action: 'care',
+                            trigger: 'Pinned Ticket',
+                            previousStatus: ticketData.status,
+                            newStatus: payload?.ticket?.status || ticketData.status,
+                            previousGroupId: ticketData.group_id,
+                            previousGroupName: previousGroupName,
+                            newGroupId: newGroupId,
+                            newGroupName: newGroupName,
+                            previousAssigneeId: ticketData.assignee_id,
+                            newAssigneeId: payload?.ticket?.assignee_id || ticketData.assignee_id,
+                            dryRun: isDryRunMode,
+                            alreadyCorrect: false,
+                            note: null
+                        };
+
+                        // Use appropriate storage based on manual flag
+                        if (isManual) {
+                            RUMIStorage.addManualProcessedTicket(carePinData);
+                            RUMIStorage.updateManualProcessingStats('care');
+                        } else {
+                            RUMIStorage.addProcessedTicket(carePinData);
+                            RUMIStorage.updateProcessingStats('care');
                         }
                     }
                     return careRoutingResult;
@@ -3757,6 +3871,25 @@
             background: rgba(239, 68, 68, 0.25) !important;
         }
 
+        /* Blocked Pin Styles */
+        [data-theme="light"] .rumi-table tbody tr.rumi-blocked-pin {
+            background: #FFEBEE !important;
+            border-left: 4px solid #DC2626 !important;
+        }
+
+        [data-theme="dark"] .rumi-table tbody tr.rumi-blocked-pin {
+            background: rgba(220, 38, 38, 0.2) !important;
+            border-left: 4px solid #EF4444 !important;
+        }
+
+        [data-theme="light"] .rumi-table tbody tr.rumi-blocked-pin:hover {
+            background: #FFCDD2 !important;
+        }
+
+        [data-theme="dark"] .rumi-table tbody tr.rumi-blocked-pin:hover {
+            background: rgba(220, 38, 38, 0.3) !important;
+        }
+
         .rumi-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -5722,7 +5855,7 @@
                 RUMILogger.info('UI', `Manual dry run mode ${mode}`, { isDryRun });
 
                 if (!isDryRun) {
-                    if (!confirm('⚠️ WARNING ⚠️\n\nYou are about to DISABLE manual dry run mode.\n\nThis means manually processed tickets WILL BE MODIFIED in Zendesk.\n\nAre you absolutely sure?')) {
+                    if (!confirm('⚠ WARNING ⚠\n\nYou are about to DISABLE manual dry run mode.\n\nThis means manually processed tickets WILL BE MODIFIED in Zendesk.\n\nAre you absolutely sure?')) {
                         e.target.checked = true;
                         settings.dryRunMode = true;
                         RUMIStorage.setManualProcessingSettings(settings);
@@ -6423,7 +6556,7 @@
             const tbody = document.getElementById(`rumi-table-${type}`);
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -6463,8 +6596,16 @@
                     ? '<span class="rumi-badge rumi-badge-no">NO</span>'
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
+                // Determine row class: blocked pins get red, dry runs get existing styling
+                let rowClass = '';
+                if (ticket.isBlockedPin) {
+                    rowClass = 'rumi-blocked-pin';
+                } else if (ticket.dryRun) {
+                    rowClass = 'rumi-dry-run';
+                }
+
                 return `
-                    <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
+                    <tr class="${rowClass}">
                         <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
@@ -6495,7 +6636,7 @@
             }
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon">📋</div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -6534,8 +6675,16 @@
                     ? '<span class="rumi-badge rumi-badge-no">NO</span>'
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
+                // Determine row class: blocked pins get red, dry runs get existing styling
+                let rowClass = '';
+                if (ticket.isBlockedPin) {
+                    rowClass = 'rumi-blocked-pin';
+                } else if (ticket.dryRun) {
+                    rowClass = 'rumi-dry-run';
+                }
+
                 return `
-                    <tr class="${ticket.dryRun ? 'rumi-dry-run' : ''}">
+                    <tr class="${rowClass}">
                         <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
@@ -8519,21 +8668,25 @@
         }
 
         static async buildTicketPath(ticket, comments) {
-            // Build detailed flowchart showing the complete evaluation path
+            // Build COMPLETE flowchart showing EVERY decision point and edge case
+            // Uses ACTUAL processor logic to ensure 100% accuracy
             const ticketId = ticket.id;
 
+            // Load actual settings for accurate trigger checking
+            const settings = RUMIStorage.getAutomaticSettings();
+
             let xPos = 150;
-            const columnSpacing = 300;
-            const nodeWidth = 220;
-            const nodeHeight = 70;
-            let yPos = 250;
-            const rowHeight = 120;
+            const columnSpacing = 280;
+            const nodeWidth = 200;
+            const nodeHeight = 65;
+            let yPos = 200;
+            const rowHeight = 100;
 
             // ENTRY NODE - Show ticket details
             const statusEmoji = ticket.status === 'closed' ? '🔒' :
-                               ticket.status === 'pending' ? '⏱️' :
-                               ticket.status === 'solved' ? '✅' :
-                               ticket.status === 'open' ? '📂' : '📋';
+                               ticket.status === 'pending' ? '⏱' :
+                               ticket.status === 'solved' ? '✓' :
+                               ticket.status === 'open' ? '📂' : '📄';
 
             this.addNode({
                 id: 'start',
@@ -8555,13 +8708,13 @@
 
             this.addNode({
                 id: 'check-blocked',
-                label: '1️⃣ Blocked Pin?',
+                label: '① Blocked Pin?',
                 type: isBlocked ? 'priority' : 'priority',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: isBlocked ? '✓ Found in blocked pins list' : '✗ Not in blocked pins list',
+                description: isBlocked ? '● Found in blocked pins list' : '○ Not in blocked pins list',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-blocked', 'Priority 1');
@@ -8570,7 +8723,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-skip',
-                    label: '⛔ SKIP',
+                    label: '⊘ SKIP',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8590,13 +8743,13 @@
 
             this.addNode({
                 id: 'check-care-pin',
-                label: '2️⃣ Care Pin?',
+                label: '② Care Pin?',
                 type: 'priority',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: isCarePinned ? '✓ Pinned for Care routing' : '✗ Not Care pinned',
+                description: isCarePinned ? '● Pinned for Care routing' : '○ Not Care pinned',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-care-pin', 'Not blocked');
@@ -8605,7 +8758,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-care-pin',
-                    label: '🎯 ROUTE TO CARE',
+                    label: '→ ROUTE TO CARE',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8623,13 +8776,13 @@
             const isClosed = ticket.status === 'closed';
             this.addNode({
                 id: 'check-closed',
-                label: '3️⃣ Closed?',
+                label: '③ Closed?',
                 type: 'priority',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: isClosed ? `✓ Status: ${ticket.status}` : `✗ Status: ${ticket.status}`,
+                description: isClosed ? `● Status: ${ticket.status}` : `○ Status: ${ticket.status}`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-closed', 'Not pinned');
@@ -8638,7 +8791,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-dry-run',
-                    label: '⚠️ DRY RUN',
+                    label: '⚠ DRY RUN',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8652,29 +8805,103 @@
             lastNodeId = 'check-closed';
             currentRow++;
 
-            // PRIORITY 4: Check #notsafety / care routing phrases
-            let carePhrase = null;
+            // ============================================================================
+            // COMMENT ANALYSIS PHASE - Determine which comment to check for triggers
+            // ============================================================================
+
+            let latestCommenter = 'none';
+            let commentToCheckInfo = 'No comments';
+            let globalCommentToCheck = null;
+
             if (comments.length > 0) {
                 const latestComment = comments[comments.length - 1];
-                const normalized = RUMICommentProcessor.normalizeForMatching(latestComment.html_body);
+                const latestAuthor = await RUMIProcessor.getUserRole(latestComment.author_id);
 
-                for (const phrase of RUMIRules.CARE_ROUTING_PHRASES) {
-                    if (RUMICommentProcessor.matchesTrigger(normalized, phrase)) {
-                        carePhrase = phrase;
-                        break;
+                if (latestAuthor.isEndUser) {
+                    latestCommenter = 'END-USER';
+                    // Trace back to find first CAREEM_CARE_ID comment
+                    globalCommentToCheck = await RUMIProcessor.findCommentToCheck(comments);
+                    if (globalCommentToCheck) {
+                        const commentIndex = comments.findIndex(c => c.id === globalCommentToCheck.id);
+                        const commentType = globalCommentToCheck.public ? 'Public' : 'Internal';
+                        commentToCheckInfo = `Traced back to Comment #${commentIndex + 1} (${commentType})`;
+                    } else {
+                        commentToCheckInfo = 'Traced back: No CAREEM_CARE_ID found in last 50';
                     }
+                } else if (latestComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                    latestCommenter = 'CAREEM_CARE_ID';
+                    globalCommentToCheck = latestComment;
+                    const commentType = globalCommentToCheck.public ? 'Public' : 'Internal';
+                    commentToCheckInfo = `Using latest (${commentType} comment)`;
+                } else {
+                    latestCommenter = 'OTHER AGENT';
+                    commentToCheckInfo = 'No action (not end-user or CAREEM_CARE_ID)';
                 }
             }
 
             this.addNode({
+                id: 'comment-analysis',
+                label: '◈ COMMENT ANALYSIS',
+                type: 'info',
+                x: xPos,
+                y: yPos + (currentRow * rowHeight),
+                width: nodeWidth,
+                height: nodeHeight,
+                description: `Latest commenter: ${latestCommenter}\n${commentToCheckInfo}\nUsed by: Care/Pending/Solved checks`,
+                enabled: true
+            });
+            this.addConnection(lastNodeId, 'comment-analysis', 'Analyze comments');
+            lastNodeId = 'comment-analysis';
+            currentRow++;
+
+            // ============================================================================
+            // PRIORITY 4: Check #notsafety / care routing phrases (using trace-back logic)
+            // ============================================================================
+            let carePhrase = null;
+            let careCommentDescription = '';
+            const careCommentToCheck = await RUMIProcessor.findCommentToCheck(comments);
+
+            if (careCommentToCheck) {
+                const careTriggerResult = await RUMIProcessor.checkCommentForTriggers(careCommentToCheck, settings);
+
+                if (careTriggerResult && careTriggerResult.type === 'care') {
+                    carePhrase = careTriggerResult.trigger;
+                    careCommentDescription = `Trigger: ${careTriggerResult.trigger}`;
+                } else if (!careTriggerResult && careCommentToCheck.public === false &&
+                    careCommentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                    // Internal comment without trigger - check preceding
+                    const commentIndex = comments.findIndex(c => c.id === careCommentToCheck.id);
+
+                    if (commentIndex > 0) {
+                        const precedingComment = comments[commentIndex - 1];
+
+                        if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                            const precedingTriggerResult = await RUMIProcessor.checkCommentForTriggers(precedingComment, settings);
+
+                            if (precedingTriggerResult && precedingTriggerResult.type === 'care') {
+                                carePhrase = precedingTriggerResult.trigger;
+                                careCommentDescription = `(Found in preceding comment)\nTrigger: ${precedingTriggerResult.trigger}`;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!carePhrase) {
+                careCommentDescription = 'No Care routing triggers found';
+            }
+
+            this.addNode({
                 id: 'check-notsafety',
-                label: '4️⃣ #notsafety?',
+                label: '④ #notsafety?',
                 type: 'blocking',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: carePhrase ? `✓ Found: "${carePhrase.substring(0, 40)}..."` : '✗ No Care routing phrases',
+                description: carePhrase ?
+                    `● Found: "${carePhrase.substring(0, 40)}..."${careCommentDescription}` :
+                    '○ No Care routing phrases\n(Used trace-back logic)',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-notsafety', 'Not closed');
@@ -8683,13 +8910,13 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-care-phrase',
-                    label: '🎯 ROUTE TO CARE',
+                    label: '→ ROUTE TO CARE',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: `REASON: Care phrase matched\nPHRASE: "${carePhrase.substring(0, 30)}..."\nACTION: group_id = 20705088\nRULE: Latest comment check`
+                    description: `REASON: Care phrase matched\nPHRASE: "${carePhrase.substring(0, 30)}..."\nACTION: group_id = 20705088\nRULE: Trace-back + preceding check`
                 });
                 this.addConnection('check-notsafety', 'action-care-phrase', 'MATCHED');
                 return;
@@ -8701,13 +8928,13 @@
             const hasHalaTag = ticket.tags && ticket.tags.includes('ghc_provider_hala-rides');
             this.addNode({
                 id: 'check-hala',
-                label: '5️⃣ Hala Tag?',
+                label: '⑤ Hala Tag?',
                 type: 'tag-routing',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: hasHalaTag ? '✓ Tag: ghc_provider_hala-rides' : '✗ No Hala tag',
+                description: hasHalaTag ? '● Tag: ghc_provider_hala-rides' : '○ No Hala tag',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-hala', 'No Care phrase');
@@ -8716,7 +8943,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-hala',
-                    label: '🚗 ROUTE TO HALA',
+                    label: '→ ROUTE TO HALA',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8734,13 +8961,13 @@
             const hasCasablancaTag = ticket.tags && ticket.tags.includes('casablanca');
             this.addNode({
                 id: 'check-casablanca',
-                label: '6️⃣ Casablanca Tag?',
+                label: '⑥ Casablanca Tag?',
                 type: 'tag-routing',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: hasCasablancaTag ? '✓ Tag: casablanca' : '✗ No Casablanca tag',
+                description: hasCasablancaTag ? '● Tag: casablanca' : '○ No Casablanca tag',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-casablanca', 'No Hala tag');
@@ -8749,7 +8976,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-casablanca',
-                    label: '🌍 ROUTE TO CASABLANCA',
+                    label: '→ ROUTE TO CASABLANCA',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8772,15 +8999,15 @@
 
             this.addNode({
                 id: 'check-subject-care',
-                label: '7️⃣ No Activity Subject?',
+                label: '⑦ No Activity Subject?',
                 type: 'subject',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
                 description: subjectCareTriggers ?
-                    '✓ Subject match + status new + no private comments' :
-                    `✗ Subject: ${hasNoActivitySubject ? 'Match' : 'No match'}\nStatus: ${ticket.status}\nPrivate comments: ${hasPrivateComments ? 'Yes' : 'No'}`,
+                    '● Subject match + status new + no private comments' :
+                    `○ Subject: ${hasNoActivitySubject ? 'Match' : 'No match'}\nStatus: ${ticket.status}\nPrivate comments: ${hasPrivateComments ? 'Yes' : 'No'}`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-subject-care', 'No Casablanca');
@@ -8789,7 +9016,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-subject-care',
-                    label: '🎯 ROUTE TO CARE',
+                    label: '→ ROUTE TO CARE',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8818,15 +9045,15 @@
 
             this.addNode({
                 id: 'check-irt',
-                label: '8️⃣ IRT Concern?',
+                label: '⑧ IRT Concern?',
                 type: 'subject',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
                 description: hasIRTConcern ?
-                    '✓ IRT concern comment found' :
-                    `✗ Requester: ${isSSocRequester ? 'SSOC (checking...)' : 'Not SSOC'}\nIRT phrase: ${isSSocRequester ? 'Not found' : 'N/A'}`,
+                    '● IRT concern comment found' :
+                    `○ Requester: ${isSSocRequester ? 'SSOC (checking...)' : 'Not SSOC'}\nIRT phrase: ${isSSocRequester ? 'Not found' : 'N/A'}`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-irt', 'No subject match');
@@ -8835,7 +9062,7 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-irt-care',
-                    label: '🎯 ROUTE TO CARE',
+                    label: '→ ROUTE TO CARE',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
@@ -8849,46 +9076,82 @@
             lastNodeId = 'check-irt';
             currentRow++;
 
-            // PRIORITY 9: Check pending triggers
-            const commentToCheck = await RUMIProcessor.findCommentToCheck(comments);
-            let pendingPhrase = null;
+            // ============================================================================
+            // PRIORITY 9: Escalation Response Rule (using ACTUAL processor logic)
+            // ============================================================================
+            const escalationResult = await RUMIProcessor.evaluateEscalationResponseRules(ticket, comments, settings, null);
+            const hasEscalationResponse = escalationResult.action === 'pending';
+            let escalationDescription = hasEscalationResponse ?
+                `● User/RFR replied after internal ESCALATED phrase\nTrigger: ${escalationResult.trigger}` :
+                '○ No escalation response detected';
 
-            if (commentToCheck) {
-                const normalized = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-                for (const phrase of RUMIRules.PENDING_TRIGGERS) {
-                    if (RUMICommentProcessor.matchesTrigger(normalized, phrase)) {
-                        pendingPhrase = phrase;
-                        break;
-                    }
-                }
+            this.addNode({
+                id: 'check-escalation',
+                label: '⑨ Escalation Response?',
+                type: 'escalation',
+                x: xPos,
+                y: yPos + (currentRow * rowHeight),
+                width: nodeWidth,
+                height: nodeHeight,
+                description: `Check: ESCALATED_BUT_NO_RESPONSE\n${escalationDescription}`,
+                enabled: true
+            });
+            this.addConnection(lastNodeId, 'check-escalation', 'No IRT');
+
+            if (hasEscalationResponse) {
+                xPos += columnSpacing;
+                this.addNode({
+                    id: 'action-escalation-pending',
+                    label: '⏱ SET PENDING',
+                    type: 'action',
+                    x: xPos,
+                    y: yPos + (currentRow * rowHeight),
+                    width: nodeWidth,
+                    height: nodeHeight,
+                    description: 'REASON: User/RFR responded after escalation\nTRIGGER: ESCALATED_BUT_NO_RESPONSE\nACTION: status = pending, assignee = SSOC\nRULE: Escalation response handling'
+                });
+                this.addConnection('check-escalation', 'action-escalation-pending', 'RESPONDED');
+                return;
             }
+            lastNodeId = 'check-escalation';
+            currentRow++;
+
+            // ============================================================================
+            // PRIORITY 10: Check pending triggers (using ACTUAL processor logic)
+            // ============================================================================
+            const pendingResult = await RUMIProcessor.evaluatePendingRules(ticket, comments, settings, null);
+            const hasPending = pendingResult.action === 'pending';
+            let pendingPhrase = hasPending ? pendingResult.trigger : null;
+            let pendingCommentDescription = hasPending ?
+                `Trigger: ${pendingResult.trigger}` :
+                'No pending trigger phrases found';
 
             this.addNode({
                 id: 'check-pending',
-                label: '9️⃣ Pending Trigger?',
+                label: '⑩ Pending Trigger?',
                 type: 'comment-action',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
                 description: pendingPhrase ?
-                    `✓ Found: "${pendingPhrase.substring(0, 35)}..."` :
-                    '✗ No pending trigger phrases',
+                    `● Found: "${pendingPhrase.substring(0, 35)}..."${pendingCommentDescription}` :
+                    '○ No pending trigger phrases\n(Used trace-back + preceding check)',
                 enabled: true
             });
-            this.addConnection(lastNodeId, 'check-pending', 'No IRT');
+            this.addConnection(lastNodeId, 'check-pending', 'No escalation');
 
             if (pendingPhrase) {
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-pending',
-                    label: '⏱️ SET PENDING',
+                    label: '⏱ SET PENDING',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: `REASON: Pending phrase matched\nPHRASE: "${pendingPhrase.substring(0, 30)}..."\nACTION: status = pending, assignee = SSOC\nRULE: Comment-based trigger`
+                    description: `REASON: Pending phrase matched\nPHRASE: "${pendingPhrase.substring(0, 30)}..."\nACTION: status = pending, assignee = SSOC\nRULE: Trace-back + preceding check`
                 });
                 this.addConnection('check-pending', 'action-pending', 'MATCHED');
                 return;
@@ -8896,29 +9159,27 @@
             lastNodeId = 'check-pending';
             currentRow++;
 
-            // PRIORITY 10: Check solved triggers
-            let solvedPhrase = null;
-            if (commentToCheck) {
-                const normalized = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-                for (const phrase of RUMIRules.SOLVED_TRIGGERS) {
-                    if (RUMICommentProcessor.matchesTrigger(normalized, phrase)) {
-                        solvedPhrase = phrase;
-                        break;
-                    }
-                }
-            }
+            // ============================================================================
+            // PRIORITY 11: Check solved triggers (using ACTUAL processor logic)
+            // ============================================================================
+            const solvedResult = await RUMIProcessor.evaluateSolvedRules(ticket, comments, settings);
+            const hasSolved = solvedResult.action === 'solved';
+            let solvedPhrase = hasSolved ? solvedResult.trigger : null;
+            let solvedCommentDescription = hasSolved ?
+                `Trigger: ${solvedResult.trigger}` :
+                'No solved trigger phrases found';
 
             this.addNode({
                 id: 'check-solved',
-                label: '🔟 Solved Trigger?',
+                label: '⑪ Solved Trigger?',
                 type: 'comment-action',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
                 description: solvedPhrase ?
-                    `✓ Found: "${solvedPhrase.substring(0, 35)}..."` :
-                    '✗ No solved trigger phrases',
+                    `● Found: "${solvedPhrase.substring(0, 35)}..."${solvedCommentDescription}` :
+                    '○ No solved trigger phrases\n(Used trace-back + preceding check)',
                 enabled: true
             });
             this.addConnection(lastNodeId, 'check-solved', 'No pending');
@@ -8927,13 +9188,13 @@
                 xPos += columnSpacing;
                 this.addNode({
                     id: 'action-solved',
-                    label: '✅ SET SOLVED',
+                    label: '✓ SET SOLVED',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: `REASON: Solved phrase matched\nPHRASE: "${solvedPhrase.substring(0, 30)}..."\nACTION: status = solved, assignee = current user\nRULE: Comment-based trigger`
+                    description: `REASON: Solved phrase matched\nPHRASE: "${solvedPhrase.substring(0, 30)}..."\nACTION: status = solved, assignee = current user\nRULE: Trace-back + preceding check`
                 });
                 this.addConnection('check-solved', 'action-solved', 'MATCHED');
                 return;
@@ -8941,17 +9202,19 @@
             lastNodeId = 'check-solved';
             currentRow++;
 
+            // ============================================================================
             // No action - all checks failed
+            // ============================================================================
             xPos += columnSpacing;
             this.addNode({
                 id: 'action-none',
-                label: '➡️ NO ACTION',
+                label: '○ NO ACTION',
                 type: 'action',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: 'REASON: No rules matched\nCHECKS: All 10 priority checks passed\nACTION: None - ticket unchanged\nRULE: Default fallthrough'
+                description: 'REASON: No rules matched\nCHECKS: All 11 priority checks passed\nACTION: None - ticket unchanged\nRULE: Default fallthrough'
             });
             this.addConnection(lastNodeId, 'action-none', 'No solved');
         }
@@ -9006,7 +9269,7 @@
 
             // Icon
             this.ctx.font = '48px -apple-system, sans-serif';
-            this.ctx.fillText('🎯', centerX, centerY - 100);
+            this.ctx.fillText('◆', centerX, centerY - 100);
         }
 
         static drawConnections() {
@@ -9182,6 +9445,8 @@
                 'comment-action': theme === 'dark' ? '#34D399' : '#10B981',
                 'subject': theme === 'dark' ? '#FBBF24' : '#F59E0B',
                 'blocking': theme === 'dark' ? '#F87171' : '#DC2626',
+                'info': theme === 'dark' ? '#3B82F6' : '#60A5FA',
+                'escalation': theme === 'dark' ? '#F472B6' : '#EC4899',
                 'action': theme === 'dark' ? '#60A5FA' : '#3B82F6'
             };
             return colors[type] || '#9CA3AF';
