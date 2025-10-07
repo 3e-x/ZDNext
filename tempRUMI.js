@@ -8437,17 +8437,35 @@
             // sourceInteractionId = ticket.id
             urlParts.push(`sourceInteractionId=${ticketData.id}`);
 
-            // Check for ssoc_voice_created_ticket tag
+            // Check for special tags
             console.log('🔍 DEBUG: ticketData structure:', ticketData);
             console.log('🔍 DEBUG: ticketData.tags:', ticketData.tags);
 
             const hasSsocVoiceTag = ticketData.tags && ticketData.tags.includes('ssoc_voice_created_ticket');
+            const hasExcludeDetectionTag = ticketData.tags && ticketData.tags.includes('exclude_detection');
+
             console.log('🔍 DEBUG: hasSsocVoiceTag:', hasSsocVoiceTag);
+            console.log('🔍 DEBUG: hasExcludeDetectionTag:', hasExcludeDetectionTag);
 
             let activityId = '';
             let phoneNumber = '';
 
-            if (hasSsocVoiceTag) {
+            if (hasExcludeDetectionTag) {
+                console.log('🔍 DEBUG: Processing exclude_detection tag');
+                // Extract phone number from ticket subject using regex
+                const phoneRegex = /(?<=\D)\d{12}(?=\D)/;
+                const phoneMatch = ticketData.subject.match(phoneRegex);
+                if (phoneMatch) {
+                    phoneNumber = phoneMatch[0];
+                    console.log('🔍 DEBUG: Extracted phone from subject:', phoneNumber);
+                } else {
+                    console.log('🔍 DEBUG: No 12-digit phone number found in subject:', ticketData.subject);
+                }
+
+                // For exclude_detection, activityId still comes from custom field
+                activityId = getCustomFieldValue(ticketData, '15220303991955') || '';
+                console.log('🔍 DEBUG: Using custom field for activityId:', activityId);
+            } else if (hasSsocVoiceTag) {
                 console.log('🔍 DEBUG: Processing ssoc_voice_created_ticket');
                 // Get the first comment to extract phone number and trip ID
                 try {
@@ -8478,7 +8496,7 @@
                     console.warn('Failed to get ticket comments for ssoc_voice_created_ticket:', error);
                 }
             } else {
-                console.log('🔍 DEBUG: No ssoc_voice_created_ticket tag found, using default values');
+                console.log('🔍 DEBUG: No special tags found, using default values');
             }
 
             // If not ssoc_voice_created_ticket or extraction failed, use default values
