@@ -286,12 +286,13 @@
                 return true;
             }
 
-            // Routing actions can repeat if comment changed
+            // Routing actions should always process - they can repeat every time ticket comes into view
+            // This ensures tickets with routing phrases get routed continuously until conditions change
             if (['care', 'hala', 'casablanca'].includes(actionType)) {
-                return processed.lastProcessedCommentId !== latestCommentId;
+                return true;
             }
 
-            // Pending and solved use strict idempotency
+            // Pending and solved use strict idempotency - only process once per comment ID
             if (['pending', 'solved'].includes(actionType)) {
                 return processed.lastProcessedCommentId !== latestCommentId;
             }
@@ -658,7 +659,7 @@
                 }
 
                 // Check if ticket is already in desired state
-                const targetStatus = result.payload?.ticket?.status;
+                const targetStatus = resultThi.payload?.ticket?.status;
                 const targetGroupId = result.payload?.ticket?.group_id;
                 const alreadyCorrect = (targetStatus && targetStatus === originalStatus) || 
                                        (targetGroupId && targetGroupId === originalGroupId);
@@ -1195,9 +1196,21 @@
 
         static async checkCommentForTriggers(comment, settings) {
             // Check if a comment contains any trigger phrases and return the result
-            // PRIORITY ORDER: Care routing triggers MUST be checked first, as they take priority over pending/solved
+            // PRIORITY ORDER: Routing triggers (Care, Casablanca, RTA) MUST be checked first, as they take priority over all other triggers
             const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
 
+            // Check care routing triggers FIRST (highest priority)
+            const enabledCareRoutingPhrases = RUMIRules.CARE_ROUTING_PHRASES.filter(phrase => {
+                return settings.triggerPhrases.careRouting[phrase] !== false;
+            });
+            const careTrigger = enabledCareRoutingPhrases.find(phrase =>
+                RUMICommentProcessor.matchesTrigger(normalized, phrase)
+            );
+            if (careTrigger) {
+                return { type: 'care', trigger: careTrigger };
+            }
+
+            // Check pending triggers (second priority)
             const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
                 return settings.triggerPhrases.pending[phrase] !== false;
             });
@@ -1208,7 +1221,7 @@
                 return { type: 'pending', trigger: pendingTrigger };
             }
 
-            // Check solved triggers
+            // Check solved triggers (lowest priority)
             const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
                 return settings.triggerPhrases.solved[phrase] !== false;
             });
@@ -1217,17 +1230,6 @@
             );
             if (solvedTrigger) {
                 return { type: 'solved', trigger: solvedTrigger };
-            }
-
-            // Check care routing triggers
-            const enabledCareRoutingPhrases = RUMIRules.CARE_ROUTING_PHRASES.filter(phrase => {
-                return settings.triggerPhrases.careRouting[phrase] !== false;
-            });
-            const careTrigger = enabledCareRoutingPhrases.find(phrase =>
-                RUMICommentProcessor.matchesTrigger(normalized, phrase)
-            );
-            if (careTrigger) {
-                return { type: 'care', trigger: careTrigger };
             }
 
             return null; // No triggers found
@@ -2485,8 +2487,6 @@
                         return null;
                     }).filter(id => id !== null);
                     
-                    const currentTicketIds = new Set(ticketIds);
-                    
                     // Check if this view had failed polls previously
                     const hadFailedPoll = this.failedPolls.has(viewId);
                     const failureCount = this.failedPolls.get(viewId) || 0;
@@ -2561,11 +2561,12 @@
                     }
                     
                     // Update baseline with current tickets (both catch-up and normal mode)
-                    this.baselineTickets.set(viewId, currentTicketIds);
+                    // Create a fresh Set copy to avoid reference issues
+                    this.baselineTickets.set(viewId, new Set(ticketIds));
                     RUMILogger.debug('MONITOR', `Updated baseline for view "${viewName}"`, {
                         viewId,
                         viewName,
-                        baselineSize: currentTicketIds.size,
+                        baselineSize: ticketIds.length,
                         mode: hadFailedPoll ? 'catch-up' : 'normal'
                     });
 
@@ -2595,6 +2596,7 @@
         }
 
         static async manualProcess(ticketIdsString, progressCallback = null) {
+            console.log('[RUMI DEBUG] manualProcess called with:', ticketIdsString);
             // Parse comma-separated ticket IDs
             const ticketIds = ticketIdsString
                 .split(',')
@@ -5785,6 +5787,7 @@
             // Input mode switching
             document.querySelectorAll('input[name="manual-input-mode"]').forEach(radio => {
                 radio.addEventListener('change', (e) => {
+                    console.log('[RUMI DEBUG] Input mode changed to:', e.target.value);
                     if (e.target.value === 'ticket-ids') {
                         ticketIdsInput.style.display = 'block';
                         jsonInput.style.display = 'none';
@@ -5794,6 +5797,19 @@
                     }
                 });
             });
+            
+            // Ensure correct initial state
+            const initialMode = document.querySelector('input[name="manual-input-mode"]:checked');
+            if (initialMode) {
+                console.log('[RUMI DEBUG] Initial input mode:', initialMode.value);
+                if (initialMode.value === 'ticket-ids') {
+                    ticketIdsInput.style.display = 'block';
+                    jsonInput.style.display = 'none';
+                } else {
+                    ticketIdsInput.style.display = 'none';
+                    jsonInput.style.display = 'block';
+                }
+            }
             
             // Fast ticket counting function
             const updateTicketCount = () => {
@@ -5876,9 +5892,17 @@
                 
                 // Determine input mode
                 const inputMode = document.querySelector('input[name="manual-input-mode"]:checked').value;
+                console.log('[RUMI DEBUG] Input mode detected:', inputMode);
+                
+                // Safety check: if inputMode is not valid, default to ticket-ids
+                const validInputMode = inputMode === 'json' ? 'json' : 'ticket-ids';
+                if (validInputMode !== inputMode) {
+                    console.log('[RUMI DEBUG] Invalid input mode detected, defaulting to ticket-ids');
+                }
+                
                 let ticketIds, parsedIds;
                 
-                if (inputMode === 'ticket-ids') {
+                if (validInputMode === 'ticket-ids') {
                     ticketIds = textarea.value;
                     if (!ticketIds.trim()) {
                         this.showToast('Please enter ticket IDs', 'warning');
@@ -5946,7 +5970,8 @@
                     };
                     
                     let result;
-                    if (inputMode === 'json') {
+                    if (validInputMode === 'json') {
+                        console.log('[RUMI DEBUG] Processing as JSON input');
                         // JSON input always runs in dry run mode for safety
                         const originalDryRun = RUMIProcessor.isDryRun;
                         RUMIProcessor.isDryRun = true;
@@ -5958,6 +5983,7 @@
                             RUMIProcessor.isDryRun = originalDryRun;
                         }
                     } else {
+                        console.log('[RUMI DEBUG] Processing as ticket IDs:', ticketIds);
                         // Process ticket IDs normally
                         result = await RUMIMonitor.manualProcess(ticketIds, progressCallback);
                     }
@@ -5967,14 +5993,14 @@
                     this.updateManualProcessedTicketsDisplay();
                     
                     const manualDryRun = RUMIStorage.getManualProcessingSettings().dryRunMode;
-                    const mode = (inputMode === 'json' || manualDryRun) ? 'MANUAL DRY RUN' : 'MANUAL LIVE';
+                    const mode = (validInputMode === 'json' || manualDryRun) ? 'MANUAL DRY RUN' : 'MANUAL LIVE';
                     
                     if (result.cancelled) {
                         this.showToast(`[${mode}] Processing stopped - Processed ${result.processed} tickets, ${result.actioned} actions taken`, 'warning');
                     } else {
                         this.showToast(`[${mode}] Processed ${result.processed} tickets, ${result.actioned} actions taken`, 'success');
                         // Only clear input on complete success (not on cancellation)
-                        if (inputMode === 'ticket-ids') {
+                        if (validInputMode === 'ticket-ids') {
                             textarea.value = '';
                             document.getElementById('rumi-ticket-count-value').textContent = '0';
                             document.getElementById('rumi-ticket-count-value').style.color = 'var(--rumi-text-secondary)';
@@ -6400,6 +6426,7 @@
         }
 
         static async processJsonInput(jsonText, progressCallback) {
+            console.log('[RUMI DEBUG] processJsonInput called with:', jsonText.substring(0, 100) + '...');
             try {
                 const jsonData = JSON.parse(jsonText);
                 const comments = jsonData.comments || [];
