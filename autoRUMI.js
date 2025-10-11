@@ -193,7 +193,6 @@
 
         static CARE_ROUTING_PHRASES = [
             "#notsafety",
-            "not safety",
             "careem actions required on rider",
             "careem actions required for rider",
             "ask the rider",
