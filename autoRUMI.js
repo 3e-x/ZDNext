@@ -112,7 +112,7 @@
             "في انتظار الرد",
 
             // INTERNAL NOTES/ACTIONS & CODES
-            "emea urgent triage team zzzdut",
+            "emea urgent triage team",
             "no urgent safety concern found",
             "please re-escalate if urgent concerns are confirmed",
             "https://blissnxt.uberinternal.com",
