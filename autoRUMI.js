@@ -278,6 +278,11 @@
             });
         }
 
+        static clearProcessedData(ticketId) {
+            const key = `processed_${ticketId}`;
+            RUMIStorage.remove(key);
+        }
+
         static shouldProcess(ticketId, latestCommentId, actionType) {
             const processed = this.getProcessedData(ticketId);
 
@@ -288,6 +293,8 @@
             // Routing actions should always process - they can repeat every time ticket comes into view
             // This ensures tickets with routing phrases get routed continuously until conditions change
             if (['care', 'hala', 'casablanca'].includes(actionType)) {
+                // Clear any stale idempotency data for routing actions
+                this.clearProcessedData(ticketId);
                 return true;
             }
 
