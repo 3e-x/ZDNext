@@ -5465,22 +5465,17 @@
                 const separator = createSeparator();
                 navList.appendChild(separator);
 
-                const customSection = document.createElement('div');
-                customSection.className = 'custom-nav-section';
-
-                // Add toggle button
-                globalButton = createToggleButton();    
+                // Add toggle button (eye button)
+                globalButton = createToggleButton();
                 const toggleBtn = globalButton.querySelector('button');
                 toggleBtn.addEventListener('click', toggleAllFields);
-                customSection.appendChild(globalButton);
+                navList.appendChild(globalButton);
 
-                // Add PQMS button
+                // Add PQMS button (below the eye button)
                 pqmsButton = createPQMSButton();
                 const pqmsBtn = pqmsButton.querySelector('button');
                 pqmsBtn.addEventListener('click', submitToPQMS);
-                customSection.appendChild(pqmsButton);
-
-                navList.appendChild(customSection);
+                navList.appendChild(pqmsButton);
             }
         }
 
