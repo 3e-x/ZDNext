@@ -280,23 +280,34 @@
         }
 
         static shouldProcess(ticketId, latestCommentId, actionType) {
+            console.log('[shouldProcess]', { ticketId, latestCommentId, actionType });
             const processed = this.getProcessedData(ticketId);
 
             if (!processed) {
+                console.log('[shouldProcess] no processed record, returning true');
                 return true;
             }
 
-            // Routing actions should always process - they can repeat every time ticket comes into view
-            // This ensures tickets with routing phrases get routed continuously until conditions change
-            if (['care', 'hala', 'casablanca'].includes(actionType)) {
+            // Always allow routing actions regardless of case or spacing
+            if ([
+                'care',
+                'hala',
+                'casablanca'
+            ].includes((actionType || '').toLowerCase())) {
+                console.log('[shouldProcess] ROUTING, returning true');
                 return true;
             }
 
-            // Pending and solved use strict idempotency - only process once per comment ID
-            if (['pending', 'solved'].includes(actionType)) {
-                return processed.lastProcessedCommentId !== latestCommentId;
+            if ([
+                'pending',
+                'solved'
+            ].includes((actionType || '').toLowerCase())) {
+                const should = processed.lastProcessedCommentId !== latestCommentId;
+                console.log('[shouldProcess] pending/solved, returning', should);
+                return should;
             }
 
+            console.log('[shouldProcess] default, returning true');
             return true;
         }
     }
@@ -4476,7 +4487,6 @@
             width: 0;
             height: 0;
         }
-
         .rumi-toggle-slider {
             position: absolute;
             cursor: pointer;
