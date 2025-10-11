@@ -112,7 +112,7 @@
             "في انتظار الرد",
 
             // INTERNAL NOTES/ACTIONS & CODES
-            "emea urgent triage team",
+            "emea urgent triage team zzzdut",
             "no urgent safety concern found",
             "please re-escalate if urgent concerns are confirmed",
             "https://blissnxt.uberinternal.com",
@@ -280,37 +280,27 @@
         }
 
         static shouldProcess(ticketId, latestCommentId, actionType) {
-            console.log('[shouldProcess]', { ticketId, latestCommentId, actionType });
             const processed = this.getProcessedData(ticketId);
 
             if (!processed) {
-                console.log('[shouldProcess] no processed record, returning true');
                 return true;
             }
 
-            // Always allow routing actions regardless of case or spacing
-            if ([
-                'care',
-                'hala',
-                'casablanca'
-            ].includes((actionType || '').toLowerCase())) {
-                console.log('[shouldProcess] ROUTING, returning true');
+            // Routing actions should always process - they can repeat every time ticket comes into view
+            // This ensures tickets with routing phrases get routed continuously until conditions change
+            if (['care', 'hala', 'casablanca'].includes(actionType)) {
                 return true;
             }
 
-            if ([
-                'pending',
-                'solved'
-            ].includes((actionType || '').toLowerCase())) {
-                const should = processed.lastProcessedCommentId !== latestCommentId;
-                console.log('[shouldProcess] pending/solved, returning', should);
-                return should;
+            // Pending and solved use strict idempotency - only process once per comment ID
+            if (['pending', 'solved'].includes(actionType)) {
+                return processed.lastProcessedCommentId !== latestCommentId;
             }
 
-            console.log('[shouldProcess] default, returning true');
             return true;
         }
     }
+
     // ============================================================================
     // TICKET PROCESSING ENGINE
     // ============================================================================
@@ -493,14 +483,16 @@
 
                     return { ...result, dryRun: true, ticketData: processedTicketData };
                 } else {
-                    // Always process routing actions, even if alreadyCorrect
-                    const isRoutingAction = ['care', 'hala', 'casablanca'].includes(result.action);
-                    if (isRoutingAction || !alreadyCorrect) {
+                    // Only apply changes if ticket is not already in desired state
+                    if (!alreadyCorrect) {
                         await this.applyChanges(ticketId, result.payload);
-                        RUMIIdempotency.setProcessedData(ticketId, {
-                            commentId: latestCommentId,
-                            actionType: result.action
-                        });
+                        // Don't mark routing actions as processed - they should process repeatedly
+                        if (!['care', 'hala', 'casablanca'].includes(result.action)) {
+                            RUMIIdempotency.setProcessedData(ticketId, {
+                                commentId: latestCommentId,
+                                actionType: result.action
+                            });
+                        }
                         RUMILogger.info('PROCESSOR', 'Applied changes', { ticketId, action: result.action });
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
@@ -719,14 +711,16 @@
 
                     return { ...result, dryRun: true, ticketData: processedTicketData };
                 } else {
-                    // Always process routing actions, even if alreadyCorrect
-                    const isRoutingAction = ['care', 'hala', 'casablanca'].includes(result.action);
-                    if (isRoutingAction || !alreadyCorrect) {
+                    // Only apply changes if ticket is not already in desired state
+                    if (!alreadyCorrect) {
                         await this.applyChanges(ticketId, result.payload);
-                        RUMIIdempotency.setProcessedData(ticketId, {
-                            commentId: latestCommentId,
-                            actionType: result.action
-                        });
+                        // Don't mark routing actions as processed - they should process repeatedly
+                        if (!['care', 'hala', 'casablanca'].includes(result.action)) {
+                            RUMIIdempotency.setProcessedData(ticketId, {
+                                commentId: latestCommentId,
+                                actionType: result.action
+                            });
+                        }
                         const prefix = isManual ? '[MANUAL]' : '';
                         RUMILogger.info('PROCESSOR', `${prefix} Applied changes`, { ticketId, action: result.action });
                     } else {
@@ -1073,6 +1067,7 @@
             // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
             return { action: 'none' };
         }
+
         static async evaluateSolvedRules(ticket, comments, settings) {
             // Check if solved action type is enabled
             if (!settings.actionTypes.solved) {
@@ -1806,6 +1801,7 @@
             this.set('current_user', user);
         }
     }
+
     // ============================================================================
     // PIN MANAGER
     // ============================================================================
@@ -2302,6 +2298,7 @@
             return new Promise(resolve => setTimeout(resolve, ms));
         }
     }
+
     // ============================================================================
     // MONITORING ENGINE
     // ============================================================================
@@ -2884,9 +2881,11 @@
             }
         }
     }
+
     // ============================================================================
     // UI STYLES
     // ============================================================================
+
     const CSS_STYLES = `
         :root {
             --rumi-bg: #F5F6F7;
@@ -3672,6 +3671,7 @@
         .rumi-custom-select-dropdown::-webkit-scrollbar-thumb:hover {
             background: #9CA3AF;
         }
+
         .rumi-custom-select-option {
             padding: 8px 12px;
             font-size: 12px;
@@ -3686,6 +3686,7 @@
             white-space: nowrap;
             min-width: fit-content;
         }
+
         .rumi-custom-select-option:hover {
             background: #F3F4F6;
             color: var(--rumi-text);
@@ -4471,6 +4472,7 @@
         .rumi-settings-sub-content {
             display: none;
         }
+
         .rumi-settings-sub-content.active {
             display: block;
         }
@@ -4482,11 +4484,13 @@
             height: 24px;
             flex-shrink: 0;
         }
+
         .rumi-toggle-switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .rumi-toggle-slider {
             position: absolute;
             cursor: pointer;
@@ -4893,9 +4897,11 @@
             color: var(--rumi-accent-red);
         }
     `;
+
     // ============================================================================
     // UI HTML TEMPLATE
     // ============================================================================
+
     const HTML_TEMPLATE = `
         <div id="rumi-root" role="application" aria-label="RUMI Automation Tool">
             <!-- Top Bar -->
@@ -5597,6 +5603,7 @@
             </div>
         </div>
     `;
+
     // ============================================================================
     // UI CONTROLLER
     // ============================================================================
@@ -6393,6 +6400,7 @@
             document.querySelector('[data-auto-tab="hala"]').textContent = `Hala/RTA (${counts.hala})`;
             document.querySelector('[data-auto-tab="casablanca"]').textContent = `Casablanca (${counts.casablanca})`;
         }
+
         static updateManualCounters() {
             const stats = RUMIStorage.getManualProcessingStats();
             document.getElementById('rumi-manual-counter-total').textContent = stats.totalProcessed;
@@ -7104,6 +7112,7 @@
                 trigger.nextElementSibling.classList.remove('active');
             });
         }
+
         static setupTableFiltersAndSorting(tableId, tableType, columnMap, allTickets) {
             const table = document.getElementById(tableId)?.closest('.rumi-table');
             if (!table) return;
@@ -8575,6 +8584,7 @@
                 RUMILogger.info('UI', 'Theme applied', { theme });
             }
         }
+
         static generateSettingsContent(mode) {
             const settings = mode === 'automatic' ? RUMIStorage.getAutomaticSettings() : RUMIStorage.getManualSettings();
 
@@ -8911,6 +8921,7 @@
         static addConnection(fromId, toId, label = '') {
             this.connections.push({ from: fromId, to: toId, label });
         }
+
         static async buildTicketPath(ticket, comments) {
             // Build COMPLETE flowchart showing EVERY decision point and edge case
             // Uses ACTUAL processor logic to ensure 100% accuracy
@@ -9695,6 +9706,7 @@
             };
             return colors[type] || '#9CA3AF';
         }
+
         static attachEventListeners() {
             // Zoom controls
             document.getElementById('rumi-visual-rules-zoom-in')?.addEventListener('click', () => this.zoomIn());
