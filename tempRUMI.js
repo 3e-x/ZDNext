@@ -5282,9 +5282,16 @@
         // ============================================================================
 
         let pqmsButton = null;
+        let isSubmittingToPQMS = false; // Flag to prevent duplicate submissions
 
         async function submitToPQMS() {
             try {
+                // Prevent duplicate submissions
+                if (isSubmittingToPQMS) {
+                    console.warn('PQMS: Submission already in progress, ignoring duplicate request');
+                    return;
+                }
+
                 const ticketId = getCurrentTicketId();
                 
                 if (!ticketId) {
@@ -5292,6 +5299,9 @@
                     showPQMSToast('Error: Could not get ticket ID', 'error');
                     return;
                 }
+
+                // Set flag to prevent duplicate submissions
+                isSubmittingToPQMS = true;
 
                 // Show loading state
                 showPQMSToast('Submitting to PQMS...', 'info');
@@ -5361,6 +5371,11 @@
             } catch (error) {
                 console.error('PQMS: Error submitting to PQMS:', error.message);
                 showPQMSToast(`Error: ${error.message}`, 'error');
+            } finally {
+                // Always reset the flag after submission completes
+                setTimeout(() => {
+                    isSubmittingToPQMS = false;
+                }, 2000); // Wait 2 seconds before allowing another submission
             }
         }
 
@@ -5461,21 +5476,25 @@
             const navLists = document.querySelectorAll('ul[data-garden-id="chrome.nav_list"]');
             const navList = navLists[navLists.length - 1];
 
-            if (navList && !globalButton) {
-                const separator = createSeparator();
-                navList.appendChild(separator);
+            if (navList) {
+                // Add toggle button (eye button) if it doesn't exist
+                if (!globalButton) {
+                    const separator = createSeparator();
+                    navList.appendChild(separator);
 
-                // Add toggle button (eye button)
-                globalButton = createToggleButton();
-                const toggleBtn = globalButton.querySelector('button');
-                toggleBtn.addEventListener('click', toggleAllFields);
-                navList.appendChild(globalButton);
+                    globalButton = createToggleButton();
+                    const toggleBtn = globalButton.querySelector('button');
+                    toggleBtn.addEventListener('click', toggleAllFields);
+                    navList.appendChild(globalButton);
+                }
 
-                // Add PQMS button (below the eye button)
-                pqmsButton = createPQMSButton();
-                const pqmsBtn = pqmsButton.querySelector('button');
-                pqmsBtn.addEventListener('click', submitToPQMS);
-                navList.appendChild(pqmsButton);
+                // Add PQMS button (below the eye button) if it doesn't exist
+                if (!pqmsButton) {
+                    pqmsButton = createPQMSButton();
+                    const pqmsBtn = pqmsButton.querySelector('button');
+                    pqmsBtn.addEventListener('click', submitToPQMS);
+                    navList.appendChild(pqmsButton);
+                }
             }
         }
 
