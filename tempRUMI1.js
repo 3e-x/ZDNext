@@ -5310,7 +5310,7 @@
                 const params = new URLSearchParams({
                     'Ticket_ID': ticketId,
                     'SSOC_Reason': 'Felt Unsafe',
-                    'Ticket_Type': 'Non - Critical', // Note: keeping the original typo from PQMS
+                    'Ticket_Type': 'Non - Critical',
                     'Ticket_Status': 'Solved',
                     'Attempts': 'NA',
                     'Escelated': '',
