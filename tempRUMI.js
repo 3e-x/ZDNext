@@ -5277,224 +5277,24 @@
             return separator;
         }
 
-        // ============================================================================
-        // PQMS SUBMISSION
-        // ============================================================================
-
-        let pqmsButton = null;
-        let isSubmittingToPQMS = false; // Flag to prevent duplicate submissions
-
-        async function submitToPQMS() {
-            try {
-                // Prevent duplicate submissions
-                if (isSubmittingToPQMS) {
-                    console.warn('PQMS: Submission already in progress, ignoring duplicate request');
-                    return;
-                }
-
-                const ticketId = getCurrentTicketId();
-                
-                if (!ticketId) {
-                    console.error('PQMS: Could not get current ticket ID');
-                    showPQMSToast('Error: Could not get ticket ID', 'error');
-                    return;
-                }
-
-                // Set flag to prevent duplicate submissions
-                isSubmittingToPQMS = true;
-
-                // Show loading state
-                showPQMSToast('Submitting to PQMS...', 'info');
-
-                // Prepare the parameters exactly as the PQMS system expects
-                const params = new URLSearchParams({
-                    'Ticket_ID': ticketId,
-                    'SSOC_Reason': 'Felt Unsafe',
-                    'Ticket_Type': 'Non - Crtical', // Note: keeping the original typo from PQMS
-                    'Ticket_Status': 'Solved',
-                    'Attempts': 'NA',
-                    'Escelated': '',
-                    'Follow_Up': '',
-                    'Comments': '',
-                    'username': '45724', // Default username from PQMS
-                    'name': 'Zendesk Automation'
-                });
-
-                const url = `https://pqms05.extensya.com/Careem/ticket/submit_SSOC_ticket.php?${params.toString()}`;
-
-                // CORS workaround: Use hidden iframe to submit
-                // This bypasses CORS restrictions by loading the URL directly
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = 'none';
-                
-                // Set up load handler to detect success
-                let loadTimeout;
-                const loadPromise = new Promise((resolve, reject) => {
-                    iframe.onload = () => {
-                        clearTimeout(loadTimeout);
-                        resolve();
-                    };
-                    iframe.onerror = () => {
-                        clearTimeout(loadTimeout);
-                        reject(new Error('Failed to load PQMS endpoint'));
-                    };
-                    // Timeout after 10 seconds
-                    loadTimeout = setTimeout(() => {
-                        reject(new Error('Request timeout'));
-                    }, 10000);
-                });
-
-                document.body.appendChild(iframe);
-                iframe.src = url;
-
-                try {
-                    await loadPromise;
-                    console.log(`PQMS: Successfully submitted ticket ${ticketId}`);
-                    showPQMSToast(`✓ Ticket ${ticketId} submitted to PQMS`, 'success');
-                } catch (loadError) {
-                    // Even if we can't detect success, the request was sent
-                    // This is because CORS prevents us from reading the response
-                    console.warn(`PQMS: Request sent for ticket ${ticketId} (response hidden by CORS)`);
-                    showPQMSToast(`→ Ticket ${ticketId} sent to PQMS`, 'info');
-                } finally {
-                    // Remove iframe after a short delay
-                    setTimeout(() => {
-                        if (iframe && iframe.parentNode) {
-                            iframe.parentNode.removeChild(iframe);
-                        }
-                    }, 1000);
-                }
-
-            } catch (error) {
-                console.error('PQMS: Error submitting to PQMS:', error.message);
-                showPQMSToast(`Error: ${error.message}`, 'error');
-            } finally {
-                // Always reset the flag after submission completes
-                setTimeout(() => {
-                    isSubmittingToPQMS = false;
-                }, 2000); // Wait 2 seconds before allowing another submission
-            }
-        }
-
-        function showPQMSToast(message, type = 'info') {
-            // Create toast notification
-            const toast = document.createElement('div');
-            toast.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 15px 20px;
-                background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-                color: white;
-                border-radius: 5px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                z-index: 10000;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                font-size: 14px;
-                max-width: 400px;
-                animation: slideIn 0.3s ease-out;
-            `;
-            toast.textContent = message;
-
-            // Add animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-
-            document.body.appendChild(toast);
-
-            // Remove after 3 seconds
-            setTimeout(() => {
-                toast.style.animation = 'slideIn 0.3s ease-out reverse';
-                setTimeout(() => {
-                    toast.remove();
-                    style.remove();
-                }, 300);
-            }, 3000);
-        }
-
-        // SVG icon for PQMS button (upload/send icon)
-        const pqmsSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-        </svg>`;
-
-        function createPQMSButton() {
-            const listItem = document.createElement('li');
-            listItem.className = 'nav-list-item';
-
-            const button = document.createElement('button');
-            button.className = 'pqms-button StyledBaseNavItem-sc-zvo43f-0 StyledNavButton-sc-f5ux3-0 gvFgbC dXnFqH';
-            button.setAttribute('tabindex', '0');
-            button.setAttribute('data-garden-id', 'chrome.nav_button');
-            button.setAttribute('data-garden-version', '9.5.2');
-            button.setAttribute('title', 'Submit to PQMS as "Felt Unsafe"');
-
-            const iconWrapper = document.createElement('div');
-            iconWrapper.style.display = 'flex';
-            iconWrapper.style.alignItems = 'center';
-
-            const icon = document.createElement('div');
-            icon.innerHTML = pqmsSVG;
-            icon.firstChild.setAttribute('width', '26');
-            icon.firstChild.setAttribute('height', '26');
-            icon.firstChild.setAttribute('data-garden-id', 'chrome.nav_item_icon');
-            icon.firstChild.setAttribute('data-garden-version', '9.5.2');
-            icon.firstChild.classList.add('StyledBaseIcon-sc-1moykgb-0', 'StyledNavItemIcon-sc-7w9rpt-0', 'eWlVPJ', 'YOjtB');
-
-            const text = document.createElement('span');
-            text.textContent = 'Submit PQMS';
-            text.className = 'StyledNavItemText-sc-13m84xl-0 iOGbGR';
-            text.setAttribute('data-garden-id', 'chrome.nav_item_text');
-            text.setAttribute('data-garden-version', '9.5.2');
-
-            iconWrapper.appendChild(icon);
-            iconWrapper.appendChild(text);
-            button.appendChild(iconWrapper);
-            listItem.appendChild(button);
-
-            return listItem;
-        }
-
         // Try to add the hide/show button to the navigation
         function tryAddToggleButton() {
             const navLists = document.querySelectorAll('ul[data-garden-id="chrome.nav_list"]');
             const navList = navLists[navLists.length - 1];
 
-            if (navList) {
-                // Add toggle button (eye button) if it doesn't exist
-                if (!globalButton) {
-                    const separator = createSeparator();
-                    navList.appendChild(separator);
+            if (navList && !globalButton) {
+                const separator = createSeparator();
+                navList.appendChild(separator);
 
-                    globalButton = createToggleButton();
-                    const toggleBtn = globalButton.querySelector('button');
-                    toggleBtn.addEventListener('click', toggleAllFields);
-                    navList.appendChild(globalButton);
-                }
+                const customSection = document.createElement('div');
+                customSection.className = 'custom-nav-section';
 
-                // Add PQMS button (below the eye button) if it doesn't exist
-                if (!pqmsButton) {
-                    pqmsButton = createPQMSButton();
-                    const pqmsBtn = pqmsButton.querySelector('button');
-                    pqmsBtn.addEventListener('click', submitToPQMS);
-                    navList.appendChild(pqmsButton);
-                }
+                globalButton = createToggleButton();
+                const button = globalButton.querySelector('button');
+                button.addEventListener('click', toggleAllFields);
+                customSection.appendChild(globalButton);
+
+                navList.appendChild(customSection);
             }
         }
 
