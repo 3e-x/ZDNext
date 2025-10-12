@@ -5317,7 +5317,7 @@
                     'Follow_Up': '',
                     'Comments': '',
                     'username': '45724', // Default username from PQMS
-                    'name': 'Zendesk Automation'
+                    'name': 'Alabbas Ibrahim Abdo Dabajeh'
                 });
 
                 const url = `https://pqms05.extensya.com/Careem/ticket/submit_SSOC_ticket.php?${params.toString()}`;
