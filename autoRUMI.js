@@ -971,19 +971,13 @@
                 return { action: 'none' };
             }
 
-            // Pending status - USE trace-back logic (different from care routing)
-            // Status changes (pending/solved) should use trace-back because if agent sets pending and customer replies, it should still go pending
-            const commentToCheck = await this.findCommentToCheck(comments);
-            if (!commentToCheck) {
-                return { action: 'none' };
-            }
+            // Pending routing - ONLY check latest comment (no trace-back)
+            // SOLID RULE: Routing operations if the reason is a comment trigger only works if the trigger is in the latest comment
+            if (comments.length > 0) {
+                const latestComment = comments[comments.length - 1];
+                const triggerResult = await this.checkCommentForTriggers(latestComment, settings);
 
-            // Check if the found comment has any triggers
-            const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
-
-            // If comment has a trigger, process it based on type
-            if (triggerResult) {
-                if (triggerResult.type === 'pending') {
+                if (triggerResult && triggerResult.type === 'pending') {
                     const viewId = RUMIUI.viewsMap.get(viewName);
                     const specialViewIds = ['360069695114', '360000843468'];
                     const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
@@ -1005,49 +999,8 @@
                         payload: payload
                     };
                 }
-                // If it has other triggers (solved/care), those are handled by other rule evaluators
-                return { action: 'none' };
             }
 
-            // No triggers found in commentToCheck
-            // Check if commentToCheck is internal (private) - if so, check one comment before
-            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-
-                if (commentIndex > 0) {
-                    const precedingComment = comments[commentIndex - 1];
-
-                    // Check if preceding is from CAREEM_CARE_ID
-                    if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
-                        if (precedingTriggerResult && precedingTriggerResult.type === 'pending') {
-                            const viewId = RUMIUI.viewsMap.get(viewName);
-                            const specialViewIds = ['360069695114', '360000843468'];
-                            const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
-                            const payload = {
-                                ticket: {
-                                    status: 'pending',
-                                    assignee_id: CONFIG.CAREEM_CARE_ID
-                                }
-                            };
-
-                            if (shouldSetPriorityNormal) {
-                                payload.ticket.priority = 'normal';
-                            }
-
-                            return {
-                                action: 'pending',
-                                trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
-                                payload: payload
-                            };
-                        }
-                    }
-                }
-            }
-
-            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
             return { action: 'none' };
         }
 
@@ -1058,41 +1011,15 @@
                 return { action: 'none' };
             }
 
-            // Solved status - USE trace-back logic (different from care routing)
-            // Status changes (pending/solved) should use trace-back because if agent sets solved and customer replies, it should still go solved/pending
-            const commentToCheck = await this.findCommentToCheck(comments);
-            if (!commentToCheck) {
-                return { action: 'none' };
-            }
+            // Solved routing - ONLY check latest comment (no trace-back)
+            // SOLID RULE: Routing operations if the reason is a comment trigger only works if the trigger is in the latest comment
+            if (comments.length > 0) {
+                const latestComment = comments[comments.length - 1];
+                const triggerResult = await this.checkCommentForTriggers(latestComment, settings);
 
-            // Check if latest comment is from end-user (for traceback detection)
-            const latestComment = comments[comments.length - 1];
-            const latestAuthor = await this.getUserRole(latestComment.author_id);
-            const isTracedBackFromEndUser = latestAuthor.isEndUser && commentToCheck.id !== latestComment.id;
-
-            // Check if the found comment has any triggers
-            const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
-
-            // If comment has a trigger, process it based on type
-            if (triggerResult) {
-                if (triggerResult.type === 'solved') {
+                if (triggerResult && triggerResult.type === 'solved') {
                     const userId = await this.ensureCurrentUserId();
 
-                    // If traced back from end-user comment, set to pending instead of solved
-                    if (isTracedBackFromEndUser) {
-                        return {
-                            action: 'pending',
-                            trigger: `end-user comment after: ${triggerResult.trigger.substring(0, 500)}${triggerResult.trigger.length > 500 ? '...' : ''}`,
-                            payload: {
-                                ticket: {
-                                    status: 'pending',
-                                    assignee_id: CONFIG.CAREEM_CARE_ID
-                                }
-                            }
-                        };
-                    }
-
-                    // Otherwise, set to solved as normal
                     return {
                         action: 'solved',
                         trigger: triggerResult.trigger.substring(0, 500) + (triggerResult.trigger.length > 500 ? '...' : ''),
@@ -1104,84 +1031,9 @@
                         }
                     };
                 }
-                // If it has other triggers (pending/care), those are handled by other rule evaluators
-                return { action: 'none' };
             }
 
-            // No triggers found in commentToCheck
-            // Check if commentToCheck is internal (private) - if so, check one comment before
-            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-
-                if (commentIndex > 0) {
-                    const precedingComment = comments[commentIndex - 1];
-
-                    // Check if preceding is from CAREEM_CARE_ID
-                    if (precedingComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
-                        if (precedingTriggerResult && precedingTriggerResult.type === 'solved') {
-                            const userId = await this.ensureCurrentUserId();
-
-                            // If traced back from end-user comment, set to pending instead of solved
-                            if (isTracedBackFromEndUser) {
-                                return {
-                                    action: 'pending',
-                                    trigger: `end-user comment after: Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
-                                    payload: {
-                                        ticket: {
-                                            status: 'pending',
-                                            assignee_id: CONFIG.CAREEM_CARE_ID
-                                        }
-                                    }
-                                };
-                            }
-
-                            // Otherwise, set to solved as normal
-                            return {
-                                action: 'solved',
-                                trigger: `Preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
-                                payload: {
-                                    ticket: {
-                                        status: 'solved',
-                                        assignee_id: userId
-                                    }
-                                }
-                            };
-                        }
-                    }
-                }
-            }
-
-            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
             return { action: 'none' };
-        }
-
-        static async findCommentToCheck(comments) {
-            if (comments.length === 0) return null;
-
-            const latestComment = comments[comments.length - 1];
-            const latestAuthor = await this.getUserRole(latestComment.author_id);
-
-            // Case A: Latest comment is from end-user - trace back to find first CAREEM_CARE_ID comment
-            if (latestAuthor.isEndUser) {
-                const startIndex = Math.max(0, comments.length - CONFIG.TRACE_BACK_COMMENT_LIMIT);
-                for (let i = comments.length - 2; i >= startIndex; i--) {
-                    const comment = comments[i];
-                    if (comment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                        return comment;
-                    }
-                }
-                return null;
-            }
-
-            // Case B & C: Latest comment is from CAREEM_CARE_ID
-            if (latestComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
-                return latestComment;
-            }
-
-            // Latest comment is from another agent (not end-user, not CAREEM_CARE_ID)
-            return null;
         }
 
         static async checkCommentForTriggers(comment, settings) {
@@ -9058,15 +8910,8 @@
 
                 if (latestAuthor.isEndUser) {
                     latestCommenter = 'END-USER';
-                    // Trace back to find first CAREEM_CARE_ID comment (for pending/solved triggers)
-                    globalCommentToCheck = await RUMIProcessor.findCommentToCheck(comments);
-                    if (globalCommentToCheck) {
-                        const commentIndex = comments.findIndex(c => c.id === globalCommentToCheck.id);
-                        const commentType = globalCommentToCheck.public ? 'Public' : 'Internal';
-                        commentToCheckInfo = `Traced back to Comment #${commentIndex + 1} (${commentType}) for Pending/Solved`;
-                    } else {
-                        commentToCheckInfo = 'Traced back: No CAREEM_CARE_ID found in last 50';
-                    }
+                    globalCommentToCheck = latestComment;
+                    commentToCheckInfo = `Checking latest comment only (no trace-back)`;
                 } else if (latestComment.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                     latestCommenter = 'CAREEM_CARE_ID';
                     globalCommentToCheck = latestComment;
@@ -9074,7 +8919,8 @@
                     commentToCheckInfo = `Using latest (${commentType} comment)`;
                 } else {
                     latestCommenter = 'OTHER AGENT';
-                    commentToCheckInfo = 'No action (not end-user or CAREEM_CARE_ID)';
+                    globalCommentToCheck = latestComment;
+                    commentToCheckInfo = 'Checking latest comment only';
                 }
             }
 
@@ -9086,7 +8932,7 @@
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: `Latest commenter: ${latestCommenter}\n${commentToCheckInfo}\n\nNOTE: Care routing = LATEST comment only\nPending/Solved = Uses trace-back`,
+                description: `Latest commenter: ${latestCommenter}\n${commentToCheckInfo}\nUsed by: Care/Pending/Solved checks`,
                 enabled: true
             });
             this.addConnection(lastNodeId, 'comment-analysis', 'Analyze comments');
@@ -9094,25 +8940,24 @@
             currentRow++;
 
             // ============================================================================
-            // PRIORITY 4: Check #notsafety / care routing phrases (LATEST COMMENT ONLY)
+            // PRIORITY 4: Check #notsafety / care routing phrases (latest comment only)
             // ============================================================================
             let carePhrase = null;
             let careCommentDescription = '';
             
-            // SOLID RULE: Care routing ONLY checks latest comment (no trace-back)
-            // This is different from pending/solved which use trace-back logic
+            // SOLID RULE: Only check latest comment for routing triggers
             if (comments.length > 0) {
                 const latestComment = comments[comments.length - 1];
                 const careTriggerResult = await RUMIProcessor.checkCommentForTriggers(latestComment, settings);
 
                 if (careTriggerResult && careTriggerResult.type === 'care') {
                     carePhrase = careTriggerResult.trigger;
-                    careCommentDescription = `✓ Found in LATEST comment: ${careTriggerResult.trigger}`;
-                } else {
-                    careCommentDescription = '✗ No Care routing triggers in LATEST comment (no trace-back for routing)';
+                    careCommentDescription = `Trigger: ${careTriggerResult.trigger}`;
                 }
-            } else {
-                careCommentDescription = 'No comments';
+            }
+
+            if (!carePhrase) {
+                careCommentDescription = 'No Care routing triggers found in latest comment';
             }
 
             this.addNode({
