@@ -57,11 +57,12 @@
     class RUMIRules {
         static PENDING_TRIGGERS = [
             // ESCALATION & INTERNAL TRANSFER (English)
-            "we have directed this matter to the most appropriate support team",
-            "we have escalated this matter to a specialized support team",
-            "we've escalated this issue to a dedicated support team",
-            "we have escalated this to a specialized support team",
-            "we have escalated this to a specialised support team",
+            "directed this matter to the most appropriate support team",
+            "escalated this matter to a specialized support team",
+            "escalated this matter to a specialised support team",
+            "escalated this issue to a dedicated support team",
+            "escalated this to a specialized support team",
+            "escalated this to a specialised support team",
             "have escalated your issue to a specialized team to review this further",
             "a member of our team will be in touch with you shortly",
             "we've forwarded this issue to a specialized support team",
@@ -78,6 +79,7 @@
             "فريق دعم متخصص سيتواصل معك في أقرب وقت ممكن",
             "لقد قمنا بتحويل ملاحظتك إلى الفريق المختص لمتابعتها واتخاذ اللازم",
             "لقد قمنا بتصعيد هذا الأمر إلى فريق دعم متخصص",
+            "بمجرد حصولنا على تحديث سنتواصل معك مرة أخرى",
 
             // REQUESTING MORE INFORMATION (English)
             "we want you to provide us with more information about what happened",
@@ -153,6 +155,7 @@
             "وسنتابع الأمر مع السائق، لاتخاذ الإجراءات الداخلية المناسبة",
             "سنتابع الأمر مع الشريك السائق ونتخذ الإجراءات الملائمة",
             "وسنتابع الأمر مع الشريك السائق ونتّخذ الإجراءات المناسبة",
+            "وسنتخذ الإجراءات الداخلية الملائمة بحق السائق المتورط في الأمر",
 
             // SAFETY & PRECAUTIONARY MEASURES (English)
             "to try to ensure the experience you describe can't happen again",
@@ -172,6 +175,7 @@
 
             // INTERNAL PROCESS / STATUS UPDATES (Arabic)
             "وسوف يقوم أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى بخصوص استفسارك في أقرب وقت ممكن",
+            "سوف يتم الرد على إستفسارك في رسالة أخرى من الفريق المختص",
             "ومن ثم، سنغلق تذكرة الدعم الحالية لتسهيل التواصل وتجنب أي التباس",
             "يمكننا الرد على أي استفسارات حول هذا الأمر في أي وقت",
             "لنمنح الركاب تجربة خالية من المتاعب حتى يتمكنوا من إجراء مشوار في أقرب وقت ممكن",
@@ -182,6 +186,7 @@
             "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
             "بالتواصل معك بخصوص استفسارك من خلال رسالة أخرى",
             "ويسعدنا معرفة أنه قد تم حل المشكلة",
+            "سوف يتم الرد على إستفسارك في رسالة أخرى من الفريق المختص",
 
             // INTERNAL CODES & REFERENCES
             "pb",
