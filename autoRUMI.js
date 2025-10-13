@@ -175,6 +175,7 @@
             // SAFETY & PRECAUTIONARY MEASURES (Arabic)
             "قد أجرينا أيضا بعض التغييرات في التطبيق للتقليل من فرص",
             "إذا تمت مطابقتك مرة أخرى، يرجى إلغاء الرحلة والتواصل معنا من خلال التطبيق",
+            "لذلك قمنا بإعادة قيمة أجرة هذه الرحلة",
             // INTERNAL PROCESS / STATUS UPDATES (English)
             "it looks like you've already raised a similar concern for this trip that our support team has resolved",
             "will be handled by one of our specialized teams through another message soon",
