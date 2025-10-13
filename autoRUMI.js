@@ -122,6 +122,12 @@
             "https://uber.lighthouse-cloud.com",
             "https://apps.mypurecloud.ie",
             "call attempt",
+            "first call",
+            "second call",
+            "third call",
+            "1st call",
+            "2nd call",
+            "3rd call",
             "more info",
             "#safety"
         ];
