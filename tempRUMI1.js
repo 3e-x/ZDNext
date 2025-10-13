@@ -8121,19 +8121,10 @@
         let viewsAreHidden = false;
         const essentialViews = [
             'SSOC - Open - Urgent',
-            'SSOC - Pending - Urgent',
             'SSOC - GCC & EM Open',
-            'SSOC - GCC & EM Pending',
             'SSOC - Egypt Urgent',
             'SSOC - Egypt Open',
-            'SSOC - Egypt Pending',
             'SSOC_JOD_from ZD only',
-            'KSA Safety & Security Tickets',
-            'KSA Safety & Security Tickets - New & Open',
-            'KSA Safety & Security Tickets - On-hold & Pending',
-            'Non-Uber Tickets routing to L1',
-            'Autoclosure of warning sent - uber tickets',
-            'UAE Safety & Security Tickets'
         ];
 
         function createViewsToggleButton() {
