@@ -113,6 +113,7 @@
             "ف انتظار ردك",
             "ننتظر ردك",
             "في انتظار الرد",
+            "سنكون بانتظار ردك",
 
             // INTERNAL NOTES/ACTIONS & CODES
             "emea urgent triage team zzzdut",
