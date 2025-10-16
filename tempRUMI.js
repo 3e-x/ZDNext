@@ -3461,35 +3461,41 @@
 
 
         // Username management
-        function promptForUsername() {
-            return new Promise((resolve) => {
+        async function getUsernameFromAPI() {
+            try {
+                // Check if we have a stored username first
                 const storedUsername = localStorage.getItem('zendesk_agent_username');
                 if (storedUsername && storedUsername.trim()) {
                     username = storedUsername.trim();
                     console.log(`🔐 Agent name loaded from storage: ${username}`);
-                    resolve(username);
-                    return;
+                    return username;
                 }
 
-                // Try to extract username from current Zendesk session
-                const navButton = document.querySelector('button[data-test-id="header-profile-menu-button"]');
-                if (navButton) {
-                    const nameElement = navButton.querySelector('span[data-garden-id="typography.ellipsis"]');
-                    if (nameElement && nameElement.textContent.trim()) {
-                        const name = nameElement.textContent.trim();
-                        username = name;
-                        localStorage.setItem('zendesk_agent_username', username);
-                        console.log(`🔐 Agent name extracted and stored: ${username}`);
-                        resolve(username);
-                        return;
-                    }
+                // Fetch username from API
+                console.log('🔐 Fetching username from API...');
+                const response = await fetch('/api/v2/users/me.json');
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
                 }
 
-                // Set default username if automatic extraction fails (no prompt needed)
+                const data = await response.json();
+
+                if (data && data.user && data.user.name) {
+                    username = data.user.name.trim();
+                    localStorage.setItem('zendesk_agent_username', username);
+                    console.log(`🔐 Agent name fetched from API and stored: ${username}`);
+                    return username;
+                } else {
+                    throw new Error('User name not found in API response');
+                }
+            } catch (error) {
+                console.error('❌ Error fetching username from API:', error);
+                // Set default username if API call fails
                 username = 'Agent';
                 console.log(`🔐 Using default agent name: ${username}`);
-                resolve(username);
-            });
+                return username;
+            }
         }
 
         // Fast single-attempt dropdown setter
@@ -4242,7 +4248,14 @@
             }
 
             // Generate duplicate template text
-            const templateText = 'This ticket is duplicated, Refer to ticket #';
+            const templateText = `Dear team,
+
+We Have Escalated this case to Uber. Please refer to ticket #
+
+Regards,
+**${username}**
+Safety & Security Operations Team
+`;
 
             // Copy to clipboard
             navigator.clipboard.writeText(templateText)
@@ -4403,8 +4416,7 @@
                 existingInput.remove();
             }
 
-            const input = document.createElement('input');
-            input.type = 'text';
+            const input = document.createElement('textarea');
             input.className = 'rumi-text-input';
             input.style.cssText = `
                 position: absolute;
@@ -4417,6 +4429,8 @@
                 margin-left: 35px;
                 z-index: 1000;
                 background: white;
+                resize: none;
+                overflow: hidden;
             `;
             input.placeholder = '';
             input.title = 'Paste customer text here';
@@ -5277,24 +5291,1325 @@
             return separator;
         }
 
+        // ============================================================================
+        // PQMS SUBMISSION
+        // ============================================================================
+
+        let pqmsButton = null;
+        let isSubmittingToPQMS = false; // Flag to prevent duplicate submissions
+
+        async function submitToPQMS(ticketStatus = 'Solved') {
+            // Wrap everything in try-catch to prevent ANY submission if errors occur
+            try {
+                // Prevent duplicate submissions
+                if (isSubmittingToPQMS) {
+                    console.warn('PQMS: Submission already in progress, ignoring duplicate request');
+                    showPQMSToast('Error: A submission is already in progress', 'error');
+                    return;
+                }
+
+                // ============================================================
+                // VALIDATION PHASE - NO SUBMISSION IF ANY VALIDATION FAILS
+                // ============================================================
+
+                // Validation 1: Check Ticket ID
+                const ticketId = getCurrentTicketId();
+
+                if (!ticketId || ticketId === '' || ticketId === null || ticketId === undefined) {
+                    console.error('PQMS VALIDATION FAILED: Invalid or missing Ticket ID');
+                    showPQMSToast('Error: Could not get valid Ticket ID', 'error');
+                    return;
+                }
+
+                // Validate Ticket ID format (should be numeric)
+                if (!/^\d+$/.test(ticketId.toString())) {
+                    console.error('PQMS VALIDATION FAILED: Ticket ID is not numeric:', ticketId);
+                    showPQMSToast('Error: Invalid Ticket ID format', 'error');
+                    return;
+                }
+
+                // Validation 2: Check Ticket Status
+                const validStatuses = ['Open', 'Pending', 'Solved'];
+                if (!validStatuses.includes(ticketStatus)) {
+                    console.error('PQMS VALIDATION FAILED: Invalid ticket status:', ticketStatus);
+                    showPQMSToast(`Error: Invalid ticket status "${ticketStatus}". Must be Open, Pending, or Solved`, 'error');
+                    return;
+                }
+
+                // Validation 3: Get and validate selected user
+                const selectedUser = getPQMSSelectedUser();
+
+                if (!selectedUser || !selectedUser.opsId || !selectedUser.name) {
+                    console.error('PQMS VALIDATION FAILED: No user selected or user data incomplete');
+                    showPQMSToast('Error: Please select an OPS ID in the dashboard first', 'error');
+                    return;
+                }
+
+                // Validation 4: Verify OPS ID exists in database
+                if (!PQMS_USERS[selectedUser.opsId]) {
+                    console.error('PQMS VALIDATION FAILED: OPS ID not found in database:', selectedUser.opsId);
+                    showPQMSToast(`Error: Invalid OPS ID "${selectedUser.opsId}"`, 'error');
+                    return;
+                }
+
+                // Validation 5: Verify Name matches the OPS ID in database
+                const expectedName = PQMS_USERS[selectedUser.opsId];
+                if (selectedUser.name !== expectedName) {
+                    console.error('PQMS VALIDATION FAILED: Name mismatch for OPS ID', selectedUser.opsId);
+                    console.error('Expected:', expectedName);
+                    console.error('Got:', selectedUser.name);
+                    showPQMSToast(`Error: Name mismatch for OPS ID ${selectedUser.opsId}`, 'error');
+                    return;
+                }
+
+                // Validation 6: Additional safety checks
+                if (typeof ticketId !== 'string' && typeof ticketId !== 'number') {
+                    console.error('PQMS VALIDATION FAILED: Ticket ID has invalid type:', typeof ticketId);
+                    showPQMSToast('Error: Ticket ID type validation failed', 'error');
+                    return;
+                }
+
+                // ============================================================
+                // ALL VALIDATIONS PASSED - PROCEED WITH SUBMISSION
+                // ============================================================
+
+                console.log('PQMS: All validations passed ✓');
+                console.log('PQMS: Ticket ID:', ticketId);
+                console.log('PQMS: Status:', ticketStatus);
+                console.log('PQMS: OPS ID:', selectedUser.opsId);
+                console.log('PQMS: Name:', selectedUser.name);
+
+                // Set flag to prevent duplicate submissions
+                isSubmittingToPQMS = true;
+
+                // Show loading state
+                showPQMSToast('Submitting to PQMS...', 'info');
+
+                // Prepare the parameters exactly as the PQMS system expects
+                const params = new URLSearchParams({
+                    'Ticket_ID': ticketId.toString(),
+                    'SSOC_Reason': 'Felt Unsafe',
+                    'Ticket_Type': 'Non - Critical',
+                    'Ticket_Status': ticketStatus,
+                    'Attempts': 'NA',
+                    'Escelated': '',
+                    'Follow_Up': '',
+                    'Comments': '',
+                    'username': selectedUser.opsId,
+                    'name': selectedUser.name
+                });
+
+                const url = `https://pqms05.extensya.com/Careem/ticket/submit_SSOC_ticket.php?${params.toString()}`;
+
+                // CORS workaround: Use hidden iframe to submit
+                // This bypasses CORS restrictions by loading the URL directly
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+
+                // Set up load handler to detect success
+                let loadTimeout;
+                const loadPromise = new Promise((resolve, reject) => {
+                    iframe.onload = () => {
+                        clearTimeout(loadTimeout);
+                        resolve();
+                    };
+                    iframe.onerror = () => {
+                        clearTimeout(loadTimeout);
+                        reject(new Error('Failed to load PQMS endpoint'));
+                    };
+                    // Timeout after 10 seconds
+                    loadTimeout = setTimeout(() => {
+                        reject(new Error('Request timeout'));
+                    }, 10000);
+                });
+
+                document.body.appendChild(iframe);
+                iframe.src = url;
+
+                try {
+                    await loadPromise;
+                    console.log(`PQMS: Successfully submitted ticket ${ticketId} as ${ticketStatus}`);
+                    showPQMSToast(`✓ Ticket ${ticketId} submitted to PQMS as ${ticketStatus}`, 'success');
+
+                    // Fetch ticket data and save to history
+                    fetchTicketData(ticketId).then(({ subject, groupName }) => {
+                        savePQMSSubmission(ticketId, subject, groupName, ticketStatus);
+                        console.log('PQMS: Submission saved to history');
+                    }).catch(err => {
+                        console.error('PQMS: Failed to save submission to history', err);
+                    });
+                } catch (loadError) {
+                    // Even if we can't detect success, the request was sent
+                    // This is because CORS prevents us from reading the response
+                    console.warn(`PQMS: Request sent for ticket ${ticketId} as ${ticketStatus} (response hidden by CORS)`);
+                    showPQMSToast(`→ Ticket ${ticketId} sent to PQMS as ${ticketStatus}`, 'info');
+
+                    // Still save to history even if we can't confirm
+                    fetchTicketData(ticketId).then(({ subject, groupName }) => {
+                        savePQMSSubmission(ticketId, subject, groupName, ticketStatus);
+                        console.log('PQMS: Submission saved to history');
+                    }).catch(err => {
+                        console.error('PQMS: Failed to save submission to history', err);
+                    });
+                } finally {
+                    // Remove iframe after a short delay
+                    setTimeout(() => {
+                        if (iframe && iframe.parentNode) {
+                            iframe.parentNode.removeChild(iframe);
+                        }
+                    }, 1000);
+                }
+
+            } catch (error) {
+                // Catch ANY unexpected error and prevent submission
+                console.error('PQMS CRITICAL ERROR: Submission aborted due to unexpected error:', error);
+                console.error('Error details:', error.message, error.stack);
+                showPQMSToast(`Error: Submission failed - ${error.message}`, 'error');
+
+                // Ensure no iframe was created in case of error
+                const existingIframe = document.querySelector('iframe[src*="pqms05.extensya.com"]');
+                if (existingIframe && existingIframe.parentNode) {
+                    existingIframe.parentNode.removeChild(existingIframe);
+                }
+            } finally {
+                // Always reset the flag after submission completes or fails
+                setTimeout(() => {
+                    isSubmittingToPQMS = false;
+                }, 2000); // Wait 2 seconds before allowing another submission
+            }
+        }
+
+        function showPQMSToast(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                background-color: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+                color: white;
+                border-radius: 5px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease-out;
+            `;
+            toast.textContent = message;
+
+            // Add animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            document.body.appendChild(toast);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => {
+                    toast.remove();
+                    style.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // ============================================================================
+        // PQMS USER SETTINGS
+        // ============================================================================
+
+        // User database
+        const PQMS_USERS = {
+            '45724': 'Alabbas Ibrahim Abdo Dabajeh',
+            '22529': 'Diya Jalal Abdel Hadi Mallah',
+            '42727': 'Omar Mohammad Amin Yousef Hazaymeh',
+            '40268': 'Nader Mohammad Qasim Abujalil',
+            '37862': 'Husam Ahmad Ibrahim Alnajy',
+            '32951': 'Bader Alzoubi',
+           // '00000': 'Ammar Ibrahim Mohammad Bani hamad',
+            '47968': 'Mohanad Bani Mostafa'
+        };
+
+        // Storage key for selected user
+        const PQMS_USER_STORAGE_KEY = 'pqms_selected_user';
+        const PQMS_HISTORY_STORAGE_KEY = 'pqms_submission_history';
+
+        // Get submission history from localStorage
+        function getPQMSHistory() {
+            const saved = localStorage.getItem(PQMS_HISTORY_STORAGE_KEY);
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error('PQMS: Error parsing history', e);
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // Save submission to history
+        function savePQMSSubmission(ticketId, ticketSubject, groupName, status) {
+            const history = getPQMSHistory();
+            const submission = {
+                ticketId,
+                ticketSubject,
+                groupName,
+                status,
+                timestamp: new Date().toISOString(),
+                submittedBy: getPQMSSelectedUser()?.name || 'Unknown'
+            };
+
+            // Add to beginning of array
+            history.unshift(submission);
+
+            // Keep only last 100 submissions
+            if (history.length > 100) {
+                history.splice(100);
+            }
+
+            localStorage.setItem(PQMS_HISTORY_STORAGE_KEY, JSON.stringify(history));
+        }
+
+        // Get current selected user from localStorage
+        function getPQMSSelectedUser() {
+            const saved = localStorage.getItem(PQMS_USER_STORAGE_KEY);
+            if (saved) {
+                try {
+                    const userData = JSON.parse(saved);
+                    // Validate that the user still exists in our database
+                    if (PQMS_USERS[userData.opsId]) {
+                        return userData;
+                    }
+                } catch (e) {
+                    console.error('PQMS: Error parsing saved user data', e);
+                }
+            }
+            return null;
+        }
+
+        // Save selected user to localStorage
+        function savePQMSSelectedUser(opsId, name) {
+            const userData = { opsId, name };
+            localStorage.setItem(PQMS_USER_STORAGE_KEY, JSON.stringify(userData));
+        }
+
+        // Clear selected user
+        function clearPQMSSelectedUser() {
+            localStorage.removeItem(PQMS_USER_STORAGE_KEY);
+        }
+
+        // Fetch ticket subject from Zendesk API
+        async function fetchTicketSubject(ticketId) {
+            try {
+                const response = await fetch(`/api/v2/tickets/${ticketId}.json`);
+                if (!response.ok) throw new Error('Failed to fetch ticket');
+                const data = await response.json();
+                return data.ticket.subject || 'Unknown Subject';
+            } catch (error) {
+                console.error('PQMS: Error fetching ticket subject:', error);
+                return 'Unknown Subject';
+            }
+        }
+
+        // Fetch group name from Zendesk API
+        async function fetchGroupName(groupId) {
+            try {
+                if (!groupId) return 'No Group';
+                const response = await fetch(`/api/v2/groups/${groupId}.json`);
+                if (!response.ok) throw new Error('Failed to fetch group');
+                const data = await response.json();
+                return data.group.name || 'Unknown Group';
+            } catch (error) {
+                console.error('PQMS: Error fetching group name:', error);
+                return 'Unknown Group';
+            }
+        }
+
+        // Fetch ticket data (subject and group)
+        async function fetchTicketData(ticketId) {
+            try {
+                const response = await fetch(`/api/v2/tickets/${ticketId}.json`);
+                if (!response.ok) throw new Error('Failed to fetch ticket');
+                const data = await response.json();
+
+                const subject = data.ticket.subject || 'Unknown Subject';
+                const groupId = data.ticket.group_id;
+
+                // Fetch group name if group_id exists
+                let groupName = 'No Group';
+                if (groupId) {
+                    groupName = await fetchGroupName(groupId);
+                }
+
+                return { subject, groupName };
+            } catch (error) {
+                console.error('PQMS: Error fetching ticket data:', error);
+                return { subject: 'Unknown Subject', groupName: 'Unknown Group' };
+            }
+        }
+
+        // ============================================================================
+        // PQMS DASHBOARD
+        // ============================================================================
+
+        function togglePQMSDashboard() {
+            const existingDashboard = document.getElementById('pqms-dashboard');
+
+            if (existingDashboard) {
+                // Toggle visibility
+                if (existingDashboard.style.display === 'none') {
+                    existingDashboard.style.display = 'flex';
+                } else {
+                    existingDashboard.style.display = 'none';
+                }
+                return;
+            }
+
+            // Create new dashboard
+            createPQMSDashboard();
+        }
+
+        function createPQMSDashboard() {
+            // Create dashboard overlay - Professional Corporate Design
+            const dashboard = document.createElement('div');
+            dashboard.id = 'pqms-dashboard';
+            dashboard.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 800px;
+                max-width: 95%;
+                height: 85vh;
+                min-height: 600px;
+                max-height: 90vh;
+                background: #ffffff;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                z-index: 100000;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            `;
+
+            // Header - Corporate style
+            const header = document.createElement('div');
+            header.style.cssText = `
+                background: #f9fafb;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 18px 24px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            `;
+
+            const headerTitle = document.createElement('div');
+            headerTitle.style.cssText = `
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            `;
+
+            const titleIcon = document.createElement('span');
+            titleIcon.textContent = '⚙';
+            titleIcon.style.cssText = `
+                font-size: 20px;
+                color: #4b5563;
+            `;
+
+            const titleText = document.createElement('span');
+            titleText.textContent = 'PQMS Dashboard';
+            titleText.style.cssText = `
+                font-size: 18px;
+                font-weight: 600;
+                color: #111827;
+                letter-spacing: -0.025em;
+            `;
+
+            headerTitle.appendChild(titleIcon);
+            headerTitle.appendChild(titleText);
+
+            // Settings and Close buttons
+            const buttonGroup = document.createElement('div');
+            buttonGroup.style.cssText = `
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            `;
+
+            const settingsBtn = document.createElement('button');
+            settingsBtn.id = 'pqms-settings-btn';
+            settingsBtn.innerHTML = '⚙';
+            settingsBtn.style.cssText = `
+                background: transparent;
+                border: none;
+                color: #6b7280;
+                width: 32px;
+                height: 32px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 18px;
+                line-height: 1;
+                transition: all 0.15s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.id = 'pqms-close-btn';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.style.cssText = `
+                background: transparent;
+                border: none;
+                color: #6b7280;
+                width: 32px;
+                height: 32px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 1;
+                transition: all 0.15s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+
+            buttonGroup.appendChild(settingsBtn);
+            buttonGroup.appendChild(closeBtn);
+
+            header.appendChild(headerTitle);
+            header.appendChild(buttonGroup);
+
+            // Content - Professional Corporate Style
+            const content = document.createElement('div');
+            content.style.cssText = `
+                padding: 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+                background: #ffffff;
+                overflow-y: auto;
+                flex: 1;
+                min-height: 0;
+            `;
+
+            // Get current user
+            const currentUser = getPQMSSelectedUser();
+            const isUserSelected = !!currentUser;
+
+            // Get submission history and calculate counters
+            const history = getPQMSHistory();
+            const counters = {
+                all: history.length,
+                open: history.filter(h => h.status === 'Open').length,
+                pending: history.filter(h => h.status === 'Pending').length,
+                solved: history.filter(h => h.status === 'Solved').length
+            };
+
+            // Counters Section
+            const countersSection = document.createElement('div');
+            countersSection.style.cssText = `
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 12px;
+                margin-bottom: 24px;
+            `;
+
+            const counterItems = [
+                { label: 'All', count: counters.all, color: '#6b7280' },
+                { label: 'Open', count: counters.open, color: '#9ca3af' },
+                { label: 'Pending', count: counters.pending, color: '#9ca3af' },
+                { label: 'Solved', count: counters.solved, color: '#22c55e' }
+            ];
+
+            counterItems.forEach(item => {
+                const counter = document.createElement('div');
+                counter.style.cssText = `
+                    background: #f9fafb;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 6px;
+                    padding: 12px;
+                    text-align: center;
+                `;
+                counter.innerHTML = `
+                    <div style="
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: ${item.color};
+                        line-height: 1;
+                        margin-bottom: 4px;
+                    ">${item.count}</div>
+                    <div style="
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: #6b7280;
+                        text-transform: uppercase;
+                        letter-spacing: 0.05em;
+                    ">${item.label}</div>
+                `;
+                countersSection.appendChild(counter);
+            });
+
+            // OPS ID Section
+            const opsSection = document.createElement('div');
+            opsSection.innerHTML = `
+                <label style="
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #374151;
+                    font-size: 13px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.025em;
+                ">OPS ID</label>
+                <select id="pqms-ops-select" style="
+                    width: 100%;
+                    padding: 12px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    background: ${isUserSelected ? '#f9fafb' : '#ffffff'};
+                    cursor: ${isUserSelected ? 'not-allowed' : 'pointer'};
+                    color: ${isUserSelected ? '#9ca3af' : '#111827'};
+                    transition: all 0.15s;
+                    font-family: 'Courier New', monospace;
+                    font-weight: 500;
+                    min-height: 44px;
+                    line-height: 1.2;
+                " ${isUserSelected ? 'disabled' : ''}>
+                    <option value="">Select an OPS ID</option>
+                    ${Object.keys(PQMS_USERS).map(opsId =>
+                        `<option value="${opsId}" ${currentUser?.opsId === opsId ? 'selected' : ''}>${opsId}</option>`
+                    ).join('')}
+                </select>
+            `;
+
+            // Name Display Section
+            const nameSection = document.createElement('div');
+            nameSection.innerHTML = `
+                <label style="
+                    display: block;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #374151;
+                    font-size: 13px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.025em;
+                ">Full Name</label>
+                <div id="pqms-name-display" style="
+                    width: 100%;
+                    padding: 10px 12px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    background: #f9fafb;
+                    color: ${currentUser ? '#111827' : '#9ca3af'};
+                    min-height: 42px;
+                    display: flex;
+                    align-items: center;
+                    font-weight: 500;
+                ">${currentUser ? currentUser.name : 'No operator selected'}</div>
+            `;
+
+            // Status Indicator (if user is selected)
+            const statusSection = document.createElement('div');
+            if (isUserSelected) {
+                statusSection.innerHTML = `
+                    <div style="
+                        padding: 12px 16px;
+                        background: #f0fdf4;
+                        border: 1px solid #bbf7d0;
+                        border-radius: 6px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                    ">
+                        <span style="
+                            width: 8px;
+                            height: 8px;
+                            background: #22c55e;
+                            border-radius: 50%;
+                            display: inline-block;
+                        "></span>
+                        <span style="
+                            font-size: 13px;
+                            color: #166534;
+                            font-weight: 500;
+                        ">Selected</span>
+                    </div>
+                `;
+            }
+
+            // Button Section
+            const buttonSection = document.createElement('div');
+            buttonSection.style.cssText = `
+                display: flex;
+                gap: 10px;
+                margin-top: 4px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+            `;
+
+            if (isUserSelected) {
+                // Show unchoose button
+                buttonSection.innerHTML = `
+                    <button id="pqms-unchoose-btn" style="
+                        flex: 1;
+                        padding: 10px 18px;
+                        background: #ffffff;
+                        color: #dc2626;
+                        border: 1px solid #dc2626;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.15s;
+                    ">Clear Selection</button>
+                `;
+            } else {
+                // Show select button
+                buttonSection.innerHTML = `
+                    <button id="pqms-select-btn" style="
+                        flex: 1;
+                        padding: 10px 18px;
+                        background: #111827;
+                        color: #ffffff;
+                        border: 1px solid #111827;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.15s;
+                    ">Confirm Selection</button>
+                `;
+            }
+
+            // Submission History Section
+            const historySection = document.createElement('div');
+            historySection.style.cssText = `
+                margin-top: 24px;
+                padding-top: 24px;
+                border-top: 1px solid #e5e7eb;
+            `;
+
+            const historyHeader = document.createElement('div');
+            historyHeader.style.cssText = `
+                font-weight: 600;
+                margin-bottom: 12px;
+                color: #374151;
+                font-size: 13px;
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            `;
+            historyHeader.textContent = 'Submission History';
+
+            const historyTable = document.createElement('div');
+            historyTable.style.cssText = `
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                overflow: hidden;
+                max-height: 400px;
+                overflow-y: auto;
+                background: #ffffff;
+                flex: 1;
+                min-height: 300px;
+            `;
+
+            if (history.length === 0) {
+                historyTable.innerHTML = `
+                    <div style="
+                        padding: 40px 20px;
+                        text-align: center;
+                        color: #9ca3af;
+                        font-size: 13px;
+                    ">No submissions yet</div>
+                `;
+            } else {
+                // Create table
+                const table = document.createElement('table');
+                table.style.cssText = `
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                `;
+
+                // Table header
+                table.innerHTML = `
+                    <thead>
+                        <tr style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                            <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Ticket</th>
+                            <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Subject</th>
+                            <th style="padding: 10px 12px; text-align: left; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Group</th>
+                            <th style="padding: 10px 12px; text-align: center; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                `;
+
+                const tbody = table.querySelector('tbody');
+
+                // Show only last 10 submissions
+                history.slice(0, 10).forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.style.cssText = `
+                        border-bottom: ${index < Math.min(history.length - 1, 9) ? '1px solid #f3f4f6' : 'none'};
+                    `;
+
+                    // Status badge colors
+                    let statusColor = '#6b7280';
+                    let statusBg = '#f3f4f6';
+                    if (item.status === 'Open') {
+                        statusColor = '#6b7280';
+                        statusBg = '#f3f4f6';
+                    } else if (item.status === 'Pending') {
+                        statusColor = '#6b7280';
+                        statusBg = '#f3f4f6';
+                    } else if (item.status === 'Solved') {
+                        statusColor = '#166534';
+                        statusBg = '#dcfce7';
+                    }
+
+                    row.innerHTML = `
+                        <td style="padding: 10px 12px; color: #111827; font-weight: 500; font-family: 'Courier New', monospace;">#${item.ticketId}</td>
+                        <td style="padding: 10px 12px; color: #374151; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.ticketSubject}">${item.ticketSubject}</td>
+                        <td style="padding: 10px 12px; color: #6b7280; font-size: 12px;">${item.groupName}</td>
+                        <td style="padding: 10px 12px; text-align: center;">
+                            <span style="
+                                display: inline-block;
+                                padding: 3px 10px;
+                                background: ${statusBg};
+                                color: ${statusColor};
+                                border-radius: 12px;
+                                font-size: 11px;
+                                font-weight: 600;
+                            ">${item.status}</span>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                historyTable.appendChild(table);
+            }
+
+            historySection.appendChild(historyHeader);
+            historySection.appendChild(historyTable);
+
+            // Assemble dashboard - Main content first
+            content.appendChild(countersSection);
+            content.appendChild(historySection);
+            dashboard.appendChild(header);
+            dashboard.appendChild(content);
+
+            // Create settings panel (initially hidden)
+            const settingsPanel = document.createElement('div');
+            settingsPanel.id = 'pqms-settings-panel';
+            settingsPanel.style.cssText = `
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 300px;
+                height: 100%;
+                background: #ffffff;
+                border-left: 1px solid #e5e7eb;
+                padding: 24px;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+                z-index: 100001;
+                overflow-y: auto;
+            `;
+
+            // Settings panel content
+            const settingsContent = document.createElement('div');
+            settingsContent.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            `;
+
+            const settingsHeader = document.createElement('div');
+            settingsHeader.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            `;
+            settingsHeader.innerHTML = `
+                <h3 style="
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #111827;
+                    margin: 0;
+                ">Settings</h3>
+                <button id="pqms-settings-close" style="
+                    background: transparent;
+                    border: none;
+                    color: #6b7280;
+                    width: 24px;
+                    height: 24px;
+                    cursor: pointer;
+                    font-size: 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">&times;</button>
+            `;
+
+            settingsContent.appendChild(settingsHeader);
+            settingsContent.appendChild(opsSection);
+            settingsContent.appendChild(nameSection);
+            if (isUserSelected) {
+                settingsContent.appendChild(statusSection);
+            }
+            settingsContent.appendChild(buttonSection);
+
+            settingsPanel.appendChild(settingsContent);
+            dashboard.appendChild(settingsPanel);
+
+            // Add backdrop - Professional style
+            const backdrop = document.createElement('div');
+            backdrop.id = 'pqms-dashboard-backdrop';
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.4);
+                backdrop-filter: blur(2px);
+                z-index: 99999;
+            `;
+
+            // Add event listeners
+            document.body.appendChild(backdrop);
+            document.body.appendChild(dashboard);
+
+            // Close button hover effects
+            closeBtn.addEventListener('click', closePQMSDashboard);
+            closeBtn.addEventListener('mouseenter', function() {
+                this.style.background = '#f3f4f6';
+                this.style.color = '#111827';
+            });
+            closeBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'transparent';
+                this.style.color = '#6b7280';
+            });
+
+            // Settings button
+            settingsBtn.addEventListener('click', function() {
+                const panel = document.getElementById('pqms-settings-panel');
+                if (panel.style.transform === 'translateX(100%)') {
+                    panel.style.transform = 'translateX(0)';
+                } else {
+                    panel.style.transform = 'translateX(100%)';
+                }
+            });
+            settingsBtn.addEventListener('mouseenter', function() {
+                this.style.background = '#f3f4f6';
+                this.style.color = '#111827';
+            });
+            settingsBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'transparent';
+                this.style.color = '#6b7280';
+            });
+
+            // Settings panel close button
+            const settingsCloseBtn = document.getElementById('pqms-settings-close');
+            settingsCloseBtn.addEventListener('click', function() {
+                const panel = document.getElementById('pqms-settings-panel');
+                panel.style.transform = 'translateX(100%)';
+            });
+            settingsCloseBtn.addEventListener('mouseenter', function() {
+                this.style.background = '#f3f4f6';
+                this.style.color = '#111827';
+            });
+            settingsCloseBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'transparent';
+                this.style.color = '#6b7280';
+            });
+
+            // Backdrop click to close
+            backdrop.addEventListener('click', closePQMSDashboard);
+
+            // OPS ID dropdown change
+            const opsSelect = document.getElementById('pqms-ops-select');
+            opsSelect.addEventListener('change', function() {
+                const selectedOpsId = this.value;
+                const nameDisplay = document.getElementById('pqms-name-display');
+
+                if (selectedOpsId && PQMS_USERS[selectedOpsId]) {
+                    nameDisplay.textContent = PQMS_USERS[selectedOpsId];
+                    nameDisplay.style.color = '#111827';
+                } else {
+                    nameDisplay.textContent = 'No operator selected';
+                    nameDisplay.style.color = '#9ca3af';
+                }
+            });
+
+            // Select button
+            const selectBtn = document.getElementById('pqms-select-btn');
+            if (selectBtn) {
+                selectBtn.addEventListener('click', function() {
+                    const opsSelect = document.getElementById('pqms-ops-select');
+                    const selectedOpsId = opsSelect.value;
+
+                    if (!selectedOpsId) {
+                        showPQMSToast('Please select an OPS ID', 'error');
+                        return;
+                    }
+
+                    const name = PQMS_USERS[selectedOpsId];
+                    savePQMSSelectedUser(selectedOpsId, name);
+                    showPQMSToast(`User selected: ${name}`, 'success');
+
+                    // Refresh dashboard
+                    closePQMSDashboard();
+                    setTimeout(() => createPQMSDashboard(), 100);
+                });
+
+                selectBtn.addEventListener('mouseenter', function() {
+                    this.style.background = '#1f2937';
+                    this.style.borderColor = '#1f2937';
+                });
+                selectBtn.addEventListener('mouseleave', function() {
+                    this.style.background = '#111827';
+                    this.style.borderColor = '#111827';
+                });
+            }
+
+            // Unchoose button
+            const unchooseBtn = document.getElementById('pqms-unchoose-btn');
+            if (unchooseBtn) {
+                unchooseBtn.addEventListener('click', function() {
+                    clearPQMSSelectedUser();
+                    showPQMSToast('User unselected', 'info');
+
+                    // Refresh dashboard
+                    closePQMSDashboard();
+                    setTimeout(() => createPQMSDashboard(), 100);
+                });
+
+                unchooseBtn.addEventListener('mouseenter', function() {
+                    this.style.background = '#fef2f2';
+                    this.style.borderColor = '#dc2626';
+                });
+                unchooseBtn.addEventListener('mouseleave', function() {
+                    this.style.background = '#ffffff';
+                    this.style.borderColor = '#dc2626';
+                });
+            }
+
+            // Escape key to close
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closePQMSDashboard();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+        }
+
+        function closePQMSDashboard() {
+            const dashboard = document.getElementById('pqms-dashboard');
+            const backdrop = document.getElementById('pqms-dashboard-backdrop');
+
+            if (dashboard) dashboard.remove();
+            if (backdrop) backdrop.remove();
+        }
+
+        // ============================================================================
+        // PQMS STATUS SELECTION MENU (Professional Dropdown)
+        // ============================================================================
+
+        function showPQMSStatusMenu(event) {
+            // Prevent default behavior
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            // Check if menu already exists - toggle it
+            const existingMenu = document.getElementById('pqms-status-menu');
+            if (existingMenu) {
+                closePQMSStatusMenu();
+                return;
+            }
+
+            // Find the PQMS button to position menu near it
+            const pqmsButton = event?.currentTarget || document.querySelector('.pqms-button');
+            if (!pqmsButton) {
+                console.error('PQMS: Could not find button to position menu');
+                return;
+            }
+
+            const buttonRect = pqmsButton.getBoundingClientRect();
+
+            // Create dropdown menu (tree-like)
+            const menu = document.createElement('div');
+            menu.id = 'pqms-status-menu';
+            menu.style.cssText = `
+                position: fixed;
+                left: ${buttonRect.right + 12}px;
+                top: ${buttonRect.top}px;
+                background: #ffffff;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+                z-index: 100001;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                min-width: 220px;
+                overflow: hidden;
+                animation: slideInMenu 0.15s ease-out;
+            `;
+
+            // Add animation
+            const style = document.createElement('style');
+            style.id = 'pqms-menu-animation';
+            style.textContent = `
+                @keyframes slideInMenu {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-8px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Header
+            const header = document.createElement('div');
+            header.style.cssText = `
+                background: #f9fafb;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 10px 16px;
+                font-size: 12px;
+                font-weight: 600;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            `;
+            header.textContent = 'Select Status';
+
+            // Options container
+            const optionsContainer = document.createElement('div');
+            optionsContainer.style.cssText = `
+                padding: 4px 0;
+            `;
+
+            // Status options - professional corporate styling
+            const statuses = [
+                { name: 'Open', shortcut: 'Alt+O', icon: '○' },
+                { name: 'Pending', shortcut: 'Alt+P', icon: '◐' },
+                { name: 'Solved', shortcut: 'Alt+S', icon: '⏺' }
+            ];
+
+            statuses.forEach((status, index) => {
+                const item = document.createElement('button');
+                item.style.cssText = `
+                    width: 100%;
+                    padding: 10px 16px;
+                    background: transparent;
+                    border: none;
+                    border-bottom: ${index < statuses.length - 1 ? '1px solid #f3f4f6' : 'none'};
+                    cursor: pointer;
+                    transition: background-color 0.1s ease;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-size: 14px;
+                    color: #1f2937;
+                    text-align: left;
+                `;
+
+                const leftSection = document.createElement('div');
+                leftSection.style.cssText = `
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                `;
+
+                const icon = document.createElement('span');
+                icon.textContent = status.icon;
+                icon.style.cssText = `
+                    font-size: 16px;
+                    color: #6b7280;
+                    width: 20px;
+                    text-align: center;
+                `;
+
+                const statusName = document.createElement('span');
+                statusName.textContent = status.name;
+                statusName.style.cssText = `
+                    font-weight: 500;
+                `;
+
+                leftSection.appendChild(icon);
+                leftSection.appendChild(statusName);
+
+                const shortcut = document.createElement('span');
+                shortcut.textContent = status.shortcut;
+                shortcut.style.cssText = `
+                    font-size: 11px;
+                    color: #9ca3af;
+                    font-family: 'Courier New', monospace;
+                    background: #f3f4f6;
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                `;
+
+                item.appendChild(leftSection);
+                item.appendChild(shortcut);
+
+                item.addEventListener('click', () => {
+                    closePQMSStatusMenu();
+                    submitToPQMS(status.name);
+                });
+
+                item.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#f3f4f6';
+                });
+
+                item.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'transparent';
+                });
+
+                optionsContainer.appendChild(item);
+            });
+
+            // Assemble menu
+            menu.appendChild(header);
+            menu.appendChild(optionsContainer);
+
+            // Create invisible backdrop (for click-away)
+            const backdrop = document.createElement('div');
+            backdrop.id = 'pqms-status-menu-backdrop';
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                z-index: 100000;
+            `;
+
+            // Add to page
+            document.body.appendChild(backdrop);
+            document.body.appendChild(menu);
+
+            // Click backdrop to close
+            backdrop.addEventListener('click', closePQMSStatusMenu);
+
+            // Escape key to close
+            const escapeHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closePQMSStatusMenu();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+        }
+
+        function closePQMSStatusMenu() {
+            const menu = document.getElementById('pqms-status-menu');
+            const backdrop = document.getElementById('pqms-status-menu-backdrop');
+            const style = document.getElementById('pqms-menu-animation');
+
+            if (menu) menu.remove();
+            if (backdrop) backdrop.remove();
+            if (style) style.remove();
+        }
+
+        // SVG icon for PQMS button (upload/send icon)
+        const pqmsSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>`;
+
+        function createPQMSButton() {
+            const listItem = document.createElement('li');
+            listItem.className = 'nav-list-item';
+
+            const button = document.createElement('button');
+            button.className = 'pqms-button StyledBaseNavItem-sc-zvo43f-0 StyledNavButton-sc-f5ux3-0 gvFgbC dXnFqH';
+            button.setAttribute('tabindex', '0');
+            button.setAttribute('data-garden-id', 'chrome.nav_button');
+            button.setAttribute('data-garden-version', '9.5.2');
+            button.setAttribute('title', 'Submit to PQMS as "Felt Unsafe"');
+
+            const iconWrapper = document.createElement('div');
+            iconWrapper.style.display = 'flex';
+            iconWrapper.style.alignItems = 'center';
+
+            const icon = document.createElement('div');
+            icon.innerHTML = pqmsSVG;
+            icon.firstChild.setAttribute('width', '26');
+            icon.firstChild.setAttribute('height', '26');
+            icon.firstChild.setAttribute('data-garden-id', 'chrome.nav_item_icon');
+            icon.firstChild.setAttribute('data-garden-version', '9.5.2');
+            icon.firstChild.classList.add('StyledBaseIcon-sc-1moykgb-0', 'StyledNavItemIcon-sc-7w9rpt-0', 'eWlVPJ', 'YOjtB');
+
+            const text = document.createElement('span');
+            text.textContent = 'Submit PQMS';
+            text.className = 'StyledNavItemText-sc-13m84xl-0 iOGbGR';
+            text.setAttribute('data-garden-id', 'chrome.nav_item_text');
+            text.setAttribute('data-garden-version', '9.5.2');
+
+            iconWrapper.appendChild(icon);
+            iconWrapper.appendChild(text);
+            button.appendChild(iconWrapper);
+            listItem.appendChild(button);
+
+            return listItem;
+        }
+
         // Try to add the hide/show button to the navigation
         function tryAddToggleButton() {
             const navLists = document.querySelectorAll('ul[data-garden-id="chrome.nav_list"]');
             const navList = navLists[navLists.length - 1];
 
-            if (navList && !globalButton) {
-                const separator = createSeparator();
-                navList.appendChild(separator);
+            if (navList) {
+                // Add toggle button (eye button) if it doesn't exist
+                if (!globalButton) {
+                    const separator = createSeparator();
+                    navList.appendChild(separator);
 
-                const customSection = document.createElement('div');
-                customSection.className = 'custom-nav-section';
+                    globalButton = createToggleButton();
+                    const toggleBtn = globalButton.querySelector('button');
+                    toggleBtn.addEventListener('click', toggleAllFields);
+                    navList.appendChild(globalButton);
+                }
 
-                globalButton = createToggleButton();
-                const button = globalButton.querySelector('button');
-                button.addEventListener('click', toggleAllFields);
-                customSection.appendChild(globalButton);
-
-                navList.appendChild(customSection);
+                // Add PQMS button (below the eye button) if it doesn't exist
+                if (!pqmsButton) {
+                    pqmsButton = createPQMSButton();
+                    const pqmsBtn = pqmsButton.querySelector('button');
+                    pqmsBtn.addEventListener('click', showPQMSStatusMenu);
+                    navList.appendChild(pqmsButton);
+                }
             }
         }
 
@@ -5397,6 +6712,13 @@
             //     e.stopPropagation();
             //     toggleRUMIEnhancementPanel();
             // });
+
+            // Add left-click handler for PQMS Dashboard
+            zendeskIcon.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePQMSDashboard();
+            });
 
             // Add subtle hover effect
             zendeskIcon.addEventListener('mouseenter', () => {
@@ -7921,19 +9243,10 @@
         let viewsAreHidden = false;
         const essentialViews = [
             'SSOC - Open - Urgent',
-            'SSOC - Pending - Urgent',
             'SSOC - GCC & EM Open',
-            'SSOC - GCC & EM Pending',
             'SSOC - Egypt Urgent',
             'SSOC - Egypt Open',
-            'SSOC - Egypt Pending',
             'SSOC_JOD_from ZD only',
-            'KSA Safety & Security Tickets',
-            'KSA Safety & Security Tickets - New & Open',
-            'KSA Safety & Security Tickets - On-hold & Pending',
-            'Non-Uber Tickets routing to L1',
-            'Autoclosure of warning sent - uber tickets',
-            'UAE Safety & Security Tickets'
         ];
 
         function createViewsToggleButton() {
@@ -8400,20 +9713,22 @@
         function parseSsocVoiceComment(commentBody) {
             if (!commentBody) return { phoneNumber: null, tripId: null };
 
-            const lines = commentBody.split('\n');
             let phoneNumber = null;
             let tripId = null;
 
             // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f)
             const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-            for (const line of lines) {
-                const trimmedLine = line.trim();
+            // Phone number regex pattern: 12 consecutive digits
+            const phoneRegex = /\d{12}/;
 
-                // Look for Customer Phone Number
-                if (trimmedLine.startsWith('Customer Phone Number:')) {
-                    phoneNumber = trimmedLine.replace('Customer Phone Number:', '').trim();
-                }
+            // Search for phone number anywhere in the comment body
+            const phoneMatch = commentBody.match(phoneRegex);
+            if (phoneMatch) {
+                phoneNumber = phoneMatch[0];
+                console.log('🔍 DEBUG: Extracted phone number from comment body:', phoneNumber);
+            } else {
+                console.log('🔍 DEBUG: No 12-digit phone number found in comment body');
             }
 
             // Search for UUID anywhere in the comment body
@@ -8805,7 +10120,7 @@
 
             // Always inject CSS and initialize username (regardless of current page)
             injectCSS();
-            promptForUsername();
+            getUsernameFromAPI();
 
             // Load the saved field visibility state
             loadFieldVisibilityState();
@@ -8898,6 +10213,29 @@
             //         RUMILogger.info('UI', 'RUMI Enhancement opened via keyboard shortcut (Ctrl+Shift+R)');
             //     }
             // });
+
+            // Add PQMS keyboard shortcuts (Alt+O, Alt+P, Alt+S)
+            document.addEventListener('keydown', (e) => {
+                // Check if Alt key is pressed (without Ctrl or Shift to avoid conflicts)
+                if (e.altKey && !e.ctrlKey && !e.shiftKey) {
+                    let status = null;
+
+                    if (e.key === 'o' || e.key === 'O') {
+                        status = 'Open';
+                    } else if (e.key === 'p' || e.key === 'P') {
+                        status = 'Pending';
+                    } else if (e.key === 's' || e.key === 'S') {
+                        status = 'Solved';
+                    }
+
+                    if (status) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(`PQMS: Keyboard shortcut triggered - ${status}`);
+                        submitToPQMS(status);
+                    }
+                }
+            });
 
             RUMILogger.info('SYSTEM', 'RUMI Enhancement system initialized and data restored');
             console.log('✅ RUMI Automation system ready - Dashboard access disabled');
