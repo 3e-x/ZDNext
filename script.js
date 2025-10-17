@@ -7700,7 +7700,14 @@ Safety & Security Operations Team`;
         };
         document.addEventListener('keydown', escapeHandler);
     }
-
+	
+	// Function to get current ticket ID from URL
+        function getCurrentTicketId() {
+            // Extract ticket ID from URL pattern like /agent/tickets/12345
+            const match = window.location.pathname.match(/\/agent\/tickets\/(\d+)/);
+            return match ? match[1] : null;
+        }
+	
     function closePQMSStatusMenu() {
         const menu = document.getElementById('pqms-status-menu');
         const backdrop = document.getElementById('pqms-status-menu-backdrop');
