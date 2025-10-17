@@ -857,16 +857,16 @@
                 }
             }
 
-            // Care routing - subject-based (no activity details)
+            // Care routing - subject-based (noActivityDetails)
             if (ticket.subject &&
-                ticket.subject.toLowerCase().includes('no activity details available') &&
+                ticket.subject.toLowerCase().includes('noActivityDetails available') &&
                 ticket.status === 'new') {
 
                 const hasPrivateComments = comments.some(c => c.public === false);
                 if (!hasPrivateComments) {
                     return {
                         action: 'care',
-                        trigger: 'Subject: no activity details available',
+                        trigger: 'Subject: noActivityDetails available',
                         payload: { ticket: { group_id: GROUP_IDS.CARE, status: 'open' } }
                     };
                 }
@@ -9228,9 +9228,9 @@
             lastNodeId = 'check-casablanca';
             currentRow++;
 
-            // PRIORITY 7: Check subject-based Care routing (no activity details)
+            // PRIORITY 7: Check subject-based Care routing (noActivityDetails)
             const hasNoActivitySubject = ticket.subject &&
-                                        ticket.subject.toLowerCase().includes('no activity details available');
+                                        ticket.subject.toLowerCase().includes('noActivityDetails available');
             const isNew = ticket.status === 'new';
             const hasPrivateComments = comments.some(c => c.public === false);
             const subjectCareTriggers = hasNoActivitySubject && isNew && !hasPrivateComments;
@@ -9260,7 +9260,7 @@
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: 'REASON: Subject-based routing\nSUBJECT: "no activity details..."\nACTION: group_id = 20705088, status = open\nRULE: New tickets without private comments'
+                    description: 'REASON: Subject-based routing\nSUBJECT: "noActivityDetails..."\nACTION: group_id = 20705088, status = open\nRULE: New tickets without private comments'
                 });
                 this.addConnection('check-subject-care', 'action-subject-care', 'ALL CONDITIONS MET');
                 return;
