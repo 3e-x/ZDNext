@@ -1339,10 +1339,10 @@
                 RUMICommentProcessor.matchesTrigger(normalized, phrase)
             );
             if (careTrigger) {
-                // Check if the comment contains "duplicate" or "duplicated" - if so, don't route
+                // Check if the comment contains "duplicate" or "duplicated" - if so, mark as solved
                 const duplicateCheck = normalized.toLowerCase();
                 if (duplicateCheck.includes('duplicate') || duplicateCheck.includes('duplicated')) {
-                    return null; // Don't route the case
+                    return { type: 'solved', trigger: 'duplicate_case' };
                 }
                 return { type: 'care', trigger: careTrigger };
             }
