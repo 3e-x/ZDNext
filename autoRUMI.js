@@ -61,8 +61,8 @@
             "escalated this matter to a specialized support team",
             "escalated this matter to a specialised support team",
             "escalated this issue to a dedicated support team",
-           // "escalated this to a specialized support team",
-           // "escalated this to a specialised support team",
+            "escalated this to a specialized support team",
+            "escalated this to a specialised support team",
             "have escalated your issue to a specialized team to review this further",
             "a member of our team will be in touch with you shortly",
             "we've forwarded this issue to a specialized support team",
@@ -1336,24 +1336,32 @@
                 return { type: 'care', trigger: careTrigger };
             }
 
-            // Check pending triggers (second priority)
+            // Check for both pending and solved triggers in the same comment
             const enabledPendingTriggers = RUMIRules.PENDING_TRIGGERS.filter(phrase => {
                 return settings.triggerPhrases.pending[phrase] !== false;
             });
+            const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
+                return settings.triggerPhrases.solved[phrase] !== false;
+            });
+            
             const pendingTrigger = enabledPendingTriggers.find(phrase =>
                 RUMICommentProcessor.matchesTrigger(normalized, phrase)
             );
+            const solvedTrigger = enabledSolvedTriggers.find(phrase =>
+                RUMICommentProcessor.matchesTrigger(normalized, phrase)
+            );
+
+            // If both solved and pending triggers exist in the same comment, prioritize solved
+            if (solvedTrigger && pendingTrigger) {
+                return { type: 'solved', trigger: solvedTrigger };
+            }
+
+            // Check pending triggers (second priority)
             if (pendingTrigger) {
                 return { type: 'pending', trigger: pendingTrigger };
             }
 
             // Check solved triggers (lowest priority)
-            const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
-                return settings.triggerPhrases.solved[phrase] !== false;
-            });
-            const solvedTrigger = enabledSolvedTriggers.find(phrase =>
-                RUMICommentProcessor.matchesTrigger(normalized, phrase)
-            );
             if (solvedTrigger) {
                 return { type: 'solved', trigger: solvedTrigger };
             }
