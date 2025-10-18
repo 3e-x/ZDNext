@@ -152,6 +152,7 @@
             "please note that GIG will follow up regarding the insurance within 2 business days",
             "we have followed up with the partner-driver immediately",
             "we are unable to specify any internal action taken with individual users of the application",
+            "happy to hear the issue has been resolved",
             // ACTION TAKEN / RESOLUTION CONFIRMED (Arabic)
             "وقد اتخذنا بالفعل الإجراء المناسب داخليا",
             "وسنتخذ الإجراءات الداخلية",
@@ -194,6 +195,7 @@
             "إن سلامة جميع المستخدمين من أهم أولوياتنا",
             "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
             "بالتواصل معك بخصوص استفسارك من خلال رسالة أخرى",
+            "وقام أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى",
             "ويسعدنا معرفة أنه قد تم حل المشكلة",
             "سوف يتم الرد على إستفسارك في رسالة أخرى من الفريق المختص",
             "من خلال بوابة الاستجابة للسلامة العامة المخصصة",
