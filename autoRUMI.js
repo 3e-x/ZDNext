@@ -2076,48 +2076,46 @@
 
                 const latestCommentId = commentsList[commentsList.length - 1].id;
 
-                // Compare comment IDs
-                if (latestCommentId === pin.lastCommentId) {
-                    // Comment unchanged, route to Care
+                // For care routing pins, always route to Care regardless of comment changes
+                // Update the pin's lastCommentId to track the latest comment
+                if (latestCommentId !== pin.lastCommentId) {
+                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: new comment detected, updating pin and routing to Care', {
+                        ticketId,
+                        oldCommentId: pin.lastCommentId,
+                        newCommentId: latestCommentId
+                    });
+                    
+                    // Update the pin with the new comment ID
+                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'active', latestCommentId);
+                } else {
                     RUMILogger.info('PIN_MANAGER', 'Care routing pin: comment unchanged, routing to Care', {
                         ticketId,
                         commentId: latestCommentId,
                         currentStatus: ticketData.status
                     });
-
-                    // Build payload - only set status to 'open' if not already 'open'
-                    const payload = {
-                        ticket: {
-                            group_id: CONFIG.GROUP_IDS.CARE
-                        }
-                    };
-
-                    if (ticketData.status !== 'open') {
-                        payload.ticket.status = 'open';
-                        RUMILogger.info('PIN_MANAGER', 'Care routing pin: will also set status to open', {
-                            ticketId,
-                            currentStatus: ticketData.status
-                        });
-                    }
-
-                    return {
-                        action: 'care',
-                        trigger: 'Care Routing Pin',
-                        payload: payload
-                    };
-                } else {
-                    // Comment changed, update pin status
-                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: new comment detected, marking as changed', {
-                        ticketId,
-                        oldCommentId: pin.lastCommentId,
-                        newCommentId: latestCommentId
-                    });
-
-                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'changed');
-                    RUMIUI.renderPinnedList(); // Update UI to show changed status
-
-                    return { action: 'skipped', reason: 'care_pin_comment_changed' };
                 }
+
+                // Always route to Care for active care routing pins
+                // Build payload - only set status to 'open' if not already 'open'
+                const payload = {
+                    ticket: {
+                        group_id: CONFIG.GROUP_IDS.CARE
+                    }
+                };
+
+                if (ticketData.status !== 'open') {
+                    payload.ticket.status = 'open';
+                    RUMILogger.info('PIN_MANAGER', 'Care routing pin: will also set status to open', {
+                        ticketId,
+                        currentStatus: ticketData.status
+                    });
+                }
+
+                return {
+                    action: 'care',
+                    trigger: 'Care Routing Pin',
+                    payload: payload
+                };
 
             } catch (error) {
                 RUMILogger.error('PIN_MANAGER', 'Error checking care routing pin', { ticketId, error: error.message });
