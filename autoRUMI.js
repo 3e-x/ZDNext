@@ -992,6 +992,70 @@
                 return { action: 'none' };
             }
 
+            // Special logic for link triggers: Check BEFORE regular trigger checks
+            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
+                
+                const linkTriggers = [
+                    "https://blissnxt.uberinternal.com",
+                    "https://uber.lighthouse-cloud.com", 
+                    "https://apps.mypurecloud.ie"
+                ];
+                
+                const normalizedComment = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
+                const hasLinkTrigger = linkTriggers.some(link => 
+                    RUMICommentProcessor.matchesTrigger(normalizedComment, link)
+                );
+
+                if (hasLinkTrigger) {
+                    // Check preceding comment for triggers
+                    if (commentIndex > 0) {
+                        const precedingComment = comments[commentIndex - 1];
+                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
+
+                        if (precedingTriggerResult && precedingTriggerResult.type === 'solved') {
+                            // Preceding comment has solved trigger → Set ticket to SOLVED
+                            const userId = await this.ensureCurrentUserId();
+                            return {
+                                action: 'solved',
+                                trigger: `Link trigger with solved preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
+                                payload: {
+                                    ticket: {
+                                        status: 'solved',
+                                        assignee_id: userId
+                                    }
+                                }
+                            };
+                        } else {
+                            // Preceding comment has no triggers or non-solved triggers → Set ticket to PENDING
+                            const viewId = RUMIUI.viewsMap.get(viewName);
+                            const specialViewIds = ['360069695114', '360000843468'];
+                            const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
+
+                            const payload = {
+                                ticket: {
+                                    status: 'pending',
+                                    assignee_id: CONFIG.CAREEM_CARE_ID
+                                }
+                            };
+
+                            if (shouldSetPriorityNormal) {
+                                payload.ticket.priority = 'normal';
+                            }
+
+                            return {
+                                action: 'pending',
+                                trigger: `Link trigger with ${precedingTriggerResult ? 'non-solved' : 'no'} preceding trigger`,
+                                payload: payload
+                            };
+                        }
+                    } else {
+                        // No preceding comment exists → Take NO ACTION
+                        return { action: 'none' };
+                    }
+                }
+            }
+
             // Check if the found comment has any triggers
             const triggerResult = await this.checkCommentForTriggers(commentToCheck, settings);
 
@@ -1060,7 +1124,30 @@
                     }
                 }
 
-                // Special logic for link triggers: Check if current comment contains link triggers
+            }
+
+            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
+            return { action: 'none' };
+        }
+
+        static async evaluateSolvedRules(ticket, comments, settings) {
+            // Check if solved action type is enabled
+            if (!settings.actionTypes.solved) {
+                RUMILogger.debug('Processor', 'Solved action type disabled in settings', { ticketId: ticket.id });
+                return { action: 'none' };
+            }
+
+            // Solved status - USE trace-back logic (different from care routing)
+            // Status changes (pending/solved) should use trace-back because if agent sets solved and customer replies, it should still go solved/pending
+            const commentToCheck = await this.findCommentToCheck(comments);
+            if (!commentToCheck) {
+                return { action: 'none' };
+            }
+
+            // Special logic for link triggers: Check BEFORE regular trigger checks
+            if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
+                const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
+                
                 const linkTriggers = [
                     "https://blissnxt.uberinternal.com",
                     "https://uber.lighthouse-cloud.com", 
@@ -1093,25 +1180,15 @@
                             };
                         } else {
                             // Preceding comment has no triggers or non-solved triggers → Set ticket to PENDING
-                            const viewId = RUMIUI.viewsMap.get(viewName);
-                            const specialViewIds = ['360069695114', '360000843468'];
-                            const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
-
-                            const payload = {
-                                ticket: {
-                                    status: 'pending',
-                                    assignee_id: CONFIG.CAREEM_CARE_ID
-                                }
-                            };
-
-                            if (shouldSetPriorityNormal) {
-                                payload.ticket.priority = 'normal';
-                            }
-
                             return {
                                 action: 'pending',
                                 trigger: `Link trigger with ${precedingTriggerResult ? 'non-solved' : 'no'} preceding trigger`,
-                                payload: payload
+                                payload: {
+                                    ticket: {
+                                        status: 'pending',
+                                        assignee_id: CONFIG.CAREEM_CARE_ID
+                                    }
+                                }
                             };
                         }
                     } else {
@@ -1119,24 +1196,6 @@
                         return { action: 'none' };
                     }
                 }
-            }
-
-            // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
-            return { action: 'none' };
-        }
-
-        static async evaluateSolvedRules(ticket, comments, settings) {
-            // Check if solved action type is enabled
-            if (!settings.actionTypes.solved) {
-                RUMILogger.debug('Processor', 'Solved action type disabled in settings', { ticketId: ticket.id });
-                return { action: 'none' };
-            }
-
-            // Solved status - USE trace-back logic (different from care routing)
-            // Status changes (pending/solved) should use trace-back because if agent sets solved and customer replies, it should still go solved/pending
-            const commentToCheck = await this.findCommentToCheck(comments);
-            if (!commentToCheck) {
-                return { action: 'none' };
             }
 
             // Check if latest comment is from end-user (for traceback detection)
@@ -1226,55 +1285,6 @@
                     }
                 }
 
-                // Special logic for link triggers: Check if current comment contains link triggers
-                const linkTriggers = [
-                    "https://blissnxt.uberinternal.com",
-                    "https://uber.lighthouse-cloud.com", 
-                    "https://apps.mypurecloud.ie"
-                ];
-                
-                const normalizedComment = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-                const hasLinkTrigger = linkTriggers.some(link => 
-                    RUMICommentProcessor.matchesTrigger(normalizedComment, link)
-                );
-
-                if (hasLinkTrigger) {
-                    // Check preceding comment for triggers
-                    if (commentIndex > 0) {
-                        const precedingComment = comments[commentIndex - 1];
-                        const precedingTriggerResult = await this.checkCommentForTriggers(precedingComment, settings);
-
-                        if (precedingTriggerResult && precedingTriggerResult.type === 'solved') {
-                            // Preceding comment has solved trigger → Set ticket to SOLVED
-                            const userId = await this.ensureCurrentUserId();
-                            return {
-                                action: 'solved',
-                                trigger: `Link trigger with solved preceding: ${precedingTriggerResult.trigger.substring(0, 40)}${precedingTriggerResult.trigger.length > 40 ? '...' : ''}`,
-                                payload: {
-                                    ticket: {
-                                        status: 'solved',
-                                        assignee_id: userId
-                                    }
-                                }
-                            };
-                        } else {
-                            // Preceding comment has no triggers or non-solved triggers → Set ticket to PENDING
-                            return {
-                                action: 'pending',
-                                trigger: `Link trigger with ${precedingTriggerResult ? 'non-solved' : 'no'} preceding trigger`,
-                                payload: {
-                                    ticket: {
-                                        status: 'pending',
-                                        assignee_id: CONFIG.CAREEM_CARE_ID
-                                    }
-                                }
-                            };
-                        }
-                    } else {
-                        // No preceding comment exists → Take NO ACTION
-                        return { action: 'none' };
-                    }
-                }
             }
 
             // If commentToCheck is public from CAREEM_CARE_ID with no triggers, no action
