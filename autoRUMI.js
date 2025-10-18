@@ -7709,7 +7709,7 @@
             allPins.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
             pinnedListContainer.innerHTML = allPins.map(pin => {
-                const ticketUrl = `https://careem.zendesk.com/agent/tickets/${pin.ticketId}`;
+                const ticketUrl = `https://gocareem.zendesk.com/agent/tickets/${pin.ticketId}`;
                 const timestampDate = new Date(pin.timestamp);
                 const timestampStr = timestampDate.toLocaleString();
 
