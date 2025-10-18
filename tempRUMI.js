@@ -6068,11 +6068,11 @@ Safety & Security Operations Team
 
                 const tbody = table.querySelector('tbody');
 
-                // Show only last 10 submissions
-                history.slice(0, 10).forEach((item, index) => {
+                // Show only last 250 submissions
+                history.slice(0, 250).forEach((item, index) => {
                     const row = document.createElement('tr');
                     row.style.cssText = `
-                        border-bottom: ${index < Math.min(history.length - 1, 9) ? '1px solid #f3f4f6' : 'none'};
+                        border-bottom: ${index < Math.min(history.length - 1, 249) ? '1px solid #f3f4f6' : 'none'};
                     `;
 
                     // Status badge colors
