@@ -144,7 +144,7 @@
             "we have taken the necessary internal actions",
             "already taken the appropriate action internally",
             "already taken the appropriate actions internally",
-            "already taken all the appropriate actions internally",
+            "we have already taken all the appropriate actions internally",
             "already taken all the necessary internal actions",
             "started taking the appropriate internal actions",
             "these are the actions we have taken",
@@ -196,6 +196,8 @@
             "بالتواصل معك بخصوص استفسارك من خلال رسالة أخرى",
             "ويسعدنا معرفة أنه قد تم حل المشكلة",
             "سوف يتم الرد على إستفسارك في رسالة أخرى من الفريق المختص",
+            "من خلال بوابة الاستجابة للسلامة العامة المخصصة",
+            "نود إعلامك أنه قد تم بالفعل اتخاذ الإجراءات اللازمة حول هذا الأمر",
 
             // INTERNAL CODES & REFERENCES
             "pb",
