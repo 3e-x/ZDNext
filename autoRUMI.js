@@ -2093,14 +2093,14 @@
                 // For care routing pins, always route to Care regardless of comment changes
                 // Update the pin's lastCommentId to track the latest comment
                 if (latestCommentId !== pin.lastCommentId) {
-                    RUMILogger.info('PIN_MANAGER', '🆕 New comment detected, updating pin and routing to Care', {
+                    RUMILogger.info('PIN_MANAGER', '🆕 New comment detected, marking pin as changed', {
                         ticketId,
                         oldCommentId: pin.lastCommentId,
                         newCommentId: latestCommentId
                     });
                     
-                    // Update the pin with the new comment ID
-                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'active', latestCommentId);
+                    // Mark pin as 'changed' - stops automatic processing
+                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'changed');
                 } else {
                     RUMILogger.info('PIN_MANAGER', '🔄 Comment unchanged, routing to Care', {
                         ticketId,
