@@ -152,6 +152,7 @@
             "please note that GIG will follow up regarding the insurance within 2 business days",
             "we have followed up with the partner-driver immediately",
             "we are unable to specify any internal action taken with individual users of the application",
+            "happy to hear the issue has been resolved",
             // ACTION TAKEN / RESOLUTION CONFIRMED (Arabic)
             "وقد اتخذنا بالفعل الإجراء المناسب داخليا",
             "وسنتخذ الإجراءات الداخلية",
@@ -194,6 +195,7 @@
             "إن سلامة جميع المستخدمين من أهم أولوياتنا",
             "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
             "بالتواصل معك بخصوص استفسارك من خلال رسالة أخرى",
+            "وقام أحد أعضاء الفريق المختص لدينا بالتواصل معك من خلال رسالة أخرى",
             "ويسعدنا معرفة أنه قد تم حل المشكلة",
             "سوف يتم الرد على إستفسارك في رسالة أخرى من الفريق المختص",
             "من خلال بوابة الاستجابة للسلامة العامة المخصصة",
@@ -211,6 +213,8 @@
             "#notsafety",
             "careem actions required on rider",
             "careem actions required for rider",
+            "action required by careem",
+            "actions required by careem",
             "ask the rider",
             "inform the rider",
             "captain asks for extra money is no longer a safety case",
@@ -1690,16 +1694,6 @@
             }
         }
 
-        static resetPinnedCareRoutingStatus(ticketId, commentId) {
-            const pins = this.getPinnedCareRouting();
-            const pin = pins.find(p => p.ticketId === ticketId);
-            if (pin) {
-                pin.status = 'active';
-                pin.lastCommentId = commentId;
-                this.setPinnedCareRouting(pins);
-            }
-        }
-
         static isTicketPinned(ticketId) {
             const blockedPins = this.getPinnedBlocked();
             const careRoutingPins = this.getPinnedCareRouting();
@@ -2082,8 +2076,8 @@
 
                 const latestCommentId = commentsList[commentsList.length - 1].id;
 
-                // Compare comment IDs (convert to strings to handle type differences)
-                if (String(latestCommentId) === String(pin.lastCommentId)) {
+                // Compare comment IDs
+                if (latestCommentId === pin.lastCommentId) {
                     // Comment unchanged, route to Care
                     RUMILogger.info('PIN_MANAGER', 'Care routing pin: comment unchanged, routing to Care', {
                         ticketId,
@@ -2094,7 +2088,7 @@
                     // Build payload - only set status to 'open' if not already 'open'
                     const payload = {
                         ticket: {
-                            group_id: CONFIG.CAREEM_CARE_ID
+                            group_id: CONFIG.GROUP_IDS.CARE
                         }
                     };
 
@@ -2146,7 +2140,7 @@
                 // Build payload - only set status to 'open' if not already 'open'
                 const payload = {
                     ticket: {
-                        group_id: CONFIG.CAREEM_CARE_ID
+                        group_id: GROUP_IDS.CARE
                     }
                 };
 
@@ -2171,45 +2165,6 @@
 
             } catch (error) {
                 RUMILogger.error('PIN_MANAGER', 'Failed to process care routing pin', { ticketId, error: error.message });
-            }
-        }
-
-        // Reset a care routing pin back to active status
-        static async resetCareRoutingPin(ticketId) {
-            try {
-                // Get current ticket data and comments
-                const [ticketResponse, commentsResponse] = await Promise.all([
-                    RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`),
-                    RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`)
-                ]);
-
-                const ticketData = ticketResponse.ticket;
-                const comments = commentsResponse.comments || [];
-
-                if (comments.length === 0) {
-                    RUMIUI.showToast(`No comments found for ticket ${ticketId}`, 'error');
-                    return;
-                }
-
-                const latestCommentId = comments[comments.length - 1].id;
-
-                // Reset the pin status to active with current comment ID
-                RUMIStorage.resetPinnedCareRoutingStatus(ticketId, latestCommentId);
-                
-                RUMILogger.info('PIN_MANAGER', 'Care routing pin reset to active', {
-                    ticketId,
-                    commentId: latestCommentId
-                });
-
-                RUMIUI.showToast(`Care routing pin reset for ticket ${ticketId}`, 'success');
-                RUMIUI.renderPinnedList(); // Update UI
-
-                // Immediately process the pin
-                await this.processCareRoutingPin(ticketId);
-
-            } catch (error) {
-                RUMILogger.error('PIN_MANAGER', 'Failed to reset care routing pin', { ticketId, error: error.message });
-                RUMIUI.showToast(`Failed to reset pin: ${error.message}`, 'error');
             }
         }
     }
@@ -4375,11 +4330,6 @@
             color: #D97706;
         }
 
-        .rumi-pinned-item-actions {
-            display: flex;
-            gap: 8px;
-        }
-
         .rumi-pinned-item-remove {
             padding: 2px 8px;
             background: transparent;
@@ -4398,28 +4348,6 @@
         }
 
         .rumi-pinned-item-remove:focus {
-            outline: 2px solid var(--rumi-accent-blue);
-            outline-offset: 2px;
-        }
-
-        .rumi-pinned-item-reset {
-            padding: 2px 8px;
-            background: transparent;
-            border: 1px solid var(--rumi-border);
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            color: var(--rumi-text-secondary);
-            transition: all 0.2s;
-        }
-
-        .rumi-pinned-item-reset:hover {
-            background: var(--rumi-accent-blue);
-            color: white;
-            border-color: var(--rumi-accent-blue);
-        }
-
-        .rumi-pinned-item-reset:focus {
             outline: 2px solid var(--rumi-accent-blue);
             outline-offset: 2px;
         }
@@ -6311,12 +6239,6 @@
                     if (ticketId && pinType) {
                         RUMIPinManager.removePin(ticketId, pinType);
                     }
-                } else if (e.target.classList.contains('rumi-pinned-item-reset')) {
-                    const ticketId = e.target.dataset.ticketId;
-                    const pinType = e.target.dataset.pinType;
-                    if (ticketId && pinType === 'care_routing') {
-                        RUMIPinManager.resetCareRoutingPin(ticketId);
-                    }
                 }
             };
 
@@ -7823,28 +7745,16 @@
                         ? `<div style="font-size:11px;">Comment ID: ${pin.lastCommentId}</div>`
                         : '<div style="font-size:11px; color: var(--rumi-accent-yellow);">Comment changed - routing stopped</div>';
 
-                    const resetButton = pin.status === 'changed' 
-                        ? `<button class="rumi-pinned-item-reset"
-                                   data-ticket-id="${pin.ticketId}"
-                                   data-pin-type="care_routing"
-                                   aria-label="Reset care routing pin for ticket ${pin.ticketId}">
-                              Reset
-                           </button>`
-                        : '';
-
                     return `
                         <div class="rumi-pinned-item" role="listitem">
                             <div class="rumi-pinned-item-header">
                                 ${statusBadge}
-                                <div class="rumi-pinned-item-actions">
-                                    ${resetButton}
-                                    <button class="rumi-pinned-item-remove"
-                                            data-ticket-id="${pin.ticketId}"
-                                            data-pin-type="care_routing"
-                                            aria-label="Remove care routing pin for ticket ${pin.ticketId}">
-                                        Remove
-                                    </button>
-                                </div>
+                                <button class="rumi-pinned-item-remove"
+                                        data-ticket-id="${pin.ticketId}"
+                                        data-pin-type="care_routing"
+                                        aria-label="Remove care routing pin for ticket ${pin.ticketId}">
+                                    Remove
+                                </button>
                             </div>
                             <div class="rumi-pinned-item-info">
                                 <div>
