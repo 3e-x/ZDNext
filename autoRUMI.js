@@ -395,17 +395,9 @@
                 }
 
                 // PRIORITY 2: Check for care routing pin
-                RUMILogger.info('PROCESSOR', '🔍 Checking for care routing pin', { ticketId });
                 const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId, ticketData, commentsList);
                 
                 if (careRoutingResult) {
-                    RUMILogger.info('PROCESSOR', '📌 Care routing pin result received', { 
-                        ticketId, 
-                        action: careRoutingResult.action, 
-                        reason: careRoutingResult.reason,
-                        trigger: careRoutingResult.trigger
-                    });
-                    
                     // If care routing pin returned a result, process it or skip
                     if (careRoutingResult.action === 'care') {
                         // Apply Care routing
@@ -444,8 +436,6 @@
                         RUMIStorage.addProcessedTicket(carePinData);
                     }
                     return careRoutingResult;
-                } else {
-                    RUMILogger.info('PROCESSOR', '❌ No care routing pin found for ticket', { ticketId });
                 }
 
                 // Store original ticket state
@@ -585,17 +575,9 @@
                 }
 
                 // PRIORITY 2: Check for care routing pin (pass pre-fetched data for efficiency)
-                RUMILogger.info('PROCESSOR', '🔍 Checking for care routing pin (with pre-fetched data)', { ticketId });
                 const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId, ticketData, commentsList);
                 
                 if (careRoutingResult) {
-                    RUMILogger.info('PROCESSOR', '📌 Care routing pin result received (with pre-fetched data)', { 
-                        ticketId, 
-                        action: careRoutingResult.action, 
-                        reason: careRoutingResult.reason,
-                        trigger: careRoutingResult.trigger
-                    });
-                    
                     // If care routing pin returned a result, process it or skip
                     if (careRoutingResult.action === 'care') {
                         // Apply Care routing
@@ -647,8 +629,6 @@
                         }
                     }
                     return careRoutingResult;
-                } else {
-                    RUMILogger.info('PROCESSOR', '❌ No care routing pin found for ticket (with pre-fetched data)', { ticketId });
                 }
 
                 // Store original ticket state
@@ -2053,22 +2033,14 @@
         // Check and process care routing pin
         // Accepts optional ticketData and commentsList to avoid redundant API calls
         static async checkCareRoutingPin(ticketId, ticketData = null, commentsList = null) {
-            RUMILogger.info('PIN_MANAGER', '🔍 Checking care routing pin for ticket', { ticketId });
-            
             const careRoutingPins = RUMIStorage.getPinnedCareRouting();
-            RUMILogger.debug('PIN_MANAGER', 'All care routing pins', { 
-                totalPins: careRoutingPins.length, 
-                pins: careRoutingPins.map(p => ({ ticketId: p.ticketId, status: p.status, lastCommentId: p.lastCommentId }))
-            });
-            
             const pin = careRoutingPins.find(p => p.ticketId === ticketId);
 
             if (!pin) {
-                RUMILogger.info('PIN_MANAGER', '❌ No care routing pin found for ticket', { ticketId });
                 return null; // No care routing pin for this ticket
             }
 
-            RUMILogger.info('PIN_MANAGER', '✅ Care routing pin found', { 
+            RUMILogger.info('PIN_MANAGER', '📌 Care routing pin found - processing ticket', { 
                 ticketId, 
                 pinStatus: pin.status, 
                 lastCommentId: pin.lastCommentId,
@@ -2082,24 +2054,12 @@
             }
 
             // Status is 'active', process the pin
-            RUMILogger.info('PIN_MANAGER', '🔄 Processing active care routing pin', { ticketId, pinStatus: pin.status });
-            
             try {
                 // Fetch ticket data if not provided (for closed ticket check and status check)
                 if (!ticketData) {
-                    RUMILogger.debug('PIN_MANAGER', 'Fetching ticket data for care routing pin', { ticketId });
                     const ticketResponse = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}.json`);
                     ticketData = ticketResponse.ticket;
-                } else {
-                    RUMILogger.debug('PIN_MANAGER', 'Using provided ticket data for care routing pin', { ticketId });
                 }
-
-                RUMILogger.info('PIN_MANAGER', '📋 Ticket data for care routing pin', { 
-                    ticketId, 
-                    status: ticketData.status, 
-                    groupId: ticketData.group_id,
-                    assigneeId: ticketData.assignee_id
-                });
 
                 // Check if ticket is closed - cannot route closed tickets
                 if (ticketData.status === 'closed') {
@@ -2109,22 +2069,14 @@
 
                 // Fetch comments if not provided
                 if (!commentsList) {
-                    RUMILogger.debug('PIN_MANAGER', 'Fetching comments for care routing pin', { ticketId });
                     const commentsResponse = await RUMIAPIManager.get(`/api/v2/tickets/${ticketId}/comments.json`);
                     commentsList = commentsResponse.comments || [];
                 } else {
-                    RUMILogger.debug('PIN_MANAGER', 'Using provided comments for care routing pin', { ticketId });
                     // If commentsList is an object with comments property, extract the array
                     if (commentsList.comments) {
                         commentsList = commentsList.comments;
                     }
                 }
-
-                RUMILogger.info('PIN_MANAGER', '💬 Comments data for care routing pin', { 
-                    ticketId, 
-                    commentCount: commentsList.length,
-                    latestCommentId: commentsList.length > 0 ? commentsList[commentsList.length - 1].id : 'none'
-                });
 
                 if (!commentsList || commentsList.length === 0) {
                     RUMILogger.warn('PIN_MANAGER', '❌ No comments found for care routing pin', { ticketId });
@@ -2135,15 +2087,8 @@
 
                 // For care routing pins, always route to Care regardless of comment changes
                 // Update the pin's lastCommentId to track the latest comment
-                RUMILogger.info('PIN_MANAGER', '🔍 Comparing comment IDs for care routing pin', {
-                    ticketId,
-                    pinLastCommentId: pin.lastCommentId,
-                    latestCommentId: latestCommentId,
-                    commentChanged: latestCommentId !== pin.lastCommentId
-                });
-
                 if (latestCommentId !== pin.lastCommentId) {
-                    RUMILogger.info('PIN_MANAGER', '🆕 Care routing pin: new comment detected, updating pin and routing to Care', {
+                    RUMILogger.info('PIN_MANAGER', '🆕 New comment detected, updating pin and routing to Care', {
                         ticketId,
                         oldCommentId: pin.lastCommentId,
                         newCommentId: latestCommentId
@@ -2151,9 +2096,8 @@
                     
                     // Update the pin with the new comment ID
                     RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'active', latestCommentId);
-                    RUMILogger.info('PIN_MANAGER', '✅ Updated care routing pin with new comment ID', { ticketId, newCommentId: latestCommentId });
                 } else {
-                    RUMILogger.info('PIN_MANAGER', '🔄 Care routing pin: comment unchanged, routing to Care', {
+                    RUMILogger.info('PIN_MANAGER', '🔄 Comment unchanged, routing to Care', {
                         ticketId,
                         commentId: latestCommentId,
                         currentStatus: ticketData.status
@@ -2168,27 +2112,18 @@
                     }
                 };
 
-                RUMILogger.info('PIN_MANAGER', '🎯 Building care routing payload', {
-                    ticketId,
-                    targetGroupId: CONFIG.GROUP_IDS.CARE,
-                    currentGroupId: ticketData.group_id,
-                    currentStatus: ticketData.status
-                });
-
                 if (ticketData.status !== 'open') {
                     payload.ticket.status = 'open';
-                    RUMILogger.info('PIN_MANAGER', '📝 Care routing pin: will also set status to open', {
+                    RUMILogger.info('PIN_MANAGER', '📝 Will also set status to open', {
                         ticketId,
-                        currentStatus: ticketData.status,
-                        newStatus: 'open'
+                        currentStatus: ticketData.status
                     });
                 }
 
-                RUMILogger.info('PIN_MANAGER', '🚀 Care routing pin: returning action to route to Care', {
+                RUMILogger.info('PIN_MANAGER', '🚀 Routing to Care via pin', {
                     ticketId,
-                    action: 'care',
-                    trigger: 'Care Routing Pin',
-                    payload: payload
+                    targetGroupId: CONFIG.GROUP_IDS.CARE,
+                    currentGroupId: ticketData.group_id
                 });
 
                 return {
@@ -2226,6 +2161,11 @@
                     payload.ticket.status = 'open';
                 }
 
+                // Get group names for processed table entry
+                const previousGroupName = await RUMIProcessor.fetchAndCacheGroupName(ticketData.group_id);
+                const newGroupId = payload.ticket.group_id;
+                const newGroupName = await RUMIProcessor.fetchAndCacheGroupName(newGroupId);
+
                 // Respect dry run mode
                 if (RUMIProcessor.isDryRun) {
                     RUMILogger.info('PIN_MANAGER', '[DRY RUN] Would apply initial Care routing', {
@@ -2240,6 +2180,28 @@
                         statusChanged: ticketData.status !== 'open'
                     });
                 }
+
+                // Add to automatic processed table regardless of dry run mode
+                const carePinData = {
+                    ticketId: ticketId,
+                    subject: ticketData.subject || 'N/A',
+                    viewName: 'Pinned Ticket',
+                    action: 'care',
+                    trigger: 'pinned ticket',
+                    previousStatus: ticketData.status,
+                    newStatus: payload.ticket.status || ticketData.status,
+                    previousGroupId: ticketData.group_id,
+                    previousGroupName: previousGroupName,
+                    newGroupId: newGroupId,
+                    newGroupName: newGroupName,
+                    previousAssigneeId: ticketData.assignee_id,
+                    newAssigneeId: ticketData.assignee_id,
+                    dryRun: RUMIProcessor.isDryRun,
+                    alreadyCorrect: false,
+                    note: null
+                };
+                RUMIStorage.addProcessedTicket(carePinData);
+                RUMIStorage.updateProcessingStats('care');
 
             } catch (error) {
                 RUMILogger.error('PIN_MANAGER', 'Failed to process care routing pin', { ticketId, error: error.message });
