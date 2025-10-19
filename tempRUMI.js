@@ -5085,7 +5085,9 @@ Safety & Security Operations Team
 					if (prior) prior.remove();
 
 					// Reuse the exact RUMI input creator for consistent styling/position
-					const ti = createTextInput(dupButton);
+					// Anchor to the actual RUMI button so position matches exactly
+					const rumiAnchor = document.querySelector('button[data-test-id="rumi-button"]') || dupButton;
+					const ti = createTextInput(rumiAnchor);
 					// Ensure no placeholder/title differences
 					ti.placeholder = '';
 					ti.removeAttribute('title');
