@@ -9719,17 +9719,19 @@ Safety & Security Operations Team
             // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f)
             const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-            // Phone number regex pattern: 12 consecutive digits
-            const phoneRegex = /\d{12}/;
+			// Phone number regex patterns
+			const phone12Regex = /\d{12}/;
+			const phone11KwtRegex = /\b965\d{8}\b/;
 
-            // Search for phone number anywhere in the comment body
-            const phoneMatch = commentBody.match(phoneRegex);
-            if (phoneMatch) {
-                phoneNumber = phoneMatch[0];
-                console.log('🔍 DEBUG: Extracted phone number from comment body:', phoneNumber);
-            } else {
-                console.log('🔍 DEBUG: No 12-digit phone number found in comment body');
-            }
+			// Search for phone number: prefer 12 digits; fallback to 11 digits starting with 965
+			let phoneMatch = commentBody.match(phone12Regex);
+			if (!phoneMatch) phoneMatch = commentBody.match(phone11KwtRegex);
+			if (phoneMatch) {
+				phoneNumber = phoneMatch[0];
+				console.log('🔍 DEBUG: Extracted phone number from comment body:', phoneNumber);
+			} else {
+				console.log('🔍 DEBUG: No 12-digit or 11-digit starting with 965 phone found in comment body');
+			}
 
             // Search for UUID anywhere in the comment body
             const uuidMatch = commentBody.match(uuidRegex);
@@ -9767,15 +9769,17 @@ Safety & Security Operations Team
 
             if (hasExcludeDetectionTag) {
                 console.log('🔍 DEBUG: Processing exclude_detection tag');
-                // Extract phone number from ticket subject using regex
-                const phoneRegex = /(?<=\D)\d{12}(?=\D)/;
-                const phoneMatch = ticketData.subject.match(phoneRegex);
-                if (phoneMatch) {
-                    phoneNumber = phoneMatch[0];
-                    console.log('🔍 DEBUG: Extracted phone from subject:', phoneNumber);
-                } else {
-                    console.log('🔍 DEBUG: No 12-digit phone number found in subject:', ticketData.subject);
-                }
+				// Extract phone number from ticket subject using regex (prefer 12 digits; fallback to 11 digits starting with 965)
+				const phone12Regex = /(?<=\D)\d{12}(?=\D)/;
+				const phone11KwtRegex = /(?<=\D)965\d{8}(?=\D)/;
+				let phoneMatch = ticketData.subject.match(phone12Regex);
+				if (!phoneMatch) phoneMatch = ticketData.subject.match(phone11KwtRegex);
+				if (phoneMatch) {
+					phoneNumber = phoneMatch[0];
+					console.log('🔍 DEBUG: Extracted phone from subject:', phoneNumber);
+				} else {
+					console.log('🔍 DEBUG: No 12-digit or 11-digit starting with 965 phone found in subject:', ticketData.subject);
+				}
 
                 // For exclude_detection, activityId still comes from custom field
                 activityId = getCustomFieldValue(ticketData, '15220303991955') || '';
