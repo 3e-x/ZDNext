@@ -5079,41 +5079,18 @@ Safety & Security Operations Team
 					return;
 				}
 
-				// Create a tiny input next to the Duplicate button (empty, paste-to-submit like RUMI)
+				// Create a tiny input next to the Duplicate button (identical to RUMI input)
 				(function createTicketIdInput(dupButton) {
-					const prior = document.querySelector('.rumi-ticketid-input');
+					const prior = document.querySelector('.rumi-text-input');
 					if (prior) prior.remove();
 
-					const ti = document.createElement('textarea');
-					ti.className = 'rumi-ticketid-input';
-					ti.style.cssText = `
-				position: absolute;
-				width: 70px;
-				height: 20px;
-				font-size: 12px;
-				border: 1px solid #ccc;
-				border-radius: 3px;
-				padding: 2px;
-				margin-left: 35px;
-				z-index: 1000;
-				background: white;
-				resize: none;
-				overflow: hidden;
-			`;
-					ti.placeholder = '#123456';
-					ti.title = 'Enter Ticket ID';
-
-					const rect = dupButton.getBoundingClientRect();
-					ti.style.position = 'fixed';
-					ti.style.left = (rect.right + 5) + 'px';
-					ti.style.top = (rect.top + (rect.height - 20) / 2) + 'px';
-
-					document.body.appendChild(ti);
-
-					setTimeout(() => {
-						ti.focus();
-						ti.select();
-					}, 50);
+					// Reuse the exact RUMI input creator for consistent styling/position
+					const ti = createTextInput(dupButton);
+					// Ensure no placeholder/title differences
+					ti.placeholder = '';
+					ti.removeAttribute('title');
+					// Normalize class so both look identical
+					ti.className = 'rumi-text-input';
 
 					// Paste-to-submit (Ctrl+V), also support Enter. Esc cancels
 					ti.addEventListener('keydown', async (ke) => {
