@@ -5072,8 +5072,8 @@ Safety & Security Operations Team
 			button.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-				// If a ticket-id input already exists, remove it (toggle behavior)
-				const existingTicketInput = document.querySelector('.rumi-ticketid-input');
+				// If a text input already exists, remove it (toggle behavior)
+				const existingTicketInput = document.querySelector('.rumi-text-input');
 				if (existingTicketInput) {
 					existingTicketInput.remove();
 					return;
@@ -5085,9 +5085,7 @@ Safety & Security Operations Team
 					if (prior) prior.remove();
 
 					// Reuse the exact RUMI input creator for consistent styling/position
-					// Anchor to the actual RUMI button so position matches exactly
-					const rumiAnchor = document.querySelector('button[data-test-id="rumi-button"]') || dupButton;
-					const ti = createTextInput(rumiAnchor);
+					const ti = createTextInput(dupButton);
 					// Ensure no placeholder/title differences
 					ti.placeholder = '';
 					ti.removeAttribute('title');
