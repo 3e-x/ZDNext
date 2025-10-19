@@ -5072,7 +5072,83 @@ Safety & Security Operations Team
             button.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                handleDuplicateTicket();
+                // If a ticket-id input already exists, remove it (toggle behavior)
+                const existingTicketInput = document.querySelector('.rumi-ticketid-input');
+                if (existingTicketInput) {
+                    existingTicketInput.remove();
+                    return;
+                }
+
+                // Create a tiny input next to the Duplicate button, prefilled with current ticket ID
+                const input = (function createTicketIdInput(dupButton) {
+                    const prior = document.querySelector('.rumi-ticketid-input');
+                    if (prior) prior.remove();
+
+                    const ti = document.createElement('textarea');
+                    ti.className = 'rumi-ticketid-input';
+                    ti.style.cssText = `
+                position: absolute;
+                width: 70px;
+                height: 20px;
+                font-size: 12px;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                padding: 2px;
+                margin-left: 35px;
+                z-index: 1000;
+                background: white;
+                resize: none;
+                overflow: hidden;
+            `;
+                    ti.placeholder = '#123456';
+                    ti.title = 'Enter Ticket ID';
+
+                    // Prefill with current ticket ID if available
+                    try {
+                        const currentId = getCurrentTicketId && getCurrentTicketId();
+                        if (currentId) {
+                            ti.value = currentId;
+                        }
+                    } catch (_) { }
+
+                    const rect = dupButton.getBoundingClientRect();
+                    ti.style.position = 'fixed';
+                    ti.style.left = (rect.right + 5) + 'px';
+                    ti.style.top = (rect.top + (rect.height - 20) / 2) + 'px';
+
+                    document.body.appendChild(ti);
+
+                    setTimeout(() => {
+                        ti.focus();
+                        ti.select();
+                    }, 50);
+
+                    // Submit on Enter, Escape to cancel
+                    ti.addEventListener('keydown', (ke) => {
+                        if (ke.key === 'Enter') {
+                            ke.preventDefault();
+                            const ticketId = ti.value.trim();
+                            ti.remove();
+                            // Build template with the provided Ticket ID
+                            const templateText = `Dear team,\n\nWe Have Escalated this case to Uber. Please refer to ticket #${ticketId}\n\nRegards,\n**${username}**\nSafety & Security Operations Team\n`;
+                            navigator.clipboard.writeText(templateText)
+                                .then(() => {
+                                    console.log('✅ Duplicate template copied to clipboard!');
+                                    setTimeout(() => { clickTakeItButton(); }, 300);
+                                })
+                                .catch(err => {
+                                    console.error('Failed to copy text:', err);
+                                    console.error('❌ Error copying to clipboard');
+                                    setTimeout(() => { clickTakeItButton(); }, 300);
+                                });
+                        } else if (ke.key === 'Escape') {
+                            ke.preventDefault();
+                            ti.remove();
+                        }
+                    });
+
+                    return ti;
+                })(button);
             });
 
             wrapper.appendChild(button);
