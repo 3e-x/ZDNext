@@ -131,6 +131,7 @@
             "3rd call",
             "more info",
             "#safety"
+            "#audiomissing",
         ];
 
         static SOLVED_TRIGGERS = [
