@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zendesk Ticket JSON Viewer</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; 
+            margin: 24px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            font-size: 24px; 
+            margin: 0 0 16px; 
+            color: #333;
+        }
+        .instructions {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .instructions strong { color: #1976d2; }
+        label { 
+            display: block; 
+            font-weight: 600; 
+            margin-bottom: 8px; 
+            color: #555;
+        }
+        .input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        input[type="text"] { 
+            flex: 1;
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            font-size: 14px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #2196f3;
+            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+        }
+        button { 
+            padding: 10px 16px; 
+            border: 0; 
+            background: #2196f3; 
+            color: #fff; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        button:hover { background: #1976d2; }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+        }
+        .status { 
+            font-size: 14px; 
+            margin-left: 8px;
+            color: #666; 
+        }
+        .status.loading { color: #2196f3; }
+        .status.error { color: #f44336; }
+        .status.success { color: #4caf50; }
+        pre { 
+            white-space: pre-wrap; 
+            word-break: break-word; 
+            background: #f8f9fa; 
+            border: 1px solid #e9ecef; 
+            border-radius: 4px; 
+            padding: 16px; 
+            max-height: 60vh; 
+            overflow: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .error { 
+            color: #f44336; 
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        .success {
+            color: #4caf50;
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .server-info {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .server-info code {
+            background: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Zendesk Ticket JSON Viewer</h1>
+        
+        <div class="server-info">
+            <strong>⚠️ Important:</strong> This file must be served from a local web server to work properly. 
+            Open a terminal/command prompt in this folder and run: <code>python -m http.server 8000</code> 
+            (or <code>python3 -m http.server 8000</code> on Mac/Linux), then visit 
+            <code>http://localhost:8000/zendesk_ticket_viewer.html</code>
+        </div>
+
+        <div class="instructions">
+            <strong>How it works:</strong> This page uses your browser's existing Zendesk session cookies 
+            to fetch ticket data from <code>https://gocareem.zendesk.com/api/v2/tickets/{id}.json</code>. 
+            Make sure you're logged into Zendesk in this browser.
+        </div>
+
+        <div>
+            <label for="ticketId">Ticket ID</label>
+            <div class="input-group">
+                <input id="ticketId" type="text" placeholder="e.g. 119060571" autocomplete="off" />
+                <button id="fetchBtn">Fetch Ticket</button>
+                <span id="status" class="status"></span>
+            </div>
+        </div>
+
+        <pre id="output" aria-live="polite" aria-busy="false"></pre>
+    </div>
+
+    <script>
+    (function() {
+        const input = document.getElementById("ticketId");
+        const button = document.getElementById("fetchBtn");
+        const output = document.getElementById("output");
+        const status = document.getElementById("status");
+
+        function setStatus(message, type = '') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function setBusy(isBusy) {
+            button.disabled = isBusy;
+            output.setAttribute("aria-busy", String(isBusy));
+            if (isBusy) {
+                setStatus("Fetching...", "loading");
+            } else {
+                setStatus("");
+            }
+        }
+
+        async function fetchTicket() {
+            const raw = (input.value || "").trim();
+            if (!raw || !/^\d+$/.test(raw)) {
+                output.textContent = "Please enter a numeric ticket ID.";
+                output.className = "error";
+                setStatus("Invalid ticket ID", "error");
+                return;
+            }
+
+            output.className = "";
+            output.textContent = "";
+            setBusy(true);
+
+            const url = `https://gocareem.zendesk.com/api/v2/tickets/${encodeURIComponent(raw)}.json`;
+            
+            try {
+                const res = await fetch(url, {
+                    method: "GET",
+                    credentials: "include",
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const text = await res.text();
+                let body;
+                
+                try {
+                    body = JSON.parse(text);
+                } catch (e) {
+                    body = text;
+                }
+
+                if (!res.ok) {
+                    output.className = "error";
+                    setStatus(`HTTP ${res.status} ${res.statusText}`, "error");
+                } else {
+                    output.className = "success";
+                    setStatus("Success!", "success");
+                }
+
+                output.textContent = typeof body === "string" ? body : JSON.stringify(body, null, 2);
+                
+            } catch (err) {
+                output.className = "error";
+                output.textContent = `Network error: ${err && err.message ? err.message : String(err)}`;
+                setStatus("Network error", "error");
+            } finally {
+                setBusy(false);
+            }
+        }
+
+        button.addEventListener("click", fetchTicket);
+        input.addEventListener("keydown", function(ev) {
+            if (ev.key === "Enter") {
+                fetchTicket();
+            }
+        });
+
+        // Auto-focus the input
+        input.focus();
+    })();
+    </script>
+</body>
+</html>
