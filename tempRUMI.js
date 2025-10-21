@@ -4509,19 +4509,19 @@ Safety & Security Operations Team
                 if (currentTicketId) {
                     const hasVoiceCareInCommentsFlag = await hasVoiceCareInComments(currentTicketId);
                     if (hasVoiceCareInCommentsFlag) {
-                        descriptionLine = `Description:\u00A0 (Voice care ticket #${currentTicketId})`;
+                        descriptionLine = `Description:\u00A0Customer is complaining about, (Voice care ticket #${currentTicketId})`;
                         console.log('📞 Using Voice care description format for voice care found in comments (apollo ticket)');
                     } else {
                         descriptionLine = 'Description:\u00A0Customer is complaining about, ';
                         console.log('📞 No voice care found in comments for apollo ticket');
                     }
                 } else {
-                    descriptionLine = 'Description:\u00A0 ';
+                    descriptionLine = 'Description:\u00A0Customer is complaining about, ';
                     console.log('📞 No ticket ID available for apollo ticket');
                 }
             } else {
                 // No special tags, use normal description
-                descriptionLine = 'Description:\u00A0 ';
+                descriptionLine = 'Description:\u00A0Customer is complaining about, ';
                 console.log('📞 No special tags found - using normal description format');
             }
 
