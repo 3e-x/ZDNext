@@ -4499,10 +4499,10 @@ Safety & Security Operations Team
             // Special description format based on tags and comments
             let descriptionLine;
             if (hasExcludeTag) {
-                descriptionLine = `Description:\u00A0 (Social media ticket #${currentTicketId})`;
+                descriptionLine = `Description:\u00A0Customer is complaining about, (Social media ticket #${currentTicketId})`;
                 console.log('🏷️ Using Social media description format for exclude_detection tag');
             } else if (hasVoiceCareTagFlag) {
-                descriptionLine = `Description:\u00A0 (Voice care ticket #${currentTicketId})`;
+                descriptionLine = `Description:\u00A0Customer is complaining about, (Voice care ticket #${currentTicketId})`;
                 console.log('📞 Using Voice care description format for ssoc_voice_created_ticket tag');
             } else if (hasApolloTagFlag) {
                 // Check comments for voice care ticket reference only if apollo_created_ticket tag exists
@@ -4512,7 +4512,7 @@ Safety & Security Operations Team
                         descriptionLine = `Description:\u00A0 (Voice care ticket #${currentTicketId})`;
                         console.log('📞 Using Voice care description format for voice care found in comments (apollo ticket)');
                     } else {
-                        descriptionLine = 'Description:\u00A0 ';
+                        descriptionLine = 'Description:\u00A0Customer is complaining about, ';
                         console.log('📞 No voice care found in comments for apollo ticket');
                     }
                 } else {
