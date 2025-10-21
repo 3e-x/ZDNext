@@ -5020,7 +5020,7 @@ ${blockHistoryText}
         const customerWordsLine = customerWords ? `Customer Words: ${customerWords}\u00A0` : 'Customer Words:\u00A0';
         
         const templateText = `${incidentTypeLine}
-Description:\u00A0 
+Description:\u00A0Customer is complaining about,  
 ${phoneSourceLine} 
 ${customerLanguageLine} 
 ${customerWordsLine}`;
