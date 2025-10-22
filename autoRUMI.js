@@ -987,10 +987,39 @@
             return { action: 'none' };
         }
 
+        // Helper function to check if any comment contains required phrases for pending/solved processing
+        static hasRequiredCommentPhrases(comments) {
+            const requiredPhrases = [
+                'careeminboundphone',
+                'incident type',
+                'customer language',
+                'customer words'
+            ];
+
+            for (const comment of comments) {
+                const normalizedComment = RUMICommentProcessor.normalizeForMatching(comment.html_body);
+                for (const phrase of requiredPhrases) {
+                    if (normalizedComment.includes(phrase.toLowerCase())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         static async evaluatePendingRules(ticket, comments, settings, viewName = null) {
             // Check if pending action type is enabled
             if (!settings.actionTypes.pending) {
                 RUMILogger.debug('Processor', 'Pending action type disabled in settings', { ticketId: ticket.id });
+                return { action: 'none' };
+            }
+
+            // Check if any comment contains required phrases before processing pending
+            if (!this.hasRequiredCommentPhrases(comments)) {
+                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping pending processing', { 
+                    ticketId: ticket.id,
+                    requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
+                });
                 return { action: 'none' };
             }
 
@@ -1143,6 +1172,15 @@
             // Check if solved action type is enabled
             if (!settings.actionTypes.solved) {
                 RUMILogger.debug('Processor', 'Solved action type disabled in settings', { ticketId: ticket.id });
+                return { action: 'none' };
+            }
+
+            // Check if any comment contains required phrases before processing solved
+            if (!this.hasRequiredCommentPhrases(comments)) {
+                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping solved processing', { 
+                    ticketId: ticket.id,
+                    requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
+                });
                 return { action: 'none' };
             }
 
@@ -2053,7 +2091,7 @@
                 timestamp: pin.timestamp
             });
 
-            // If status is 'changed', skip processing
+            // If status is 'changed', skip processing (pin was already processed after comment change)
             if (pin.status === 'changed') {
                 RUMILogger.info('PIN_MANAGER', '⏭️ Ticket skipped: care routing pin status is changed', { ticketId });
                 return { action: 'skipped', reason: 'care_pin_changed' };
@@ -2092,16 +2130,16 @@
                 const latestCommentId = commentsList[commentsList.length - 1].id;
 
                 // For care routing pins, always route to Care regardless of comment changes
-                // Update the pin's lastCommentId to track the latest comment
+                // Check if comment ID has changed
                 if (latestCommentId !== pin.lastCommentId) {
-                    RUMILogger.info('PIN_MANAGER', '🆕 New comment detected, marking pin as changed', {
+                    RUMILogger.info('PIN_MANAGER', '🆕 New comment detected, routing to Care then marking as changed', {
                         ticketId,
                         oldCommentId: pin.lastCommentId,
                         newCommentId: latestCommentId
                     });
                     
-                    // Mark pin as 'changed' - stops automatic processing
-                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'changed');
+                    // Mark pin as 'changed' after processing - this will stop future automatic processing
+                    // We'll update this after the routing is complete
                 } else {
                     RUMILogger.info('PIN_MANAGER', '🔄 Comment unchanged, routing to Care', {
                         ticketId,
@@ -2131,6 +2169,12 @@
                     targetGroupId: CONFIG.GROUP_IDS.CARE,
                     currentGroupId: ticketData.group_id
                 });
+
+                // If comment ID changed, mark pin as 'changed' after routing to stop future processing
+                if (latestCommentId !== pin.lastCommentId) {
+                    RUMIStorage.updatePinnedCareRoutingStatus(ticketId, 'changed', latestCommentId);
+                    RUMILogger.info('PIN_MANAGER', '📌 Pin marked as changed after routing', { ticketId, newCommentId: latestCommentId });
+                }
 
                 return {
                     action: 'care',
