@@ -5130,7 +5130,7 @@
             <div id="rumi-topbar">
                 <div>
                     <h1 style="margin:0; font-size:18px;">RUMI Automation Tool</h1>
-                    <small style="color: var(--rumi-text-secondary);">Ticket Processing & Business Logic</small>
+                    <small style="color: var(--rumi-text-secondary);">Ticket Processing & Business Lgic</small>
                 </div>
 
                 <div class="rumi-status-indicator">
