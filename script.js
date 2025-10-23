@@ -475,7 +475,7 @@
     const standardFields = [
         'Tags',
         'Reason (Quality/GO/Billing)*',
-		'Reason (Quality/GO/Billing)',
+        'Reason (Quality/GO/Billing)',
         'Captain ID',
         'Booking ID',
         'Parent Ticket Source',
@@ -497,21 +497,21 @@
     const minimalFields = [
         'Tags',
         'Reason (Quality/GO/Billing)*',
-		'Reason (Quality/GO/Billing)',
+        'Reason (Quality/GO/Billing)',
         'SSOC Reason',
         'Action Taken - Consumer',
-        'SSOC incident source'
-		'City',
-		'Country'
+        'SSOC incident source',
+        'City',
+        'Country'
     ];
 
     // Check if a field is a system field that should never be hidden (Requester, Assignee, CCs)
     function isSystemField(field) {
         if (!field || !field.querySelector) return false;
-        
+
         const label = field.querySelector('label');
         if (!label) return false;
-        
+
         const labelText = label.textContent.trim().toLowerCase();
         const systemFieldLabels = [
             'assignee',
@@ -520,17 +520,17 @@
             'collaborators',
             'followers'
         ];
-        
+
         // Check if this is a system field by label text
         if (systemFieldLabels.some(sysLabel => labelText.includes(sysLabel))) {
             return true;
         }
-        
+
         // Special handling for "Requester" - only the main requester field, not device/IP fields
         if (labelText === 'requester') {
             return true;
         }
-        
+
         // Check by data-test-id patterns for system fields (be specific to avoid catching device/IP fields)
         const testIds = [
             'ticket-system-field-requester-label',  // More specific to avoid device/IP fields
@@ -538,18 +538,18 @@
             'assignee-field',
             'ticket-fields-collaborators'
         ];
-        
+
         if (testIds.some(testId => field.querySelector(`[data-test-id*="${testId}"]`) || field.getAttribute('data-test-id') === testId)) {
             return true;
         }
-        
+
         // Also check if the field itself has the requester system field test-id
         const fieldTestId = field.getAttribute('data-test-id') || '';
-        if (fieldTestId === 'ticket-system-field-requester-label' || 
+        if (fieldTestId === 'ticket-system-field-requester-label' ||
             fieldTestId === 'ticket-system-field-requester-select') {
             return true;
         }
-        
+
         return false;
     }
 
@@ -561,32 +561,32 @@
             // In 'all' state, no fields are considered target fields (all visible)
             return false;
         }
-        
+
         let targetLabels = [];
         if (fieldVisibilityState === 'standard') {
             targetLabels = standardFields;
         } else if (fieldVisibilityState === 'minimal') {
             targetLabels = minimalFields;
         }
-        
+
         // Enhanced matching for different label structures
         const labelText = label.textContent.trim();
         const isMinimalField = targetLabels.some(targetText => {
             // Exact match
             if (labelText === targetText) return true;
-            
+
             // Handle labels with asterisks or other suffixes
             if (labelText.replace(/\*$/, '').trim() === targetText) return true;
-            
+
             // Handle labels without asterisks when target has them
             if (targetText.endsWith('*') && labelText === targetText.slice(0, -1).trim()) return true;
-            
+
             // Case insensitive match as fallback
             if (labelText.toLowerCase() === targetText.toLowerCase()) return true;
-            
+
             return false;
         });
-        
+
         return isMinimalField;
     }
 
@@ -871,8 +871,8 @@
             }
 
             const input = field.querySelector('input[data-test-id="ticket-field-input"]') ||
-                          field.querySelector('[role="combobox"] input') ||
-                          field.querySelector('input');
+                field.querySelector('[role="combobox"] input') ||
+                field.querySelector('input');
             if (!input) {
                 console.warn('No input found in dropdown field for:', valueText);
                 return false;
@@ -880,8 +880,8 @@
 
             // Quick check if already set
             const displayValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                 field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                                 field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+                field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
             if (displayValue === valueText) {
                 console.log(`✅ "${valueText}" already set`);
@@ -910,8 +910,8 @@
                 }
 
                 const input = field.querySelector('input[data-test-id="ticket-field-input"]') ||
-                             field.querySelector('[role="combobox"] input') ||
-                             field.querySelector('input');
+                    field.querySelector('[role="combobox"] input') ||
+                    field.querySelector('input');
 
                 if (input && field.isConnected && field.offsetParent !== null) {
                     resolve();
@@ -930,7 +930,7 @@
             const valueProp = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
 
             // Set input value
-            try { valueProp.set.call(input, valueText); } catch {}
+            try { valueProp.set.call(input, valueText); } catch { }
             input.setAttribute('value', valueText);
 
             // Try to find and trigger React's internal onChange handler
@@ -961,9 +961,9 @@
                             type: 'change',
                             bubbles: true,
                             cancelable: true,
-                            preventDefault: () => {},
-                            stopPropagation: () => {},
-                            persist: () => {}
+                            preventDefault: () => { },
+                            stopPropagation: () => { },
+                            persist: () => { }
                         };
                         console.log(`⚛️ Triggering React onChange for "${valueText}"`);
                         reactData.onChange(syntheticEvent);
@@ -985,7 +985,7 @@
             // Update hidden backing input if present
             const hidden = field.querySelector('input[type="hidden"][name], input[hidden][name]');
             if (hidden) {
-                try { valueProp.set.call(hidden, valueText); } catch {}
+                try { valueProp.set.call(hidden, valueText); } catch { }
                 hidden.setAttribute('value', valueText);
                 hidden.dispatchEvent(new Event('input', { bubbles: true }));
                 hidden.dispatchEvent(new Event('change', { bubbles: true }));
@@ -996,8 +996,8 @@
 
             // More comprehensive verification - check both display AND form state
             const display = field.querySelector('[title]') ||
-                            field.querySelector('[data-garden-id="typography.ellipsis"]') ||
-                            field.querySelector('.StyledEllipsis-sc-1u4umy-0');
+                field.querySelector('[data-garden-id="typography.ellipsis"]') ||
+                field.querySelector('.StyledEllipsis-sc-1u4umy-0');
 
             const displayValue = display ? (display.getAttribute('title') || display.textContent.trim()) : null;
             const inputValue = input.value;
@@ -1033,8 +1033,8 @@
     async function tryManualDropdownSet(field, valueText, retries) {
         try {
             const trigger = field.querySelector('[role="combobox"]') ||
-                           field.querySelector('input[data-test-id="ticket-field-input"]') ||
-                           field.querySelector('input');
+                field.querySelector('input[data-test-id="ticket-field-input"]') ||
+                field.querySelector('input');
 
             if (!trigger) return false;
 
@@ -1065,8 +1065,8 @@
 
                     // Quick verification
                     const displayValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
                     trigger.dataset.isProcessing = 'false';
                     return displayValue === valueText;
@@ -1286,7 +1286,7 @@
         // Use debouncing to prevent rapid successive calls
         debounce(() => {
             let allForms = getCachedElements('section.grid-ticket-fields-panel', 2000);
-            
+
             // If no forms found with the primary selector, try fallback selectors
             if (allForms.length === 0) {
                 const formSelectors = [
@@ -1295,7 +1295,7 @@
                     'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                     '.ticket_fields'
                 ];
-                
+
                 for (const selector of formSelectors) {
                     allForms = document.querySelectorAll(selector);
                     if (allForms.length > 0) {
@@ -1326,27 +1326,27 @@
                     // Enhanced field detection to handle both old and new structures
                     // Start with a broad search and then filter out system fields
                     const allPossibleFields = Array.from(form.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
-                    
+
                     const fields = [];
                     allPossibleFields.forEach(field => {
                         try {
                             // Must have a label and be connected
-                            if (field.nodeType !== Node.ELEMENT_NODE || 
-                                !field.isConnected || 
+                            if (field.nodeType !== Node.ELEMENT_NODE ||
+                                !field.isConnected ||
                                 !field.querySelector('label')) {
                                 return;
                             }
-                            
+
                             // Skip system fields (Requester, Assignee, CCs)
                             if (isSystemField(field)) {
                                 return;
                             }
-                            
+
                             // Skip duplicates
                             if (fields.includes(field)) {
                                 return;
                             }
-                            
+
                             fields.push(field);
                         } catch (e) {
                             console.debug('Error processing field:', field, e);
@@ -1394,7 +1394,7 @@
         const iconSvg = button.querySelector('svg');
         if (iconSvg) {
             let newSvg, title, text;
-            
+
             switch (fieldVisibilityState) {
                 case 'all':
                     newSvg = eyeOpenSVG;
@@ -1416,7 +1416,7 @@
                     title = 'Standard View';
                     text = 'Standard';
             }
-            
+
             iconSvg.outerHTML = newSvg;
             const newIcon = button.querySelector('svg');
             if (newIcon) {
@@ -1426,7 +1426,7 @@
                 newIcon.setAttribute('data-garden-version', '9.5.2');
                 newIcon.classList.add('StyledBaseIcon-sc-1moykgb-0', 'StyledNavItemIcon-sc-7w9rpt-0', 'eWlVPJ', 'YOjtB');
             }
-            
+
             button.title = title;
             const span = button.querySelector('span');
             if (span) {
@@ -1469,7 +1469,7 @@
 
         Array.from(fields).forEach(field => {
             const label = field.querySelector('label');
-            if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' ||label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
+            if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' || label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
                 // Prevent processing multiple identical fields
                 if (fieldFound) {
                     console.log('⚠️ Skipping duplicate Reason field');
@@ -1655,8 +1655,8 @@
 
         // Check if already set to the target value
         const currentValue = parentTicketSourceField.querySelector('[title]')?.getAttribute('title') ||
-                            parentTicketSourceField.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                            parentTicketSourceField.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+            parentTicketSourceField.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+            parentTicketSourceField.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
         if (currentValue === targetValue) {
             console.log(`💡 Parent Ticket Source already set to "${targetValue}"`);
@@ -1682,7 +1682,7 @@
             if (observerDisconnected) return;
 
             let allForms = getCachedElements('section.grid-ticket-fields-panel', 1000);
-            
+
             // If no forms found with the primary selector, try fallback selectors
             if (allForms.length === 0) {
                 const formSelectors = [
@@ -1691,7 +1691,7 @@
                     'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                     '.ticket_fields'
                 ];
-                
+
                 for (const selector of formSelectors) {
                     allForms = document.querySelectorAll(selector);
                     if (allForms.length > 0) {
@@ -1700,7 +1700,7 @@
                     }
                 }
             }
-            
+
             console.log(`📋 Found ${allForms.length} forms to process`);
             const allTicketDivs = document.querySelectorAll('div[data-test-id*="ticket"]');
 
@@ -1714,7 +1714,7 @@
 
                 // Try alternative selectors
                 const alternativeForms = altForms1.length > 0 ? altForms1 :
-                                       altForms2.length > 0 ? altForms2 : null;
+                    altForms2.length > 0 ? altForms2 : null;
 
                 if (alternativeForms && alternativeForms.length > 0) {
                     console.log(`✅ Found ${alternativeForms.length} forms with alternative selector`);
@@ -1907,27 +1907,27 @@
             // Enhanced field detection to handle both old and new structures
             // Start with a broad search and then filter out system fields
             const allPossibleFields = Array.from(container.querySelectorAll('[data-garden-id="forms.field"], .StyledField-sc-12gzfsu-0, [class*="field"], [data-test-id*="field"], div:has(label)'));
-            
+
             const fields = [];
             allPossibleFields.forEach(field => {
                 try {
                     // Must have a label and be connected
-                    if (field.nodeType !== Node.ELEMENT_NODE || 
-                        !field.isConnected || 
+                    if (field.nodeType !== Node.ELEMENT_NODE ||
+                        !field.isConnected ||
                         !field.querySelector('label')) {
                         return;
                     }
-                    
+
                     // Skip system fields (Requester, Assignee, CCs)
                     if (isSystemField(field)) {
                         return;
                     }
-                    
+
                     // Skip duplicates
                     if (fields.includes(field)) {
                         return;
                     }
-                    
+
                     fields.push(field);
                 } catch (e) {
                     console.debug('Error processing field:', field, e);
@@ -1975,7 +1975,7 @@
 
     function setCaptainId(captainId) {
         let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-        
+
         // If no forms found with the primary selector, try fallback selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -1984,13 +1984,13 @@
                 'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                 '.ticket_fields'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) break;
             }
         }
-        
+
         allForms.forEach(form => {
             const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             Array.from(fields).forEach(field => {
@@ -2057,7 +2057,7 @@
             // Verify the value was set correctly after a short delay
             setTimeout(() => {
                 let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-                
+
                 // If no forms found with the primary selector, try fallback selectors
                 if (allForms.length === 0) {
                     const formSelectors = [
@@ -2066,13 +2066,13 @@
                         'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                         '.ticket_fields'
                     ];
-                    
+
                     for (const selector of formSelectors) {
                         allForms = document.querySelectorAll(selector);
                         if (allForms.length > 0) break;
                     }
                 }
-                
+
                 let valueSet = false;
 
                 allForms.forEach(form => {
@@ -2159,7 +2159,7 @@
         const userInputHandler = (event) => {
             userIsEditing = true;
             lastUserInputTime = Date.now();
-            
+
             // Update the expected value to the new user input after a short delay
             setTimeout(() => {
                 if (input.value && input.value !== expectedValue) {
@@ -2196,7 +2196,7 @@
         const observer = new MutationObserver(() => {
             const now = Date.now();
             // Only restore if user hasn't been editing recently
-            if (input.isConnected && input.value !== expectedValue && expectedValue && 
+            if (input.isConnected && input.value !== expectedValue && expectedValue &&
                 !userIsEditing && now - lastUserInputTime > 2000) {
                 protectionHandler();
             }
@@ -2219,7 +2219,7 @@
 
             const now = Date.now();
             // Only restore if user hasn't been editing recently
-            if (input.value !== expectedValue && expectedValue && 
+            if (input.value !== expectedValue && expectedValue &&
                 !userIsEditing && now - lastUserInputTime > 2000) {
                 protectionHandler();
             }
@@ -2523,7 +2523,7 @@
                         user: row[8] || '',
                         timestamp: parseCustomerDate(row[3]),
                         hasCorrection: (row[5] || '').toLowerCase().includes('correction') ||
-                                     (row[2] || '').toLowerCase().includes('correction'),
+                            (row[2] || '').toLowerCase().includes('correction'),
                         rawRow: row
                     };
 
@@ -2716,9 +2716,9 @@
 
             for (let i = 0; i < line.length; i++) {
                 const char = line[i];
-                if (char === '"' && (i === 0 || line[i-1] === ',')) {
+                if (char === '"' && (i === 0 || line[i - 1] === ',')) {
                     inQuotes = true;
-                } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i+1] === ',')) {
+                } else if (char === '"' && inQuotes && (i === line.length - 1 || line[i + 1] === ',')) {
                     inQuotes = false;
                 } else if (char === ',' && !inQuotes) {
                     fields.push(currentField.trim());
@@ -2844,7 +2844,7 @@
             }
         }
         // Check for direct reckless driving patterns (like "I:Reckless Driving")
-        if (!incidents.some(incident => incident.includes('Reckless Driving')) && 
+        if (!incidents.some(incident => incident.includes('Reckless Driving')) &&
             (input_string.includes('reckless driving') || input_string.includes('i:reckless driving'))) {
             incidents.push('Reckless Driving');
         }
@@ -3238,32 +3238,32 @@ ${blockHistoryText}
 
         if (incidentParts.length > 1) {
             for (let i = 1; i < incidentParts.length; i++) {
-            const incidentText = "i:category" + incidentParts[i];
-            const incidentLower = incidentText.toLowerCase();
+                const incidentText = "i:category" + incidentParts[i];
+                const incidentLower = incidentText.toLowerCase();
 
-            const incidentTypes = categorizeIndividualIncident(incidentText);
-
-
-            let designation = '';
-            if (incidentLower.includes(' vic ') || incidentLower.includes('-vic-') ||
-                incidentLower.includes(' vic-') || incidentLower.includes('-vic ') ||
-                incidentLower.includes('vic-') || incidentLower.includes('-vic')) {
-                designation = ' VIC';
-            } else if (incidentLower.includes(' vinc ') || incidentLower.includes('-vinc-') ||
-                incidentLower.includes(' vinc-') || incidentLower.includes('-vinc ') ||
-                incidentLower.includes('vinc-') || incidentLower.includes('-vinc')) {
-                designation = ' VINC';
-            }
+                const incidentTypes = categorizeIndividualIncident(incidentText);
 
 
-            for (const incidentType of incidentTypes) {
-                // Don't add designation if incident already ends with VIC or VINC
-                if (designation && (incidentType.endsWith(' VIC') || incidentType.endsWith(' VINC'))) {
-                    incidents.push(incidentType);
-                } else {
-                    incidents.push(incidentType + designation);
+                let designation = '';
+                if (incidentLower.includes(' vic ') || incidentLower.includes('-vic-') ||
+                    incidentLower.includes(' vic-') || incidentLower.includes('-vic ') ||
+                    incidentLower.includes('vic-') || incidentLower.includes('-vic')) {
+                    designation = ' VIC';
+                } else if (incidentLower.includes(' vinc ') || incidentLower.includes('-vinc-') ||
+                    incidentLower.includes(' vinc-') || incidentLower.includes('-vinc ') ||
+                    incidentLower.includes('vinc-') || incidentLower.includes('-vinc')) {
+                    designation = ' VINC';
                 }
-            }
+
+
+                for (const incidentType of incidentTypes) {
+                    // Don't add designation if incident already ends with VIC or VINC
+                    if (designation && (incidentType.endsWith(' VIC') || incidentType.endsWith(' VINC'))) {
+                        incidents.push(incidentType);
+                    } else {
+                        incidents.push(incidentType + designation);
+                    }
+                }
             }
         } else {
             // Handle single comment with potentially multiple incidents
@@ -4416,7 +4416,7 @@ ${blockHistoryText}
         brandLogo.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            
+
             // Check if this is a right-click or middle-click for Block History
             if (event.button === 2 || event.button === 1) {
                 // Right-click or middle-click: Show Block History Window
@@ -4524,7 +4524,7 @@ ${blockHistoryText}
     }
 
     let addLinkButtonDuplicated = false;
-    
+
     // Set SSOC Reason to "Escalated to Uber"
     async function setSSOCReasonToEscalated(container) {
         const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
@@ -4609,10 +4609,10 @@ ${blockHistoryText}
     async function setSSOCIncidentSourceWithDebug(field, targetValue) {
         try {
             console.log(`⚡ Setting SSOC incident source to "${targetValue}"`);
-            
+
             const trigger = field.querySelector('[role="combobox"]') ||
-                           field.querySelector('input[data-test-id="ticket-field-input"]') ||
-                           field.querySelector('input');
+                field.querySelector('input[data-test-id="ticket-field-input"]') ||
+                field.querySelector('input');
 
             if (!trigger) {
                 console.warn('❌ No trigger found in SSOC incident source field');
@@ -4639,7 +4639,7 @@ ${blockHistoryText}
                 // Find all available options and log them
                 const options = document.querySelectorAll('[role="option"], [data-test-id="ticket-field-option"]');
                 console.log(`🔍 Found ${options.length} dropdown options:`);
-                
+
                 const optionTexts = Array.from(options).map(opt => opt.textContent.trim()).filter(text => text);
                 console.log('📋 Available options:', optionTexts);
 
@@ -4651,7 +4651,7 @@ ${blockHistoryText}
                 // If exact match not found, try variations for Customer Email
                 if (!targetOption && targetValue === 'Customer Email') {
                     console.log('🔍 Exact match not found for "Customer Email", trying variations...');
-                    
+
                     const variations = [
                         'Customer Email',
                         'Email',
@@ -4659,7 +4659,7 @@ ${blockHistoryText}
                         'customer email',
                         'Email - Customer'
                     ];
-                    
+
                     for (const variation of variations) {
                         targetOption = Array.from(options).find(option =>
                             option.textContent.trim() === variation && option.isConnected
@@ -4669,7 +4669,7 @@ ${blockHistoryText}
                             break;
                         }
                     }
-                    
+
                     // Try partial match as last resort
                     if (!targetOption) {
                         targetOption = Array.from(options).find(option =>
@@ -4688,12 +4688,12 @@ ${blockHistoryText}
 
                     // Verify the selection
                     const displayValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
                     console.log(`📄 Final display value: "${displayValue}"`);
                     trigger.dataset.isProcessing = 'false';
-                    
+
                     const success = displayValue && (displayValue === targetValue || displayValue === targetOption.textContent.trim());
                     console.log(`${success ? '✅' : '❌'} SSOC incident source set ${success ? 'successfully' : 'failed'}`);
                     return success;
@@ -4773,8 +4773,8 @@ ${blockHistoryText}
 
         // Check if already set to the target value
         const currentValue = ssocIncidentSourceField.querySelector('[title]')?.getAttribute('title') ||
-                            ssocIncidentSourceField.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                            ssocIncidentSourceField.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+            ssocIncidentSourceField.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+            ssocIncidentSourceField.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
 
         if (currentValue === targetValue) {
             console.log(`💡 SSOC incident source already set to "${targetValue}"`);
@@ -4821,6 +4821,28 @@ ${blockHistoryText}
             const incidentSourceSuccess = await setSSOCIncidentSource(form);
             console.log(`✅ SSOC incident source result: ${incidentSourceSuccess ? 'SUCCESS' : 'FAILED'}`);
 
+            // Minimal delay between operations
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // Set Country field based on City field
+            console.log('📝 Step 4: Setting Country field based on City...');
+            const selectedCity = getSelectedCity(form);
+            let countrySuccess = true;
+
+            if (selectedCity && selectedCity !== '-') {
+                const desiredCountry = cityToCountry.get(selectedCity);
+                if (desiredCountry) {
+                    console.log(`🏙️ Found city: "${selectedCity}" -> Country: "${desiredCountry}"`);
+                    countrySuccess = await setCountryBasedOnCityAsync(form, desiredCountry);
+                } else {
+                    console.log(`⚠️ No country mapping found for city: "${selectedCity}"`);
+                }
+            } else {
+                console.log('⚠️ No city selected or city is empty - skipping country field update');
+            }
+
+            console.log(`✅ Country field result: ${countrySuccess ? 'SUCCESS' : 'FAILED'}`);
+
             console.log('🎉 Template T autofill process completed');
             return true;
         } catch (error) {
@@ -4832,7 +4854,7 @@ ${blockHistoryText}
     // Extract current Reason field value
     function getCurrentReasonValue() {
         let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-        
+
         // If no forms found with the primary selector, try fallback selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4841,21 +4863,21 @@ ${blockHistoryText}
                 'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                 '.ticket_fields'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) break;
             }
         }
-        
+
         for (const form of allForms) {
             const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             for (const field of fields) {
                 const label = field.querySelector('label');
-                if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' ||label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
+                if (label && (label.textContent.trim() === 'Reason (Quality/GO/Billing)*' || label.textContent.trim() === 'Reason (Quality/GO/Billing)')) {
                     const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
                     return currentValue || '';
                 }
             }
@@ -4866,7 +4888,7 @@ ${blockHistoryText}
     // Extract current SSOC incident source value
     function getCurrentSSOCIncidentSource() {
         let allForms = document.querySelectorAll('section.grid-ticket-fields-panel');
-        
+
         // If no forms found with the primary selector, try fallback selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -4875,21 +4897,21 @@ ${blockHistoryText}
                 'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                 '.ticket_fields'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) break;
             }
         }
-        
+
         for (const form of allForms) {
             const fields = form.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             for (const field of fields) {
                 const label = field.querySelector('label');
                 if (label && label.textContent.trim() === 'SSOC incident source') {
                     const currentValue = field.querySelector('[title]')?.getAttribute('title') ||
-                                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
-                                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
+                        field.querySelector('.StyledEllipsis-sc-1u4umy-0')?.textContent.trim() ||
+                        field.querySelector('[data-garden-id="typography.ellipsis"]')?.textContent.trim();
                     return currentValue || '';
                 }
             }
@@ -4900,19 +4922,19 @@ ${blockHistoryText}
     // Parse incident type from Reason field using the pattern: Customer - RUMI Safety - [Incident Type]
     function parseIncidentTypeFromReason(reasonValue) {
         if (!reasonValue) return '';
-        
+
         console.log(`🔍 Parsing incident type from reason: "${reasonValue}"`);
-        
+
         // Check if the reason contains the pattern "Customer - RUMI Safety"
         const pattern = /Customer\s*-\s*RUMI\s*Safety\s*-\s*(.+)/i;
         const match = reasonValue.match(pattern);
-        
+
         if (match && match[1]) {
             const incidentType = match[1].trim();
             console.log(`✅ Found incident type: "${incidentType}"`);
             return incidentType;
         }
-        
+
         console.log('⚠️ No incident type pattern found in reason');
         return '';
     }
@@ -4920,12 +4942,12 @@ ${blockHistoryText}
     // Determine phone source based on SSOC incident source
     function determinePhoneSource(ssocIncidentSource) {
         if (!ssocIncidentSource) return 'Yes'; // Default to Yes if no value
-        
+
         console.log(`🔍 Determining phone source from SSOC incident source: "${ssocIncidentSource}"`);
-        
+
         // Check if it's any form of email (Customer Email, Email, etc.)
         const isEmail = ssocIncidentSource.toLowerCase().includes('email');
-        
+
         const result = isEmail ? 'No' : 'Yes';
         console.log(`✅ Phone source determined: "${result}" (based on email: ${isEmail})`);
         return result;
@@ -4934,14 +4956,14 @@ ${blockHistoryText}
     // Detect language based on first word (Arabic vs English)
     function detectLanguage(text) {
         if (!text || !text.trim()) return 'English'; // Default to English if no text
-        
+
         const firstWord = text.trim().split(/\s+/)[0];
         console.log(`🔍 Detecting language for first word: "${firstWord}"`);
-        
+
         // Check if first word contains Arabic characters
         const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
         const hasArabic = arabicRegex.test(firstWord);
-        
+
         const language = hasArabic ? 'Arabic' : 'English';
         console.log(`✅ Language detected: ${language}`);
         return language;
@@ -4980,7 +5002,7 @@ ${blockHistoryText}
         input.style.top = (tButtonRect.top + (tButtonRect.height - 20) / 2) + 'px';
 
         document.body.appendChild(input);
-        
+
         // Focus and select all text for easy pasting
         setTimeout(() => {
             input.focus();
@@ -5001,26 +5023,26 @@ ${blockHistoryText}
     // Generate dynamic template text based on current field values and customer input
     function generateDynamicTemplateText(customerWords = '', customerLanguage = '') {
         console.log('🔄 Generating dynamic template text...');
-        
+
         // Get current field values
         const reasonValue = getCurrentReasonValue();
         const ssocIncidentSource = getCurrentSSOCIncidentSource();
-        
+
         console.log(`📋 Current Reason: "${reasonValue}"`);
         console.log(`📋 Current SSOC incident source: "${ssocIncidentSource}"`);
-        
+
         // Parse incident type from reason
         const incidentType = parseIncidentTypeFromReason(reasonValue);
-        
+
         // Determine phone source
         const phoneSource = determinePhoneSource(ssocIncidentSource);
-        
+
         // Build the template text
         const incidentTypeLine = incidentType ? `Incident Type: ${incidentType}\u00A0` : 'Incident Type:\u00A0';
         const phoneSourceLine = `Is the Source of incident CareemInboundPhone :- ${phoneSource}\u00A0`;
         const customerLanguageLine = customerLanguage ? `Customer Language: ${customerLanguage}\u00A0` : 'Customer Language:\u00A0';
         const customerWordsLine = customerWords ? `Customer Words: ${customerWords}\u00A0` : 'Customer Words:\u00A0';
-        
+
         const templateText = `${incidentTypeLine}
 Description:\u00A0Customer is complaining about,  
 ${phoneSourceLine} 
@@ -5029,31 +5051,31 @@ ${customerWordsLine}`;
 
         console.log('✅ Generated template text:');
         console.log(templateText);
-        
+
         return templateText;
     }
 
     function copyTemplateT(buttonElement) {
         console.log('🚀 Template T clicked - showing text input');
-        
+
         // Create and show the text input
         const textInput = createTextInput(buttonElement);
-        
+
         // Wait for text to be pasted
         const handlePaste = async (event) => {
             // Small delay to ensure paste is processed
             setTimeout(async () => {
                 const pastedText = textInput.value.trim();
                 console.log(`📝 Text pasted: "${pastedText}"`);
-                
+
                 // Remove the text input
                 removeTextInput();
-                
+
                 if (pastedText) {
                     // Detect language based on first word
                     const customerLanguage = detectLanguage(pastedText);
                     console.log(`🌍 Customer language: ${customerLanguage}`);
-                    
+
                     // Start the autofill and template generation process
                     await performTemplateTOperations(pastedText, customerLanguage);
                 } else {
@@ -5062,7 +5084,7 @@ ${customerWordsLine}`;
                 }
             }, 10);
         };
-        
+
         // Handle various ways text might be entered
         textInput.addEventListener('paste', handlePaste);
         textInput.addEventListener('input', (event) => {
@@ -5078,7 +5100,7 @@ ${customerWordsLine}`;
                 }
             }, 500); // Wait 500ms after user stops typing
         });
-        
+
         // Handle Enter key
         textInput.addEventListener('keydown', async (event) => {
             if (event.key === 'Enter') {
@@ -5093,7 +5115,7 @@ ${customerWordsLine}`;
                 removeTextInput();
             }
         });
-        
+
         // Auto-hide input after 10 seconds if no action
         setTimeout(() => {
             if (document.querySelector('.template-t-text-input')) {
@@ -5109,10 +5131,10 @@ ${customerWordsLine}`;
         console.log('🚀 Starting Template T autofill and template generation');
         console.log(`📝 Customer Words: "${customerWords}"`);
         console.log(`🌍 Customer Language: "${customerLanguage}"`);
-        
+
         // First, perform autofill operations
         let allForms = getCachedElements('section.grid-ticket-fields-panel', 1000);
-        
+
         // If no forms found with the primary selector, try fallback selectors
         if (allForms.length === 0) {
             const formSelectors = [
@@ -5121,7 +5143,7 @@ ${customerWordsLine}`;
                 'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                 '.ticket_fields'
             ];
-            
+
             for (const selector of formSelectors) {
                 allForms = document.querySelectorAll(selector);
                 if (allForms.length > 0) {
@@ -5130,7 +5152,7 @@ ${customerWordsLine}`;
                 }
             }
         }
-        
+
         console.log(`📋 Found ${allForms.length} forms to process for Template T autofill`);
 
         if (allForms.length > 0) {
@@ -5146,7 +5168,7 @@ ${customerWordsLine}`;
                     console.warn('Error processing Template T autofill for form:', e);
                 }
             }
-            
+
             // Wait a bit more for the UI to update after autofill
             await new Promise(resolve => setTimeout(resolve, 200));
         } else {
@@ -5160,7 +5182,7 @@ ${customerWordsLine}`;
         navigator.clipboard.writeText(templateText)
             .then(() => {
                 showToast('Template copied to clipboard!');
-                
+
                 // After successful clipboard copy, click the "take it" button
                 setTimeout(() => {
                     clickTakeItButton();
@@ -5169,7 +5191,7 @@ ${customerWordsLine}`;
             .catch(err => {
                 console.error('Failed to copy text:', err);
                 showToast('Error copying to clipboard');
-                
+
                 // Even if clipboard fails, still try to click "take it" button
                 setTimeout(() => {
                     clickTakeItButton();
@@ -5180,7 +5202,7 @@ ${customerWordsLine}`;
     // Function to find and click the "take it" button
     function clickTakeItButton() {
         console.log('🎯 Looking for "take it" button...');
-        
+
         // Try multiple selectors to find the "take it" button
         const selectors = [
             'button[data-test-id="assignee-field-take-it-button"]',
@@ -5188,31 +5210,31 @@ ${customerWordsLine}`;
             '.bCIuZx', // Class from the HTML
             'button[class*="bCIuZx"]'
         ];
-        
+
         let takeItButton = null;
-        
+
         // Try each selector
         for (const selector of selectors) {
             if (selector.includes(':contains')) {
                 // Handle :contains pseudo-selector manually
                 const buttons = document.querySelectorAll('button');
-                takeItButton = Array.from(buttons).find(btn => 
+                takeItButton = Array.from(buttons).find(btn =>
                     btn.textContent.trim().toLowerCase() === 'take it'
                 );
             } else {
                 takeItButton = document.querySelector(selector);
             }
-            
+
             if (takeItButton) {
                 console.log(`✅ Found "take it" button using selector: ${selector}`);
                 break;
             }
         }
-        
+
         if (takeItButton) {
             try {
                 console.log('🖱️ Clicking "take it" button...');
-                
+
                 // Check if button is visible and enabled
                 if (takeItButton.offsetParent !== null && !takeItButton.disabled) {
                     takeItButton.click();
@@ -5227,13 +5249,13 @@ ${customerWordsLine}`;
         } else {
             console.log('⚠️ "take it" button not found on the page');
         }
-          }
-      
-      function setRequesterToAgentName() {
+    }
+
+    function setRequesterToAgentName() {
         return new Promise((resolve) => {
             try {
                 console.log('🔄 Setting requester to agent name:', username);
-                
+
                 if (!username || !username.trim()) {
                     console.log('⚠️ No agent name available, skipping requester update');
                     resolve(false);
@@ -5260,11 +5282,11 @@ ${customerWordsLine}`;
                 requesterInput.value = '';
                 requesterInput.focus();
                 requesterInput.value = username;
-                
+
                 // Trigger input events to notify React
                 const inputEvent = new Event('input', { bubbles: true });
                 const changeEvent = new Event('change', { bubbles: true });
-                
+
                 requesterInput.dispatchEvent(inputEvent);
                 requesterInput.dispatchEvent(changeEvent);
 
@@ -5288,40 +5310,40 @@ ${customerWordsLine}`;
                 }
 
                 console.log('📝 Name entered, waiting for user profile dropdown to appear...');
-                
+
                 // Wait 1.5 seconds for the dropdown to appear, then try selection methods
                 setTimeout(() => {
                     console.log('🔍 Attempting to select profile from dropdown...');
-                    
+
                     // First, check if dropdown is visible
                     const dropdownMenu = document.querySelector('[data-test-id="ticket-system-field-requester-menu"]') ||
-                                        document.querySelector('[role="listbox"]') ||
-                                        document.querySelector('.StyledMenu-sc-lzt5u6-0');
-                    
+                        document.querySelector('[role="listbox"]') ||
+                        document.querySelector('.StyledMenu-sc-lzt5u6-0');
+
                     if (dropdownMenu) {
                         console.log('✅ Dropdown found, attempting to click first option');
-                        
+
                         // Try to find and click the first option
                         const options = dropdownMenu.querySelectorAll('[role="option"]') ||
-                                       dropdownMenu.querySelectorAll('li') ||
-                                       dropdownMenu.querySelectorAll('[data-test-id*="option"]');
-                        
+                            dropdownMenu.querySelectorAll('li') ||
+                            dropdownMenu.querySelectorAll('[data-test-id*="option"]');
+
                         if (options && options.length > 0) {
                             console.log(`🎯 Found ${options.length} option(s), clicking first one`);
                             const firstOption = options[0];
                             console.log('📝 Option text:', firstOption.textContent?.trim());
-                            
+
                             // Click the first option
                             firstOption.click();
-                            
+
                             console.log('✅ Profile option clicked');
                             resolve(true);
                             return;
                         }
                     }
-                    
+
                     console.log('⚠️ Dropdown not found or no options, trying keyboard methods...');
-                    
+
                     // Fallback: Try Arrow Down + Enter
                     const arrowDownEvent = new KeyboardEvent('keydown', {
                         key: 'ArrowDown',
@@ -5331,9 +5353,9 @@ ${customerWordsLine}`;
                         bubbles: true,
                         cancelable: true
                     });
-                    
+
                     requesterInput.dispatchEvent(arrowDownEvent);
-                    
+
                     // Wait a moment then press Enter
                     setTimeout(() => {
                         const enterKeyDown = new KeyboardEvent('keydown', {
@@ -5344,12 +5366,12 @@ ${customerWordsLine}`;
                             bubbles: true,
                             cancelable: true
                         });
-                        
+
                         requesterInput.dispatchEvent(enterKeyDown);
                         console.log('⌨️ Arrow Down + Enter attempted');
                         resolve(true);
                     }, 200);
-                    
+
                 }, 1500); // Wait 1.5 seconds instead of 3
 
             } catch (error) {
@@ -5363,7 +5385,7 @@ ${customerWordsLine}`;
         return new Promise((resolve) => {
             try {
                 console.log('🔄 Setting assignee to agent name:', username);
-                
+
                 if (!username || !username.trim()) {
                     console.log('⚠️ No agent name available, skipping assignee update');
                     resolve(false);
@@ -5372,8 +5394,8 @@ ${customerWordsLine}`;
 
                 // Find the assignee field - try multiple selectors
                 const assigneeField = document.querySelector('[data-test-id="assignee-field"]') ||
-                                     document.querySelector('[data-test-id="assignee-field-autocomplete-trigger"]');
-                
+                    document.querySelector('[data-test-id="assignee-field-autocomplete-trigger"]');
+
                 if (!assigneeField) {
                     console.log('⚠️ Assignee field not found, trying alternative selectors...');
                     console.log('Available elements with assignee in test-id:');
@@ -5387,9 +5409,9 @@ ${customerWordsLine}`;
 
                 // Find the input element within the assignee field - try multiple selectors
                 const assigneeInput = assigneeField.querySelector('input[data-garden-id="forms.input"]') ||
-                                     assigneeField.querySelector('input[role="combobox"]') ||
-                                     assigneeField.querySelector('input');
-                
+                    assigneeField.querySelector('input[role="combobox"]') ||
+                    assigneeField.querySelector('input');
+
                 if (!assigneeInput) {
                     console.log('⚠️ Assignee input not found, checking field structure...');
                     console.log('Field HTML:', assigneeField.outerHTML.substring(0, 200) + '...');
@@ -5402,49 +5424,49 @@ ${customerWordsLine}`;
                 // Click the assignee field to open dropdown (no need to type agent name)
                 assigneeInput.click();
                 assigneeInput.focus();
-                
+
                 console.log('📝 Assignee field clicked, waiting for department dropdown...');
-                
+
                 // Wait 1.5 seconds for the dropdown to appear, then select JOR Safety & Security Operations option
                 setTimeout(() => {
                     console.log('🔍 Looking for assignee dropdown options...');
-                    
+
                     // Look for the assignee dropdown menu
                     const assigneeDropdown = document.querySelector('[data-test-id="assignee-field-dropdown-menu"]') ||
-                                           document.querySelector('[role="listbox"]') ||
-                                           document.querySelector('.StyledMenu-sc-lzt5u6-0');
-                    
+                        document.querySelector('[role="listbox"]') ||
+                        document.querySelector('.StyledMenu-sc-lzt5u6-0');
+
                     if (assigneeDropdown) {
                         console.log('✅ Assignee dropdown found, searching for JOR Safety & Security Operations option');
-                        
+
                         // Find all options in the dropdown
                         const options = assigneeDropdown.querySelectorAll('[role="option"]') ||
-                                       assigneeDropdown.querySelectorAll('li') ||
-                                       assigneeDropdown.querySelectorAll('[data-test-id*="option"]') ||
-                                       assigneeDropdown.querySelectorAll('div[data-garden-id="dropdowns.option"]');
-                        
+                            assigneeDropdown.querySelectorAll('li') ||
+                            assigneeDropdown.querySelectorAll('[data-test-id*="option"]') ||
+                            assigneeDropdown.querySelectorAll('div[data-garden-id="dropdowns.option"]');
+
                         if (options && options.length > 0) {
                             console.log(`🎯 Found ${options.length} assignee option(s), searching for JOR Safety & Security Operations`);
-                            
+
                             // Look for the option that contains "JOR Safety & Security Operations"
                             let jorOption = null;
-                            
+
                             for (let option of options) {
                                 const optionText = option.textContent || option.innerText || '';
                                 console.log('📝 Checking option:', optionText.trim());
-                                
-                                if (optionText.includes('JOR Safety & Security Operations') || 
+
+                                if (optionText.includes('JOR Safety & Security Operations') ||
                                     optionText.includes('JOR Safety & Secuirty Operations')) {
                                     jorOption = option;
                                     console.log('🎯 Found JOR Safety & Security Operations option!');
                                     break;
                                 }
                             }
-                            
+
                             if (jorOption) {
                                 console.log('🖱️ Clicking JOR Safety & Security Operations option');
                                 jorOption.click();
-                                
+
                                 // Also try mouse events for better compatibility
                                 const mouseDownEvent = new MouseEvent('mousedown', { bubbles: true });
                                 const mouseUpEvent = new MouseEvent('mouseup', { bubbles: true });
@@ -5453,9 +5475,9 @@ ${customerWordsLine}`;
                                 jorOption.dispatchEvent(mouseDownEvent);
                                 jorOption.dispatchEvent(mouseUpEvent);
                                 jorOption.dispatchEvent(clickEvent);
-                                
+
                                 console.log('✅ JOR Safety & Security Operations selected, waiting for agent names dropdown...');
-                                
+
                                 // Wait for the second dropdown with agent names to appear
                                 setTimeout(() => {
                                     selectAgentFromSecondDropdown(resolve);
@@ -5473,10 +5495,10 @@ ${customerWordsLine}`;
                     } else {
                         console.log('⚠️ Assignee dropdown not found');
                     }
-                    
+
                     // Fallback: Try keyboard navigation
                     console.log('⚠️ Dropdown selection failed, trying keyboard fallback...');
-                    
+
                     const arrowDownEvent = new KeyboardEvent('keydown', {
                         key: 'ArrowDown',
                         code: 'ArrowDown',
@@ -5485,9 +5507,9 @@ ${customerWordsLine}`;
                         bubbles: true,
                         cancelable: true
                     });
-                    
+
                     assigneeInput.dispatchEvent(arrowDownEvent);
-                    
+
                     setTimeout(() => {
                         const enterKeyDown = new KeyboardEvent('keydown', {
                             key: 'Enter',
@@ -5497,12 +5519,12 @@ ${customerWordsLine}`;
                             bubbles: true,
                             cancelable: true
                         });
-                        
+
                         assigneeInput.dispatchEvent(enterKeyDown);
                         console.log('⌨️ Keyboard fallback attempted for assignee');
                         resolve(true);
                     }, 200);
-                    
+
                 }, 1500); // Wait 1.5 seconds instead of 3
 
             } catch (error) {
@@ -5517,31 +5539,31 @@ ${customerWordsLine}`;
     function selectAgentFromSecondDropdown(resolve) {
         try {
             console.log('🔍 Looking for second dropdown with agent names...');
-            
+
             // Look for the second dropdown (agent names under JOR Safety & Security Operations)
             const agentDropdown = document.querySelector('[data-test-id="assignee-field-dropdown-menu"]') ||
-                                document.querySelector('[role="listbox"]') ||
-                                document.querySelector('.StyledMenu-sc-lzt5u6-0');
-            
+                document.querySelector('[role="listbox"]') ||
+                document.querySelector('.StyledMenu-sc-lzt5u6-0');
+
             if (agentDropdown) {
                 console.log('✅ Agent names dropdown found');
-                
+
                 // Find all options in the agent dropdown
                 const agentOptions = agentDropdown.querySelectorAll('[role="option"]') ||
-                                   agentDropdown.querySelectorAll('li') ||
-                                   agentDropdown.querySelectorAll('[data-test-id*="option"]') ||
-                                   agentDropdown.querySelectorAll('div[data-garden-id="dropdowns.option"]');
-                
+                    agentDropdown.querySelectorAll('li') ||
+                    agentDropdown.querySelectorAll('[data-test-id*="option"]') ||
+                    agentDropdown.querySelectorAll('div[data-garden-id="dropdowns.option"]');
+
                 if (agentOptions && agentOptions.length > 0) {
                     console.log(`🎯 Found ${agentOptions.length} agent option(s), searching for: "${username}"`);
-                    
+
                     // Look for the option that matches the agent name
                     let matchingAgentOption = null;
-                    
+
                     for (let option of agentOptions) {
                         const optionText = (option.textContent || option.innerText || '').trim();
                         console.log('📝 Checking agent option:', optionText);
-                        
+
                         // Check if this option contains the agent name
                         if (optionText.includes(username) || optionText.toLowerCase().includes(username.toLowerCase())) {
                             matchingAgentOption = option;
@@ -5549,13 +5571,13 @@ ${customerWordsLine}`;
                             break;
                         }
                     }
-                    
+
                     if (matchingAgentOption) {
                         console.log('🖱️ Clicking agent name option');
                         console.log('📝 Selected agent:', matchingAgentOption.textContent?.trim());
-                        
+
                         matchingAgentOption.click();
-                        
+
                         // Also try mouse events for better compatibility
                         const mouseDownEvent = new MouseEvent('mousedown', { bubbles: true });
                         const mouseUpEvent = new MouseEvent('mouseup', { bubbles: true });
@@ -5564,7 +5586,7 @@ ${customerWordsLine}`;
                         matchingAgentOption.dispatchEvent(mouseDownEvent);
                         matchingAgentOption.dispatchEvent(mouseUpEvent);
                         matchingAgentOption.dispatchEvent(clickEvent);
-                        
+
                         console.log('✅ Agent name selected successfully');
                         resolve(true);
                         return;
@@ -5580,11 +5602,11 @@ ${customerWordsLine}`;
             } else {
                 console.log('⚠️ Second dropdown with agent names not found');
             }
-            
+
             // If we reach here, something went wrong
             console.log('❌ Failed to select agent from second dropdown');
             resolve(false);
-            
+
         } catch (error) {
             console.error('❌ Error selecting agent from second dropdown:', error);
             resolve(false);
@@ -5679,14 +5701,14 @@ Safety & Security Operations Team`;
         function startAutomatedOperations(callback) {
             // Perform automated operations
             console.log('🤖 Starting automated operations...');
-            
+
             // Set requester to agent name
             setTimeout(async () => {
                 try {
                     const requesterSet = await setRequesterToAgentName();
                     if (requesterSet) {
                         showToast('Requester set to: ' + username);
-                        
+
                         // After requester is set, proceed with assignee
                         console.log('🔄 Proceeding to set assignee...');
                         setTimeout(async () => {
@@ -5697,7 +5719,7 @@ Safety & Security Operations Team`;
                                 } else {
                                     console.log('⚠️ Failed to set assignee field');
                                 }
-                                
+
                                 // Call the callback after automation is complete
                                 if (callback) {
                                     setTimeout(() => callback(), 200);
@@ -5707,7 +5729,7 @@ Safety & Security Operations Team`;
                                 if (callback) callback();
                             }
                         }, 500); // Wait 500ms between requester and assignee
-                        
+
                     } else {
                         console.log('⚠️ Failed to set requester field');
                         if (callback) callback();
@@ -5722,7 +5744,7 @@ Safety & Security Operations Team`;
 
     function showBookingInfoTextBox(callback) {
         console.log('📋 Creating booking info text box...');
-        
+
         // Create the small text box similar to T button
         const textBox = document.createElement('div');
         textBox.id = 'booking-info-textbox';
@@ -5789,19 +5811,19 @@ Safety & Security Operations Team`;
         // Auto-process when text is pasted
         textarea.addEventListener('paste', () => {
             if (isProcessing) return;
-            
+
             setTimeout(() => {
                 if (isProcessing) return;
                 isProcessing = true;
-                
+
                 const bookingText = textarea.value.trim();
                 if (bookingText) {
                     console.log('📝 Processing pasted booking info...');
                     extractAndApplyBookingID(bookingText);
-                    
+
                     // Close the text box
                     document.body.removeChild(textBox);
-                    
+
                     // Continue with automation
                     setTimeout(() => callback(), 200);
                 } else {
@@ -5830,7 +5852,7 @@ Safety & Security Operations Team`;
 
     function extractAndApplyBookingID(bookingText) {
         console.log('🔍 Extracting Booking ID from booking information...');
-        
+
         try {
             // Extract Booking ID using patterns that match your example
             const bookingIdPatterns = [
@@ -5839,9 +5861,9 @@ Safety & Security Operations Team`;
                 /Trip#\s*(\d+)/i,                        // "Trip# 1607963506"
                 /(\d{10,})/                              // Any 10+ digit number as fallback
             ];
-            
+
             let bookingId = null;
-            
+
             for (let pattern of bookingIdPatterns) {
                 const match = bookingText.match(pattern);
                 if (match) {
@@ -5850,7 +5872,7 @@ Safety & Security Operations Team`;
                     break;
                 }
             }
-            
+
             if (bookingId) {
                 // Apply to both Booking ID and Route ID fields
                 applyBookingIdToFields(bookingId);
@@ -5859,7 +5881,7 @@ Safety & Security Operations Team`;
                 console.log('⚠️ No Booking ID found in the text');
                 showToast('No Booking ID found in pasted text');
             }
-            
+
         } catch (error) {
             console.error('❌ Error extracting Booking ID:', error);
             showToast('Error processing booking information');
@@ -5868,11 +5890,11 @@ Safety & Security Operations Team`;
 
     function applyBookingIdToFields(bookingId) {
         console.log('📝 Applying Booking ID to form fields:', bookingId);
-        
+
         try {
             // Find the form container
             let formContainer = document.querySelector('section.grid-ticket-fields-panel');
-            
+
             // If no form found with the primary selector, try fallback selectors
             if (!formContainer) {
                 const formSelectors = [
@@ -5881,13 +5903,13 @@ Safety & Security Operations Team`;
                     'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                     '.ticket_fields'
                 ];
-                
+
                 for (const selector of formSelectors) {
                     formContainer = document.querySelector(selector);
                     if (formContainer) break;
                 }
             }
-            
+
             if (!formContainer) {
                 console.log('⚠️ Form container not found');
                 return;
@@ -5895,7 +5917,7 @@ Safety & Security Operations Team`;
 
             const fields = formContainer.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
             let appliedCount = 0;
-            
+
             // Apply to Booking ID field
             Array.from(fields).forEach(field => {
                 const label = field.querySelector('label');
@@ -5908,7 +5930,7 @@ Safety & Security Operations Team`;
                     }
                 }
             });
-            
+
             // Apply to Route ID field
             Array.from(fields).forEach(field => {
                 const label = field.querySelector('label');
@@ -5921,9 +5943,9 @@ Safety & Security Operations Team`;
                     }
                 }
             });
-            
+
             console.log(`✅ Applied Booking ID to ${appliedCount} fields`);
-            
+
         } catch (error) {
             console.error('❌ Error applying Booking ID to fields:', error);
         }
@@ -5934,11 +5956,11 @@ Safety & Security Operations Team`;
             // Clear and set value
             input.value = '';
             input.value = value;
-            
+
             // Trigger React events
             const inputEvent = new Event('input', { bubbles: true });
             const changeEvent = new Event('change', { bubbles: true });
-            
+
             input.dispatchEvent(inputEvent);
             input.dispatchEvent(changeEvent);
 
@@ -6004,7 +6026,7 @@ Safety & Security Operations Team`;
         button.style.opacity = '0.85';
 
         // Add click handler
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             copyInboundTemplate();
@@ -6053,7 +6075,7 @@ Safety & Security Operations Team`;
         button.style.opacity = '0.85';
 
         // Add click handler
-        button.addEventListener('click', function(e) {
+        button.addEventListener('click', function (e) {
             e.preventDefault();
             e.stopPropagation();
             copyTemplateT(button);
@@ -6078,7 +6100,7 @@ Safety & Security Operations Team`;
                     duplicateWrapper.parentNode.insertBefore(secondButton, duplicateWrapper.nextSibling);
                 }
             }
-            
+
             // Check for the third button (Template T) and add it if it doesn't exist
             const existingTemplateT = toolbar.querySelector('[data-test-id="template-t-button"]');
             if (!existingTemplateT) {
@@ -6136,7 +6158,7 @@ Safety & Security Operations Team`;
             cleanButton.setAttribute('data-icon-text', '✎');
 
             // Add custom click handler to open text window
-            cleanButton.addEventListener('click', function(e) {
+            cleanButton.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 showTextWindow();
@@ -6196,7 +6218,7 @@ Safety & Security Operations Team`;
 
                 // Use cached elements for better performance
                 let formContainers = getCachedElements('section.grid-ticket-fields-panel', 2000);
-                
+
                 // If no forms found with the primary selector, try fallback selectors
                 if (formContainers.length === 0) {
                     const formSelectors = [
@@ -6205,7 +6227,7 @@ Safety & Security Operations Team`;
                         'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                         '.ticket_fields'
                     ];
-                    
+
                     for (const selector of formSelectors) {
                         formContainers = document.querySelectorAll(selector);
                         if (formContainers.length > 0) break;
@@ -6217,7 +6239,7 @@ Safety & Security Operations Team`;
                     const timeoutId = setTimeout(() => {
                         if (observerDisconnected) return;
                         let retryContainers = getCachedElements('section.grid-ticket-fields-panel', 500);
-                        
+
                         // If no forms found with the primary selector, try fallback selectors
                         if (retryContainers.length === 0) {
                             const formSelectors = [
@@ -6226,7 +6248,7 @@ Safety & Security Operations Team`;
                                 'div[data-test-id="ticket-fields"][data-tracking-id="ticket-fields"]',
                                 '.ticket_fields'
                             ];
-                            
+
                             for (const selector of formSelectors) {
                                 retryContainers = document.querySelectorAll(selector);
                                 if (retryContainers.length > 0) break;
@@ -6392,13 +6414,13 @@ Safety & Security Operations Team`;
         }
         // Start the main script functionality after username is set
         initObserver();
-        
+
         // Add PQMS keyboard shortcuts (Alt+O, Alt+P, Alt+S)
         document.addEventListener('keydown', (e) => {
             // Check if Alt key is pressed (without Ctrl or Shift to avoid conflicts)
             if (e.altKey && !e.ctrlKey && !e.shiftKey) {
                 let status = null;
-                
+
                 if (e.key === 'o' || e.key === 'O') {
                     status = 'Open';
                 } else if (e.key === 'p' || e.key === 'P') {
@@ -6406,7 +6428,7 @@ Safety & Security Operations Team`;
                 } else if (e.key === 's' || e.key === 'S') {
                     status = 'Solved';
                 }
-                
+
                 if (status) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -6419,13 +6441,13 @@ Safety & Security Operations Team`;
         console.error('❌ Error during username setup:', error);
         // Initialize anyway to ensure script functionality
         initObserver();
-        
+
         // Add PQMS keyboard shortcuts (Alt+O, Alt+P, Alt+S)
         document.addEventListener('keydown', (e) => {
             // Check if Alt key is pressed (without Ctrl or Shift to avoid conflicts)
             if (e.altKey && !e.ctrlKey && !e.shiftKey) {
                 let status = null;
-                
+
                 if (e.key === 'o' || e.key === 'O') {
                     status = 'Open';
                 } else if (e.key === 'p' || e.key === 'P') {
@@ -6433,7 +6455,7 @@ Safety & Security Operations Team`;
                 } else if (e.key === 's' || e.key === 'S') {
                     status = 'Solved';
                 }
-                
+
                 if (status) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -6485,7 +6507,7 @@ Safety & Security Operations Team`;
 
             // Validation 1: Check Ticket ID
             const ticketId = getCurrentTicketId();
-            
+
             if (!ticketId || ticketId === '' || ticketId === null || ticketId === undefined) {
                 console.error('PQMS VALIDATION FAILED: Invalid or missing Ticket ID');
                 showPQMSToast('Error: Could not get valid Ticket ID', 'error');
@@ -6509,7 +6531,7 @@ Safety & Security Operations Team`;
 
             // Validation 3: Get and validate selected user
             const selectedUser = getPQMSSelectedUser();
-            
+
             if (!selectedUser || !selectedUser.opsId || !selectedUser.name) {
                 console.error('PQMS VALIDATION FAILED: No user selected or user data incomplete');
                 showPQMSToast('Error: Please select an OPS ID in the dashboard first', 'error');
@@ -6579,7 +6601,7 @@ Safety & Security Operations Team`;
             iframe.style.width = '0';
             iframe.style.height = '0';
             iframe.style.border = 'none';
-            
+
             // Set up load handler to detect success
             let loadTimeout;
             const loadPromise = new Promise((resolve, reject) => {
@@ -6604,7 +6626,7 @@ Safety & Security Operations Team`;
                 await loadPromise;
                 console.log(`PQMS: Successfully submitted ticket ${ticketId} as ${ticketStatus}`);
                 showPQMSToast(`✓ Ticket ${ticketId} submitted to PQMS as ${ticketStatus}`, 'success');
-                
+
                 // Fetch ticket data and save to history
                 fetchTicketData(ticketId).then(({ subject, groupName }) => {
                     savePQMSSubmission(ticketId, subject, groupName, ticketStatus);
@@ -6617,7 +6639,7 @@ Safety & Security Operations Team`;
                 // This is because CORS prevents us from reading the response
                 console.warn(`PQMS: Request sent for ticket ${ticketId} as ${ticketStatus} (response hidden by CORS)`);
                 showPQMSToast(`→ Ticket ${ticketId} sent to PQMS as ${ticketStatus}`, 'info');
-                
+
                 // Still save to history even if we can't confirm
                 fetchTicketData(ticketId).then(({ subject, groupName }) => {
                     savePQMSSubmission(ticketId, subject, groupName, ticketStatus);
@@ -6639,7 +6661,7 @@ Safety & Security Operations Team`;
             console.error('PQMS CRITICAL ERROR: Submission aborted due to unexpected error:', error);
             console.error('Error details:', error.message, error.stack);
             showPQMSToast(`Error: Submission failed - ${error.message}`, 'error');
-            
+
             // Ensure no iframe was created in case of error
             const existingIframe = document.querySelector('iframe[src*="pqms05.extensya.com"]');
             if (existingIframe && existingIframe.parentNode) {
@@ -6707,14 +6729,14 @@ Safety & Security Operations Team`;
 
     // User database
     const PQMS_USERS = {
-			'45724': 'Alabbas Ibrahim Abdo Dabajeh',
-			'22529': 'Diya Jalal Abdel Hadi Mallah',
-            '42727': 'Omar Mohammad Amin Yousef Hazaymeh',
-            '40268': 'Nader Mohammad Qasim Abujalil',
-            '37862': 'Husam Ahmad Ibrahim Alnajy',
-            '32951': 'Bader Alzoubi',
-            '47962': 'Ammar Ibrahim Mohammad Bani hamad',
-            '47968': 'Mohanad Bani Mostafa'
+        '45724': 'Alabbas Ibrahim Abdo Dabajeh',
+        '22529': 'Diya Jalal Abdel Hadi Mallah',
+        '42727': 'Omar Mohammad Amin Yousef Hazaymeh',
+        '40268': 'Nader Mohammad Qasim Abujalil',
+        '37862': 'Husam Ahmad Ibrahim Alnajy',
+        '32951': 'Bader Alzoubi',
+        '47962': 'Ammar Ibrahim Mohammad Bani hamad',
+        '47968': 'Mohanad Bani Mostafa'
     };
 
     // Storage key for selected user
@@ -6746,15 +6768,15 @@ Safety & Security Operations Team`;
             timestamp: new Date().toISOString(),
             submittedBy: getPQMSSelectedUser()?.name || 'Unknown'
         };
-        
+
         // Add to beginning of array
         history.unshift(submission);
-        
+
         // Keep only last 100 submissions
         if (history.length > 100) {
             history.splice(100);
         }
-        
+
         localStorage.setItem(PQMS_HISTORY_STORAGE_KEY, JSON.stringify(history));
     }
 
@@ -6819,16 +6841,16 @@ Safety & Security Operations Team`;
             const response = await fetch(`/api/v2/tickets/${ticketId}.json`);
             if (!response.ok) throw new Error('Failed to fetch ticket');
             const data = await response.json();
-            
+
             const subject = data.ticket.subject || 'Unknown Subject';
             const groupId = data.ticket.group_id;
-            
+
             // Fetch group name if group_id exists
             let groupName = 'No Group';
             if (groupId) {
                 groupName = await fetchGroupName(groupId);
             }
-            
+
             return { subject, groupName };
         } catch (error) {
             console.error('PQMS: Error fetching ticket data:', error);
@@ -6842,7 +6864,7 @@ Safety & Security Operations Team`;
 
     function togglePQMSDashboard() {
         const existingDashboard = document.getElementById('pqms-dashboard');
-        
+
         if (existingDashboard) {
             // Toggle visibility
             if (existingDashboard.style.display === 'none') {
@@ -6892,21 +6914,21 @@ Safety & Security Operations Team`;
             justify-content: space-between;
             align-items: center;
         `;
-        
+
         const headerTitle = document.createElement('div');
         headerTitle.style.cssText = `
             display: flex;
             align-items: center;
             gap: 10px;
         `;
-        
+
         const titleIcon = document.createElement('span');
         titleIcon.textContent = '⚙';
         titleIcon.style.cssText = `
             font-size: 20px;
             color: #4b5563;
         `;
-        
+
         const titleText = document.createElement('span');
         titleText.textContent = 'PQMS Dashboard';
         titleText.style.cssText = `
@@ -6915,10 +6937,10 @@ Safety & Security Operations Team`;
             color: #111827;
             letter-spacing: -0.025em;
         `;
-        
+
         headerTitle.appendChild(titleIcon);
         headerTitle.appendChild(titleText);
-        
+
         // Settings and Close buttons
         const buttonGroup = document.createElement('div');
         buttonGroup.style.cssText = `
@@ -6926,7 +6948,7 @@ Safety & Security Operations Team`;
             gap: 8px;
             align-items: center;
         `;
-        
+
         const settingsBtn = document.createElement('button');
         settingsBtn.id = 'pqms-settings-btn';
         settingsBtn.innerHTML = '⚙';
@@ -6945,7 +6967,7 @@ Safety & Security Operations Team`;
             align-items: center;
             justify-content: center;
         `;
-        
+
         const closeBtn = document.createElement('button');
         closeBtn.id = 'pqms-close-btn';
         closeBtn.innerHTML = '&times;';
@@ -6964,10 +6986,10 @@ Safety & Security Operations Team`;
             align-items: center;
             justify-content: center;
         `;
-        
+
         buttonGroup.appendChild(settingsBtn);
         buttonGroup.appendChild(closeBtn);
-        
+
         header.appendChild(headerTitle);
         header.appendChild(buttonGroup);
 
@@ -7069,9 +7091,9 @@ Safety & Security Operations Team`;
                 line-height: 1.2;
             " ${isUserSelected ? 'disabled' : ''}>
                 <option value="">Select an OPS ID</option>
-                ${Object.keys(PQMS_USERS).map(opsId => 
-                    `<option value="${opsId}" ${currentUser?.opsId === opsId ? 'selected' : ''}>${opsId}</option>`
-                ).join('')}
+                ${Object.keys(PQMS_USERS).map(opsId =>
+            `<option value="${opsId}" ${currentUser?.opsId === opsId ? 'selected' : ''}>${opsId}</option>`
+        ).join('')}
             </select>
         `;
 
@@ -7376,17 +7398,17 @@ Safety & Security Operations Team`;
 
         // Close button hover effects
         closeBtn.addEventListener('click', closePQMSDashboard);
-        closeBtn.addEventListener('mouseenter', function() {
+        closeBtn.addEventListener('mouseenter', function () {
             this.style.background = '#f3f4f6';
             this.style.color = '#111827';
         });
-        closeBtn.addEventListener('mouseleave', function() {
+        closeBtn.addEventListener('mouseleave', function () {
             this.style.background = 'transparent';
             this.style.color = '#6b7280';
         });
 
         // Settings button
-        settingsBtn.addEventListener('click', function() {
+        settingsBtn.addEventListener('click', function () {
             const panel = document.getElementById('pqms-settings-panel');
             if (panel.style.transform === 'translateX(100%)') {
                 panel.style.transform = 'translateX(0)';
@@ -7394,26 +7416,26 @@ Safety & Security Operations Team`;
                 panel.style.transform = 'translateX(100%)';
             }
         });
-        settingsBtn.addEventListener('mouseenter', function() {
+        settingsBtn.addEventListener('mouseenter', function () {
             this.style.background = '#f3f4f6';
             this.style.color = '#111827';
         });
-        settingsBtn.addEventListener('mouseleave', function() {
+        settingsBtn.addEventListener('mouseleave', function () {
             this.style.background = 'transparent';
             this.style.color = '#6b7280';
         });
 
         // Settings panel close button
         const settingsCloseBtn = document.getElementById('pqms-settings-close');
-        settingsCloseBtn.addEventListener('click', function() {
+        settingsCloseBtn.addEventListener('click', function () {
             const panel = document.getElementById('pqms-settings-panel');
             panel.style.transform = 'translateX(100%)';
         });
-        settingsCloseBtn.addEventListener('mouseenter', function() {
+        settingsCloseBtn.addEventListener('mouseenter', function () {
             this.style.background = '#f3f4f6';
             this.style.color = '#111827';
         });
-        settingsCloseBtn.addEventListener('mouseleave', function() {
+        settingsCloseBtn.addEventListener('mouseleave', function () {
             this.style.background = 'transparent';
             this.style.color = '#6b7280';
         });
@@ -7423,10 +7445,10 @@ Safety & Security Operations Team`;
 
         // OPS ID dropdown change
         const opsSelect = document.getElementById('pqms-ops-select');
-        opsSelect.addEventListener('change', function() {
+        opsSelect.addEventListener('change', function () {
             const selectedOpsId = this.value;
             const nameDisplay = document.getElementById('pqms-name-display');
-            
+
             if (selectedOpsId && PQMS_USERS[selectedOpsId]) {
                 nameDisplay.textContent = PQMS_USERS[selectedOpsId];
                 nameDisplay.style.color = '#111827';
@@ -7439,7 +7461,7 @@ Safety & Security Operations Team`;
         // Select button
         const selectBtn = document.getElementById('pqms-select-btn');
         if (selectBtn) {
-            selectBtn.addEventListener('click', function() {
+            selectBtn.addEventListener('click', function () {
                 const opsSelect = document.getElementById('pqms-ops-select');
                 const selectedOpsId = opsSelect.value;
 
@@ -7451,17 +7473,17 @@ Safety & Security Operations Team`;
                 const name = PQMS_USERS[selectedOpsId];
                 savePQMSSelectedUser(selectedOpsId, name);
                 showPQMSToast(`User selected: ${name}`, 'success');
-                
+
                 // Refresh dashboard
                 closePQMSDashboard();
                 setTimeout(() => createPQMSDashboard(), 100);
             });
 
-            selectBtn.addEventListener('mouseenter', function() {
+            selectBtn.addEventListener('mouseenter', function () {
                 this.style.background = '#1f2937';
                 this.style.borderColor = '#1f2937';
             });
-            selectBtn.addEventListener('mouseleave', function() {
+            selectBtn.addEventListener('mouseleave', function () {
                 this.style.background = '#111827';
                 this.style.borderColor = '#111827';
             });
@@ -7470,20 +7492,20 @@ Safety & Security Operations Team`;
         // Unchoose button
         const unchooseBtn = document.getElementById('pqms-unchoose-btn');
         if (unchooseBtn) {
-            unchooseBtn.addEventListener('click', function() {
+            unchooseBtn.addEventListener('click', function () {
                 clearPQMSSelectedUser();
                 showPQMSToast('User unselected', 'info');
-                
+
                 // Refresh dashboard
                 closePQMSDashboard();
                 setTimeout(() => createPQMSDashboard(), 100);
             });
 
-            unchooseBtn.addEventListener('mouseenter', function() {
+            unchooseBtn.addEventListener('mouseenter', function () {
                 this.style.background = '#fef2f2';
                 this.style.borderColor = '#dc2626';
             });
-            unchooseBtn.addEventListener('mouseleave', function() {
+            unchooseBtn.addEventListener('mouseleave', function () {
                 this.style.background = '#ffffff';
                 this.style.borderColor = '#dc2626';
             });
@@ -7502,7 +7524,7 @@ Safety & Security Operations Team`;
     function closePQMSDashboard() {
         const dashboard = document.getElementById('pqms-dashboard');
         const backdrop = document.getElementById('pqms-dashboard-backdrop');
-        
+
         if (dashboard) dashboard.remove();
         if (backdrop) backdrop.remove();
     }
@@ -7658,11 +7680,11 @@ Safety & Security Operations Team`;
                 submitToPQMS(status.name);
             });
 
-            item.addEventListener('mouseenter', function() {
+            item.addEventListener('mouseenter', function () {
                 this.style.backgroundColor = '#f3f4f6';
             });
 
-            item.addEventListener('mouseleave', function() {
+            item.addEventListener('mouseleave', function () {
                 this.style.backgroundColor = 'transparent';
             });
 
@@ -7702,19 +7724,19 @@ Safety & Security Operations Team`;
         };
         document.addEventListener('keydown', escapeHandler);
     }
-	
-	// Function to get current ticket ID from URL
-        function getCurrentTicketId() {
-            // Extract ticket ID from URL pattern like /agent/tickets/12345
-            const match = window.location.pathname.match(/\/agent\/tickets\/(\d+)/);
-            return match ? match[1] : null;
-        }
-	
+
+    // Function to get current ticket ID from URL
+    function getCurrentTicketId() {
+        // Extract ticket ID from URL pattern like /agent/tickets/12345
+        const match = window.location.pathname.match(/\/agent\/tickets\/(\d+)/);
+        return match ? match[1] : null;
+    }
+
     function closePQMSStatusMenu() {
         const menu = document.getElementById('pqms-status-menu');
         const backdrop = document.getElementById('pqms-status-menu-backdrop');
         const style = document.getElementById('pqms-menu-animation');
-        
+
         if (menu) menu.remove();
         if (backdrop) backdrop.remove();
         if (style) style.remove();
