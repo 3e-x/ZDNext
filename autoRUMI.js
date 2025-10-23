@@ -13,7 +13,7 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // Phase 2 adds business logic processing on top of the monitoring infrastructure
@@ -249,11 +249,11 @@
 
             // Decode common HTML entities
             text = text.replace(/&amp;/g, '&')
-                       .replace(/&lt;/g, '<')
-                       .replace(/&gt;/g, '>')
-                       .replace(/&quot;/g, '"')
-                       .replace(/&#39;/g, "'")
-                       .replace(/&nbsp;/g, ' ');
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .replace(/&nbsp;/g, ' ');
 
             // Normalize whitespace (multiple spaces/newlines to single)
             text = text.replace(/\s+/g, ' ').trim();
@@ -397,7 +397,7 @@
 
                 // PRIORITY 2: Check for care routing pin
                 const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId, ticketData, commentsList);
-                
+
                 if (careRoutingResult) {
                     // If care routing pin returned a result, process it or skip
                     if (careRoutingResult.action === 'care') {
@@ -474,7 +474,7 @@
                 const targetStatus = result.payload?.ticket?.status;
                 const targetGroupId = result.payload?.ticket?.group_id;
                 const alreadyCorrect = (targetStatus && targetStatus === originalStatus) ||
-                                       (targetGroupId && targetGroupId === originalGroupId);
+                    (targetGroupId && targetGroupId === originalGroupId);
 
                 // Fetch group names for display
                 const previousGroupName = await this.fetchAndCacheGroupName(originalGroupId);
@@ -577,7 +577,7 @@
 
                 // PRIORITY 2: Check for care routing pin (pass pre-fetched data for efficiency)
                 const careRoutingResult = await RUMIPinManager.checkCareRoutingPin(ticketId, ticketData, commentsList);
-                
+
                 if (careRoutingResult) {
                     // If care routing pin returned a result, process it or skip
                     if (careRoutingResult.action === 'care') {
@@ -694,7 +694,7 @@
                 const targetStatus = result.payload?.ticket?.status;
                 const targetGroupId = result.payload?.ticket?.group_id;
                 const alreadyCorrect = (targetStatus && targetStatus === originalStatus) ||
-                                       (targetGroupId && targetGroupId === originalGroupId);
+                    (targetGroupId && targetGroupId === originalGroupId);
 
                 // Fetch group names for display
                 const previousGroupName = await this.fetchAndCacheGroupName(originalGroupId);
@@ -910,6 +910,15 @@
                 return { action: 'none' };
             }
 
+            // Check if any comment contains required phrases before processing pending
+            if (!this.hasRequiredCommentPhrases(comments)) {
+                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping escalation response processing', {
+                    ticketId: ticket.id,
+                    requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
+                });
+                return { action: 'none' };
+            }
+
             if (comments.length === 0) return { action: 'none' };
 
             const latestComment = comments[comments.length - 1];
@@ -1016,7 +1025,7 @@
 
             // Check if any comment contains required phrases before processing pending
             if (!this.hasRequiredCommentPhrases(comments)) {
-                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping pending processing', { 
+                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping pending processing', {
                     ticketId: ticket.id,
                     requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
                 });
@@ -1033,15 +1042,15 @@
             // Special logic for link triggers: Check BEFORE regular trigger checks
             if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                 const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-                
+
                 const linkTriggers = [
                     "https://blissnxt.uberinternal.com",
-                    "https://uber.lighthouse-cloud.com", 
+                    "https://uber.lighthouse-cloud.com",
                     "https://apps.mypurecloud.ie"
                 ];
-                
+
                 const normalizedComment = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-                const hasLinkTrigger = linkTriggers.some(link => 
+                const hasLinkTrigger = linkTriggers.some(link =>
                     RUMICommentProcessor.matchesTrigger(normalizedComment, link)
                 );
 
@@ -1177,7 +1186,7 @@
 
             // Check if any comment contains required phrases before processing solved
             if (!this.hasRequiredCommentPhrases(comments)) {
-                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping solved processing', { 
+                RUMILogger.debug('Processor', 'No required phrases found in comments - skipping solved processing', {
                     ticketId: ticket.id,
                     requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
                 });
@@ -1194,15 +1203,15 @@
             // Special logic for link triggers: Check BEFORE regular trigger checks
             if (commentToCheck.public === false && commentToCheck.author_id.toString() === CONFIG.CAREEM_CARE_ID) {
                 const commentIndex = comments.findIndex(c => c.id === commentToCheck.id);
-                
+
                 const linkTriggers = [
                     "https://blissnxt.uberinternal.com",
-                    "https://uber.lighthouse-cloud.com", 
+                    "https://uber.lighthouse-cloud.com",
                     "https://apps.mypurecloud.ie"
                 ];
-                
+
                 const normalizedComment = RUMICommentProcessor.normalizeForMatching(commentToCheck.html_body);
-                const hasLinkTrigger = linkTriggers.some(link => 
+                const hasLinkTrigger = linkTriggers.some(link =>
                     RUMICommentProcessor.matchesTrigger(normalizedComment, link)
                 );
 
@@ -1393,7 +1402,7 @@
             const enabledSolvedTriggers = RUMIRules.SOLVED_TRIGGERS.filter(phrase => {
                 return settings.triggerPhrases.solved[phrase] !== false;
             });
-            
+
             const pendingTrigger = enabledPendingTriggers.find(phrase =>
                 RUMICommentProcessor.matchesTrigger(normalized, phrase)
             );
@@ -2084,9 +2093,9 @@
                 return null; // No care routing pin for this ticket
             }
 
-            RUMILogger.info('PIN_MANAGER', '📌 Care routing pin found - processing ticket', { 
-                ticketId, 
-                pinStatus: pin.status, 
+            RUMILogger.info('PIN_MANAGER', '📌 Care routing pin found - processing ticket', {
+                ticketId,
+                pinStatus: pin.status,
                 lastCommentId: pin.lastCommentId,
                 timestamp: pin.timestamp
             });
@@ -2137,7 +2146,7 @@
                         oldCommentId: pin.lastCommentId,
                         newCommentId: latestCommentId
                     });
-                    
+
                     // Mark pin as 'changed' after processing - this will stop future automatic processing
                     // We'll update this after the routing is complete
                 } else {
@@ -6807,7 +6816,7 @@
             const tabName = this.currentAutoTab;
 
             let filteredTickets;
-            switch(tabName) {
+            switch (tabName) {
                 case 'pending':
                     filteredTickets = tickets.filter(t => t.action === 'pending');
                     break;
@@ -6847,7 +6856,7 @@
             const tabName = this.currentManualTab;
 
             let filteredTickets;
-            switch(tabName) {
+            switch (tabName) {
                 case 'manual-pending':
                     filteredTickets = tickets.filter(t => t.action === 'pending');
                     break;
@@ -9161,9 +9170,9 @@
 
             // ENTRY NODE - Show ticket details
             const statusEmoji = ticket.status === 'closed' ? '🔒' :
-                               ticket.status === 'pending' ? '⏱' :
-                               ticket.status === 'solved' ? '✓' :
-                               ticket.status === 'open' ? '📂' : '📄';
+                ticket.status === 'pending' ? '⏱' :
+                    ticket.status === 'solved' ? '✓' :
+                        ticket.status === 'open' ? '📂' : '📄';
 
             this.addNode({
                 id: 'start',
@@ -9336,7 +9345,7 @@
             // ============================================================================
             let carePhrase = null;
             let careCommentDescription = '';
-            
+
             // SOLID RULE: Care routing ONLY checks latest comment (no trace-back)
             // This is different from pending/solved which use trace-back logic
             if (comments.length > 0) {
@@ -9454,7 +9463,7 @@
 
             // PRIORITY 7: Check subject-based Care routing (noActivityDetails)
             const hasNoActivitySubject = ticket.subject &&
-                                        ticket.subject.toLowerCase().includes('noActivityDetails available');
+                ticket.subject.toLowerCase().includes('noActivityDetails available');
             const isNew = ticket.status === 'new';
             const hasPrivateComments = comments.some(c => c.public === false);
             const subjectCareTriggers = hasNoActivitySubject && isNew && !hasPrivateComments;
