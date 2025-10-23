@@ -81,6 +81,158 @@
             RATE_LIMIT: 600,             // Back to higher limit since we'll be more efficient
             CIRCUIT_BREAKER_THRESHOLD: 5 // More tolerant of 429 errors
         },
+
+        // City to Country mapping for automatic country field population
+        cityCountryMapping: {
+            // Algeria
+            'Algiers': 'Algeria',
+
+            // Bahrain
+            'Manama': 'Bahrain',
+
+            // Egypt
+            'Alexandria': 'Egypt',
+            'Asyut': 'Egypt',
+            'Aswan': 'Egypt',
+            'Banha': 'Egypt',
+            'Beni Suef': 'Egypt',
+            'Cairo': 'Egypt',
+            'Damanhour': 'Egypt',
+            'Damietta': 'Egypt',
+            'Fayoum': 'Egypt',
+            'Gouna': 'Egypt',
+            'Hurghada': 'Egypt',
+            'Ismailia': 'Egypt',
+            'Kafr El-Shiek': 'Egypt',
+            'Luxor': 'Egypt',
+            'Mansoura': 'Egypt',
+            'Marsa Matrouh': 'Egypt',
+            'Marsa Matruh': 'Egypt',
+            'Menofia': 'Egypt',
+            'Minya': 'Egypt',
+            'Port Said': 'Egypt',
+            'Qena': 'Egypt',
+            'Sahel': 'Egypt',
+            'Sohag': 'Egypt',
+            'Sokhna': 'Egypt',
+            'Suez': 'Egypt',
+            'Tanta': 'Egypt',
+            'zagazig': 'Egypt',
+            'Zagzig': 'Egypt',
+
+            // Iraq
+            'Baghdad': 'Iraq',
+            'Basrah': 'Iraq',
+            'Erbil': 'Iraq',
+            'Mosul': 'Iraq',
+            'Najaf': 'Iraq',
+
+            // Jordan
+            'Amman': 'Jordan',
+            'Aqaba': 'Jordan',
+            'Irbid': 'Jordan',
+            'Zarqa': 'Jordan',
+
+            // Kuwait
+            'Kuwait City': 'Kuwait',
+
+            // Lebanon
+            'Beirut': 'Lebanon',
+            'Jounieh': 'Lebanon',
+
+            // Morocco
+            'Casablanca': 'Morocco',
+            'Marrakech': 'Morocco',
+            'Mohammedia': 'Morocco',
+            'Rabat': 'Morocco',
+            'Tangier': 'Morocco',
+
+            // Oman
+            'Muscat': 'Oman',
+
+            // Pakistan
+            'Abbottabad': 'Pakistan',
+            'Bahawalpur': 'Pakistan',
+            'Faisalabad': 'Pakistan',
+            'Gujranwala': 'Pakistan',
+            'Hyderabad': 'Pakistan',
+            'Islamabad': 'Pakistan',
+            'Karachi': 'Pakistan',
+            'Lahore': 'Pakistan',
+            'Mardan': 'Pakistan',
+            'Multan': 'Pakistan',
+            'Peshawar': 'Pakistan',
+            'Quetta': 'Pakistan',
+            'Sargodha': 'Pakistan',
+            'Sialkot': 'Pakistan',
+            'Sukkur': 'Pakistan',
+
+            // Palestine
+            'Bethlehem': 'Palestine',
+            'gaza': 'Palestine',
+            'nablus': 'Palestine',
+            'ramallah': 'Palestine',
+
+            // Qatar
+            'Doha': 'Qatar',
+            'Wakrah': 'Qatar',
+
+            // Saudi Arabia
+            'Abqaiq': 'Saudi Arabia',
+            'Abu Dhabi': 'Saudi Arabia', // Note: This appears to be an error in the original list
+            'Al Bahah': 'Saudi Arabia',
+            'Al Hada': 'Saudi Arabia',
+            'Al Hasa': 'Saudi Arabia',
+            'Al Kharj': 'Saudi Arabia',
+            'Al Leith': 'Saudi Arabia',
+            'Al Qunfudah': 'Saudi Arabia',
+            'Al Ula': 'Saudi Arabia',
+            'ALQurayyat': 'Saudi Arabia',
+            'AlJowf': 'Saudi Arabia',
+            'Ar Rass': 'Saudi Arabia',
+            'Aseer': 'Saudi Arabia',
+            'Ash Shafa': 'Saudi Arabia',
+            'Dammam': 'Saudi Arabia',
+            'Hail': 'Saudi Arabia',
+            'Hafar AlBatin': 'Saudi Arabia',
+            'Jazan': 'Saudi Arabia',
+            'Jeddah': 'Saudi Arabia',
+            'Jubail': 'Saudi Arabia',
+            'KAEC': 'Saudi Arabia',
+            'Madinah': 'Saudi Arabia',
+            'Madinah Governorates': 'Saudi Arabia',
+            'Makkah': 'Saudi Arabia',
+            'Najran': 'Saudi Arabia',
+            'Qassim': 'Saudi Arabia',
+            'Ras Tanura': 'Saudi Arabia',
+            'Riyadh': 'Saudi Arabia',
+            'Sharurah': 'Saudi Arabia',
+            'Tabuk': 'Saudi Arabia',
+            'Tabuk Governorates': 'Saudi Arabia',
+            'Taif': 'Saudi Arabia',
+            'Tihamah': 'Saudi Arabia',
+            'Wadi Al Dawasir': 'Saudi Arabia',
+            'Yanbu': 'Saudi Arabia',
+
+            // Sudan
+            'khartoum': 'Sudan',
+
+            // Turkey
+            'Adana': 'Turkey',
+            'bodrum': 'Turkey',
+            'bursa': 'Turkey',
+            'Istanbul': 'Turkey',
+
+            // United Arab Emirates
+            'Abu Dhabi': 'United Arab Emirates',
+            'Ajman': 'United Arab Emirates',
+            'Al Ain': 'United Arab Emirates',
+            'Dubai': 'United Arab Emirates',
+            'Fujairah': 'United Arab Emirates',
+            'Ras Al Khaimah': 'United Arab Emirates',
+            'Sharjah': 'United Arab Emirates'
+        },
+
         pendingTriggerPhrases: [
             // ===============================================================
             // ESCALATION PHRASES (English)
@@ -4120,355 +4272,80 @@
         }
     }
 
-    // City to Country mapping
-    const cityToCountryMapping = {
-        // Algeria
-        'Algiers': 'Algeria',
-
-        // Bahrain
-        'Manama': 'Bahrain',
-
-        // Egypt
-        'Alexandria': 'Egypt',
-        'Asyut': 'Egypt',
-        'Aswan': 'Egypt',
-        'Banha': 'Egypt',
-        'Beni Suef': 'Egypt',
-        'Cairo': 'Egypt',
-        'Damanhour': 'Egypt',
-        'Damietta': 'Egypt',
-        'Fayoum': 'Egypt',
-        'Gouna': 'Egypt',
-        'Hurghada': 'Egypt',
-        'Ismailia': 'Egypt',
-        'Kafr El-Shiek': 'Egypt',
-        'Luxor': 'Egypt',
-        'Mansoura': 'Egypt',
-        'Marsa Matrouh': 'Egypt',
-        'Marsa Matruh': 'Egypt',
-        'Menofia': 'Egypt',
-        'Minya': 'Egypt',
-        'Port Said': 'Egypt',
-        'Qena': 'Egypt',
-        'Sahel': 'Egypt',
-        'Sohag': 'Egypt',
-        'Sokhna': 'Egypt',
-        'Suez': 'Egypt',
-        'Tanta': 'Egypt',
-        'zagazig': 'Egypt',
-        'Zagzig': 'Egypt',
-
-        // Iraq
-        'Baghdad': 'Iraq',
-        'Basrah': 'Iraq',
-        'Erbil': 'Iraq',
-        'Mosul': 'Iraq',
-        'Najaf': 'Iraq',
-
-        // Jordan
-        'Amman': 'Jordan',
-        'Aqaba': 'Jordan',
-        'Irbid': 'Jordan',
-        'Zarqa': 'Jordan',
-
-        // Kuwait
-        'Kuwait City': 'Kuwait',
-
-        // Lebanon
-        'Beirut': 'Lebanon',
-        'Jounieh': 'Lebanon',
-
-        // Morocco
-        'Casablanca': 'Morocco',
-        'Marrakech': 'Morocco',
-        'Mohammedia': 'Morocco',
-        'Rabat': 'Morocco',
-        'Tangier': 'Morocco',
-
-        // Oman
-        'Muscat': 'Oman',
-
-        // Pakistan
-        'Abbottabad': 'Pakistan',
-        'Bahawalpur': 'Pakistan',
-        'Faisalabad': 'Pakistan',
-        'Gujranwala': 'Pakistan',
-        'Hyderabad': 'Pakistan',
-        'Islamabad': 'Pakistan',
-        'Karachi': 'Pakistan',
-        'Lahore': 'Pakistan',
-        'Mardan': 'Pakistan',
-        'Multan': 'Pakistan',
-        'Peshawar': 'Pakistan',
-        'Quetta': 'Pakistan',
-        'Sargodha': 'Pakistan',
-        'Sialkot': 'Pakistan',
-        'Sukkur': 'Pakistan',
-
-        // Palestine
-        'Bethlehem': 'Palestine',
-        'gaza': 'Palestine',
-        'nablus': 'Palestine',
-        'ramallah': 'Palestine',
-
-        // Qatar
-        'Doha': 'Qatar',
-        'Wakrah': 'Qatar',
-
-        // Saudi Arabia
-        'Abqaiq': 'Saudi Arabia',
-        'Abu Dhabi': 'Saudi Arabia', // Note: This is an error in the original list, but keeping as provided
-        'Al Bahah': 'Saudi Arabia',
-        'Al Hada': 'Saudi Arabia',
-        'Al Hasa': 'Saudi Arabia',
-        'Al Kharj': 'Saudi Arabia',
-        'Al Leith': 'Saudi Arabia',
-        'Al Qunfudah': 'Saudi Arabia',
-        'Al Ula': 'Saudi Arabia',
-        'ALQurayyat': 'Saudi Arabia',
-        'AlJowf': 'Saudi Arabia',
-        'Ar Rass': 'Saudi Arabia',
-        'Aseer': 'Saudi Arabia',
-        'Ash Shafa': 'Saudi Arabia',
-        'Dammam': 'Saudi Arabia',
-        'Hail': 'Saudi Arabia',
-        'Hafar AlBatin': 'Saudi Arabia',
-        'Jazan': 'Saudi Arabia',
-        'Jeddah': 'Saudi Arabia',
-        'Jubail': 'Saudi Arabia',
-        'KAEC': 'Saudi Arabia',
-        'Madinah': 'Saudi Arabia',
-        'Madinah Governorates': 'Saudi Arabia',
-        'Makkah': 'Saudi Arabia',
-        'Najran': 'Saudi Arabia',
-        'Qassim': 'Saudi Arabia',
-        'Ras Tanura': 'Saudi Arabia',
-        'Riyadh': 'Saudi Arabia',
-        'Sharurah': 'Saudi Arabia',
-        'Tabuk': 'Saudi Arabia',
-        'Tabuk Governorates': 'Saudi Arabia',
-        'Taif': 'Saudi Arabia',
-        'Tihamah': 'Saudi Arabia',
-        'Wadi Al Dawasir': 'Saudi Arabia',
-        'Yanbu': 'Saudi Arabia',
-
-        // Sudan
-        'khartoum': 'Sudan',
-
-        // Turkey
-        'Adana': 'Turkey',
-        'bodrum': 'Turkey',
-        'bursa': 'Turkey',
-        'Istanbul': 'Turkey',
-
-        // UAE
-        'Abu Dhabi': 'United Arab Emirates',
-        'Ajman': 'United Arab Emirates',
-        'Al Ain': 'United Arab Emirates',
-        'Dubai': 'United Arab Emirates',
-        'Fujairah': 'United Arab Emirates',
-        'Ras Al Khaimah': 'United Arab Emirates',
-        'Sharjah': 'United Arab Emirates'
-    };
-
-    // Function to set country field based on city field
+    // Set Country field based on City field value
     async function setCountryBasedOnCity(container) {
-        console.log('🔍 Starting country field detection...');
-
-        // Strategy 1: Look for dropdown fields with data-test-id="ticket-form-field-dropdown-button"
-        let dropdownFields = container.querySelectorAll('[data-test-id="ticket-form-field-dropdown-button"]');
-        console.log(`📋 Strategy 1: Found ${dropdownFields.length} dropdown fields with data-test-id`);
-
-        // Strategy 2: Look for any dropdown-like elements
-        if (dropdownFields.length === 0) {
-            dropdownFields = container.querySelectorAll('[aria-haspopup="listbox"], [data-toggle="true"], .dropdown, [role="combobox"]');
-            console.log(`📋 Strategy 2: Found ${dropdownFields.length} dropdown-like elements`);
-        }
-
-        // Strategy 3: Look for form fields in general
-        if (dropdownFields.length === 0) {
-            dropdownFields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
-            console.log(`📋 Strategy 3: Found ${dropdownFields.length} form fields`);
-        }
-
-        // Strategy 4: Look for any elements with downshift IDs
-        if (dropdownFields.length === 0) {
-            dropdownFields = container.querySelectorAll('[id*="downshift-"], [aria-labelledby*="downshift-"]');
-            console.log(`📋 Strategy 4: Found ${dropdownFields.length} downshift elements`);
-        }
-
+        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
         let cityField = null;
         let countryField = null;
-        let cityValue = '';
+        let fieldFound = false;
 
-        // Find city and country fields by looking for labels in parent containers
-        for (let i = 0; i < dropdownFields.length; i++) {
-            const dropdown = dropdownFields[i];
-            console.log(`🔍 Examining dropdown ${i + 1}:`, dropdown);
-
-            // Look for the label in parent containers
-            let currentElement = dropdown;
-            let label = null;
-            let labelText = '';
-
-            // Go up the DOM tree to find the label
-            while (currentElement && currentElement !== container) {
-                const parent = currentElement.parentElement;
-                if (parent) {
-                    label = parent.querySelector('label');
-                    if (label) {
-                        labelText = label.textContent.trim().toLowerCase();
-                        break;
-                    }
+        // First, find the city field
+        for (const field of fields) {
+            const label = field.querySelector('label');
+            if (label && label.textContent.trim() === 'City') {
+                if (fieldFound) {
+                    console.log('⚠️ Skipping duplicate City field');
+                    continue;
                 }
-                currentElement = parent;
-            }
-
-            if (label) {
-                console.log(`🏷️ Found field with label: "${labelText}"`);
-
-                if (labelText.includes('city')) {
-                    cityField = dropdown;
-                    console.log('✅ Found city field');
-                } else if (labelText.includes('country')) {
-                    countryField = dropdown;
-                    console.log('✅ Found country field');
-                }
-            } else {
-                // Try to find label by aria-labelledby
-                const ariaLabelledBy = dropdown.getAttribute('aria-labelledby');
-                if (ariaLabelledBy) {
-                    const labelElement = document.getElementById(ariaLabelledBy);
-                    if (labelElement) {
-                        labelText = labelElement.textContent.trim().toLowerCase();
-                        console.log(`🏷️ Found field with aria-labelledby label: "${labelText}"`);
-
-                        if (labelText.includes('city')) {
-                            cityField = dropdown;
-                            console.log('✅ Found city field via aria-labelledby');
-                        } else if (labelText.includes('country')) {
-                            countryField = dropdown;
-                            console.log('✅ Found country field via aria-labelledby');
-                        }
-                    }
-                }
-            }
-        }
-
-        // If we still haven't found fields, try a more aggressive search
-        if (!cityField || !countryField) {
-            console.log('🔍 Performing aggressive field search...');
-
-            // Look for any elements that might contain city/country
-            const allElements = container.querySelectorAll('*');
-            for (const element of allElements) {
-                const text = element.textContent.toLowerCase();
-                const title = element.getAttribute('title')?.toLowerCase() || '';
-                const ariaLabel = element.getAttribute('aria-label')?.toLowerCase() || '';
-
-                if (text.includes('city') || title.includes('city') || ariaLabel.includes('city')) {
-                    if (!cityField) {
-                        cityField = element;
-                        console.log('✅ Found city field via text search');
-                    }
-                }
-
-                if (text.includes('country') || title.includes('country') || ariaLabel.includes('country')) {
-                    if (!countryField) {
-                        countryField = element;
-                        console.log('✅ Found country field via text search');
-                    }
-                }
+                fieldFound = true;
+                cityField = field;
+                console.log('🏙️ Found City field');
+                break;
             }
         }
 
         if (!cityField) {
-            console.log('⚠️ City field not found with any strategy');
-            console.log('🔍 Available elements in container:', container.innerHTML.substring(0, 500));
-            return false;
+            console.log('⚠️ City field not found - skipping country field update');
+            return true;
+        }
+
+        // Get the city value from the field
+        const cityValue = getFieldValue(cityField);
+        if (!cityValue || cityValue.trim() === '') {
+            console.log('⚠️ City field is empty - skipping country field update');
+            return true;
+        }
+
+        console.log(`🏙️ Found city: "${cityValue}"`);
+
+        // Look up the country for this city
+        const country = rumiEnhancement.cityCountryMapping[cityValue];
+        if (!country) {
+            console.log(`⚠️ No country mapping found for city: "${cityValue}"`);
+            return true;
+        }
+
+        console.log(`🌍 Mapped city "${cityValue}" to country: "${country}"`);
+
+        // Now find the country field
+        fieldFound = false;
+        for (const field of fields) {
+            const label = field.querySelector('label');
+            if (label && label.textContent.trim() === 'Country') {
+                if (fieldFound) {
+                    console.log('⚠️ Skipping duplicate Country field');
+                    continue;
+                }
+                fieldFound = true;
+                countryField = field;
+                console.log('🌍 Found Country field');
+                break;
+            }
         }
 
         if (!countryField) {
-            console.log('⚠️ Country field not found with any strategy');
+            console.log('⚠️ Country field not found');
             return false;
         }
 
-        console.log('✅ Both city and country fields found');
-
-        // Get city value from various possible locations
-        const cityDisplay = cityField.querySelector('[title]');
-        if (cityDisplay) {
-            cityValue = cityDisplay.getAttribute('title');
-            console.log(`🏙️ City value found in title: "${cityValue}"`);
-        }
-
-        // Try other methods to get city value
-        if (!cityValue) {
-            const cityInput = cityField.querySelector('input');
-            if (cityInput && cityInput.value) {
-                cityValue = cityInput.value.trim();
-                console.log(`🏙️ City value found in input: "${cityValue}"`);
-            }
-        }
-
-        if (!cityValue) {
-            const citySpan = cityField.querySelector('span, div');
-            if (citySpan && citySpan.textContent.trim() && citySpan.textContent.trim() !== '-') {
-                cityValue = citySpan.textContent.trim();
-                console.log(`🏙️ City value found in text content: "${cityValue}"`);
-            }
-        }
-
-        if (!cityValue || cityValue === '-') {
-            console.log('⚠️ No city value found or city is empty');
-            return false;
-        }
-
-        // Get country from mapping
-        const country = cityToCountryMapping[cityValue];
-        if (!country) {
-            console.log(`⚠️ No country mapping found for city: ${cityValue}`);
-            console.log('🔍 Available cities in mapping:', Object.keys(cityToCountryMapping).slice(0, 10));
-            return false;
-        }
-
-        console.log(`🌍 Mapping city "${cityValue}" to country "${country}"`);
-
-        // Set country value by clicking the dropdown and selecting the option
+        // Set the country field value
         try {
-            console.log('🖱️ Clicking country dropdown...');
-            countryField.click();
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Look for the dropdown options in the opened dropdown
-            console.log('🔍 Looking for dropdown options...');
-            const dropdownOptions = document.querySelectorAll('[role="option"], [data-test-id*="option"], li, div[role="option"]');
-            console.log(`📋 Found ${dropdownOptions.length} potential options`);
-
-            let optionFound = false;
-
-            for (let i = 0; i < dropdownOptions.length; i++) {
-                const option = dropdownOptions[i];
-                const optionText = option.textContent.trim();
-                console.log(`🔍 Checking option ${i + 1}: "${optionText}"`);
-
-                if (optionText === country) {
-                    console.log(`✅ Found matching country option: "${optionText}"`);
-                    option.click();
-                    optionFound = true;
-                    break;
-                }
-            }
-
-            if (!optionFound) {
-                console.log('⚠️ Could not find country option in dropdown');
-                return false;
-            }
-
-            console.log(`✅ Country set to: ${country} based on city: ${cityValue}`);
-            return true;
+            console.log(`📝 Setting Country to "${country}"...`);
+            const success = await setDropdownFieldValueInstant(countryField, country);
+            console.log(`✅ Country field result: ${success ? 'SUCCESS' : 'FAILED'}`);
+            return success;
         } catch (error) {
-            console.error('❌ Error setting country value:', error);
+            console.error('❌ Error setting Country field:', error);
             return false;
         }
     }
@@ -4504,8 +4381,8 @@
             // Minimal delay between operations
             await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Set country field based on city field
-            console.log('📝 Step 4: Setting country based on city...');
+            // Set Country field based on City field
+            console.log('📝 Step 4: Setting Country field based on City...');
             const countrySuccess = await setCountryBasedOnCity(form);
             console.log(`✅ Country field result: ${countrySuccess ? 'SUCCESS' : 'FAILED'}`);
 
@@ -4552,6 +4429,14 @@
             console.log('📝 Step 4: Setting SSOC incident source...');
             const incidentSourceSuccess = await setSSOCIncidentSource(form);
             console.log(`✅ SSOC incident source result: ${incidentSourceSuccess ? 'SUCCESS' : 'FAILED'}`);
+
+            // Minimal delay between operations
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // Set Country field based on City field
+            console.log('📝 Step 5: Setting Country field based on City...');
+            const countrySuccess = await setCountryBasedOnCity(form);
+            console.log(`✅ Country field result: ${countrySuccess ? 'SUCCESS' : 'FAILED'}`);
 
             console.log('🎉 Duplicate ticket autofill process completed');
             return true;
