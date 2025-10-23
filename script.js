@@ -501,6 +501,8 @@
         'SSOC Reason',
         'Action Taken - Consumer',
         'SSOC incident source'
+		'City',
+		'Country'
     ];
 
     // Check if a field is a system field that should never be hidden (Requester, Assignee, CCs)
