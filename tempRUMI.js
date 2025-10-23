@@ -4273,17 +4273,41 @@
 
     // Function to set country field based on city field
     async function setCountryBasedOnCity(container) {
-        const fields = container.querySelectorAll('[class*="field"], [data-test-id*="field"], div:has(label)');
+        // Look for dropdown fields with data-test-id="ticket-form-field-dropdown-button"
+        const dropdownFields = container.querySelectorAll('[data-test-id="ticket-form-field-dropdown-button"]');
         let cityField = null;
         let countryField = null;
         let cityValue = '';
 
-        // Find city field
-        for (const field of fields) {
-            const label = field.querySelector('label');
-            if (label && label.textContent.trim().toLowerCase().includes('city')) {
-                cityField = field;
-                break;
+        console.log(`🔍 Found ${dropdownFields.length} dropdown fields`);
+
+        // Find city and country fields by looking for labels in parent containers
+        for (const dropdown of dropdownFields) {
+            // Look for the label in parent containers
+            let currentElement = dropdown;
+            let label = null;
+
+            // Go up the DOM tree to find the label
+            while (currentElement && currentElement !== container) {
+                const parent = currentElement.parentElement;
+                if (parent) {
+                    label = parent.querySelector('label');
+                    if (label) break;
+                }
+                currentElement = parent;
+            }
+
+            if (label) {
+                const labelText = label.textContent.trim().toLowerCase();
+                console.log(`🏷️ Found field with label: "${labelText}"`);
+
+                if (labelText.includes('city')) {
+                    cityField = dropdown;
+                    console.log('✅ Found city field');
+                } else if (labelText.includes('country')) {
+                    countryField = dropdown;
+                    console.log('✅ Found country field');
+                }
             }
         }
 
@@ -4292,28 +4316,20 @@
             return false;
         }
 
-        // Get city value
-        const cityInput = cityField.querySelector('input, select, textarea');
-        if (cityInput) {
-            cityValue = cityInput.value ? cityInput.value.trim() : '';
-        }
-
-        if (!cityValue) {
-            console.log('⚠️ No city value found');
+        if (!countryField) {
+            console.log('⚠️ Country field not found');
             return false;
         }
 
-        // Find country field
-        for (const field of fields) {
-            const label = field.querySelector('label');
-            if (label && label.textContent.trim().toLowerCase().includes('country')) {
-                countryField = field;
-                break;
-            }
+        // Get city value from the dropdown display
+        const cityDisplay = cityField.querySelector('[title]');
+        if (cityDisplay) {
+            cityValue = cityDisplay.getAttribute('title');
+            console.log(`🏙️ City value found: "${cityValue}"`);
         }
 
-        if (!countryField) {
-            console.log('⚠️ Country field not found');
+        if (!cityValue || cityValue === '-') {
+            console.log('⚠️ No city value found or city is empty');
             return false;
         }
 
@@ -4324,32 +4340,55 @@
             return false;
         }
 
-        // Set country value
-        const countryInput = countryField.querySelector('input, select, textarea');
-        if (countryInput) {
-            if (countryInput.tagName === 'SELECT') {
-                // Handle dropdown
-                const options = countryInput.querySelectorAll('option');
-                for (const option of options) {
-                    if (option.textContent.trim() === country || option.value === country) {
-                        option.selected = true;
-                        countryInput.dispatchEvent(new Event('change', { bubbles: true }));
+        console.log(`🌍 Mapping city "${cityValue}" to country "${country}"`);
+
+        // Set country value by clicking the dropdown and selecting the option
+        try {
+            // Click the country dropdown to open it
+            countryField.click();
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Look for the dropdown options in the opened dropdown
+            const dropdownOptions = document.querySelectorAll('[role="option"], [data-test-id*="option"]');
+            let optionFound = false;
+
+            for (const option of dropdownOptions) {
+                const optionText = option.textContent.trim();
+                console.log(`🔍 Checking option: "${optionText}"`);
+
+                if (optionText === country) {
+                    console.log(`✅ Found matching country option: "${optionText}"`);
+                    option.click();
+                    optionFound = true;
+                    break;
+                }
+            }
+
+            if (!optionFound) {
+                // Try alternative approach - look for options in a different structure
+                const allOptions = document.querySelectorAll('div[role="option"], li[role="option"], option');
+                for (const option of allOptions) {
+                    const optionText = option.textContent.trim();
+                    if (optionText === country) {
+                        console.log(`✅ Found matching country option (alternative): "${optionText}"`);
+                        option.click();
+                        optionFound = true;
                         break;
                     }
                 }
-            } else {
-                // Handle text input
-                countryInput.value = country;
-                countryInput.dispatchEvent(new Event('input', { bubbles: true }));
-                countryInput.dispatchEvent(new Event('change', { bubbles: true }));
             }
 
-            console.log(`✅ Country set to: ${country} based on city: ${cityValue}`);
-            return true;
+            if (optionFound) {
+                console.log(`✅ Country set to: ${country} based on city: ${cityValue}`);
+                return true;
+            } else {
+                console.log(`⚠️ Could not find country option: ${country}`);
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Error setting country value:', error);
+            return false;
         }
-
-        console.log('⚠️ Could not set country value');
-        return false;
     }
 
     // Process RUMI autofill for a single form
