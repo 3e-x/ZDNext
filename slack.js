@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         SLackdesk
+// @name         Slackdesk
 // @namespace    http://tampermonkey.net/
 // @version      2.1
 // @description  View Zendesk ticket JSON data from Slack, using Zendesk session automatically
