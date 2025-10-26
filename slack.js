@@ -22,26 +22,27 @@
     let incidentTypeOptionsCache = null;
     let incidentTypeOptionsPromise = null;
 
-    const BASE_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><div class="p-rich_text_section"><b data-stringify-type="bold">Incident Category: [Critical]</b><br aria-hidden="true"><b data-stringify-type="bold">Date report received: </b>{{DATE_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Time report received: </b>{{TIME_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Date of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Time of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Case status:&nbsp; </b>{{CASE_STATUS}}<br aria-hidden="true"><b data-stringify-type="bold">Incident type: </b>{{INCIDENT_TYPE}}<br aria-hidden="true"><b data-stringify-type="bold">L4+ classification: No</b><br aria-hidden="true"><b data-stringify-type="bold">Key incident details:</b><br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0"></li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">City: </b>{{CITY}}<b data-stringify-type="bold">, </b><b data-stringify-type="bold">Country: </b>{{COUNTRY}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Booking ID: </b>{{BOOKING_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Zendesk ticket ID: </b>{{ZENDESK_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">L4+ classification</b>: No<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><b data-stringify-type="bold">Reason</b>: N/A</li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Captain history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Tenure : </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">MONTHLY / TOTAL TRIPS: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Captain safety history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0">Non Critical: </li></ul></li><li data-stringify-indent="1" data-stringify-border="0">Not SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul></li></ul><div class="p-rich_text_section"><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Customer history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">Past 6 months: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Customer history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul><div class="p-rich_text_section"><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>.........................................................................<br aria-hidden="true"><b data-stringify-type="bold">Customer investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>Follow Up:<span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with customer: </b><br aria-hidden="true"><b data-stringify-type="bold">Captain investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with captain: </b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>******************************************************************************</div></div>';
 
+
+    const BASE_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><div class="p-rich_text_section"><b data-stringify-type="bold">Incident Category: [Critical]</b><br aria-hidden="true"><b data-stringify-type="bold">Date report received: </b>{{DATE_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Time report received: </b>{{TIME_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Date of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Time of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Case status:&nbsp; </b>{{CASE_STATUS}}<br aria-hidden="true"><b data-stringify-type="bold">L4+ classification: No</b><br aria-hidden="true"><b data-stringify-type="bold">Key incident details:</b><br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Incident type: </b>{{INCIDENT_TYPE}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">City: </b>{{CITY}}<b data-stringify-type="bold">, Country: </b>{{COUNTRY}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Booking ID: </b>{{BOOKING_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Zendesk ticket ID: </b>{{ZENDESK_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">L4+ classification</b>: No<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><b data-stringify-type="bold">Reason</b>: N/A</li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Captain history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Tenure : </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">MONTHLY / TOTAL TRIPS: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Captain safety history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0">Non Critical: </li></ul></li><li data-stringify-indent="1" data-stringify-border="0">Not SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul></li><li data-stringify-indent="0" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Customer history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">Past 6 months: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Customer history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"><b data-stringify-type="bold">Customer investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>Follow Up:<span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with customer: </b><br aria-hidden="true"><b data-stringify-type="bold">Captain investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with captain: </b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>******************************************************************************</div></div>';
     function escapeHtml(value) {
         if (value == null) {
             return '';
         }
         return String(value).replace(/[&<>"]/g, (char) => {
             switch (char) {
-            case '&':
-                return '&amp;';
-            case '<':
-                return '&lt;';
-            case '>':
-                return '&gt;';
-            case '"':
-                return '&quot;';
-            case '\'':
-                return '&#39;';
-            default:
-                return char;
+                case '&':
+                    return '&amp;';
+                case '<':
+                    return '&lt;';
+                case '>':
+                    return '&gt;';
+                case '"':
+                    return '&quot;';
+                case '\'':
+                    return '&#39;';
+                default:
+                    return char;
             }
         });
     }
@@ -131,15 +132,15 @@
     }
 
     function buildTemplate({
-        city,
-        country,
-        bookingId,
-        zendeskId,
-        dateReportReceived,
-        timeReportReceived,
-        caseStatus,
-        incidentType
-    }) {
+                               city,
+                               country,
+                               bookingId,
+                               zendeskId,
+                               dateReportReceived,
+                               timeReportReceived,
+                               caseStatus,
+                               incidentType
+                           }) {
         const replacements = {
             '{{CITY}}': escapeHtml(city || 'N/A'),
             '{{COUNTRY}}': escapeHtml(country || 'N/A'),
@@ -697,27 +698,8 @@
                 const commentsData = await commentsResp.json();
                 const comments = commentsData.comments || [];
 
-                // Process comments in reverse order (oldest first) to find the most recent valid data
-                for (let i = comments.length - 1; i >= 0; i--) {
-                    const comment = comments[i];
-                    if (comment && comment.body) {
-                        const details = parseCommentForDetails(comment.body);
-
-                        // Only update if we found new information
-                        if (details.customerSummary && !investigationDetails.customerSummary) {
-                            investigationDetails.customerSummary = details.customerSummary;
-                        }
-                        if (details.customerAction && !investigationDetails.customerAction) {
-                            investigationDetails.customerAction = details.customerAction;
-                        }
-                        if (details.captainSummary && !investigationDetails.captainSummary) {
-                            investigationDetails.captainSummary = details.captainSummary;
-                        }
-                        if (details.captainAction && !investigationDetails.captainAction) {
-                            investigationDetails.captainAction = details.captainAction;
-                        }
-                    }
-                }
+                // Parse all comments to extract investigation details
+                investigationDetails = parseCommentsForDetails(comments);
             }
 
             const rawCountry = getCustomFieldValue(ticket, COUNTRY_FIELD_ID);
@@ -763,65 +745,133 @@
         }
     }
 
-    function parseCommentForDetails(comment) {
-        const lowerComment = comment.toLowerCase();
+    function parseCommentsForDetails(comments) {
         let customerSummary = '';
         let customerAction = '';
         let captainSummary = '';
         let captainAction = '';
+        let captainRating = '';
+        let tenure = '';
+        let trips = '';
+        let customerRating = '';
 
-        // Check if this is a comment with the expected format
-        if (lowerComment.includes('kindly refer to the ticket below') ||
-            lowerComment.includes('please be informed that we placed a call indicating the following details')) {
-
-            // Extract customer section
-            const customerMatch = comment.match(/(?:\*{1,3}customer:\*{0,3}[\s\n]+(?:call summary and reaction|1\. call summary and reaction):\s*([\s\S]*?))(?:\n\s*\*{0,3}other actions:|\n\s*2\.\s*other actions:|$)/i);
-            if (customerMatch && customerMatch[1] && !/no\s*call|not\s*yet/i.test(customerMatch[1])) {
-                customerSummary = customerMatch[1].trim();
-
-                // Extract customer action
-                const customerActionMatch = comment.match(/(?:other actions:|2\. other actions:)([\s\S]*?)(?:requested for pair blocking|$)/i);
-                if (customerActionMatch && customerActionMatch[1]) {
-                    customerAction = customerActionMatch[1].trim();
-                }
-            }
-
-            // Extract captain section
-            const captainMatch = comment.match(/(?:\*{1,3}captain:\*{0,3}[\s\n]+(?:call summary and reaction|1\. call summary and reaction):\s*([\s\S]*?))(?:\n\s*\*{0,3}other actions:|\n\s*2\.\s*other actions:|$)/i);
-            if (captainMatch && captainMatch[1] && !/no\s*call|not\s*yet/i.test(captainMatch[1])) {
-                captainSummary = captainMatch[1].trim();
-
-                // Extract captain action
-                const captainActionMatch = comment.match(/(?:other actions:|2\. other actions:)([\s\S]*?)(?:\*{1,3}customer:|$)/is);
-                if (captainActionMatch && captainActionMatch[1]) {
-                    captainAction = captainActionMatch[1].trim();
-                }
+        // Find the first comment with trigger phrases
+        let firstComment = null;
+        for (const comment of comments) {
+            if (!comment || !comment.body) continue;
+            const lowerBody = comment.body.toLowerCase();
+            if (lowerBody.includes('kindly refer to the ticket below') ||
+                lowerBody.includes('please be informed that we placed a call indicating the following details')) {
+                firstComment = comment.body;
+                break;
             }
         }
 
-        // If we didn't find valid data in the first format, look for "new actions taken" comments
-        if (!customerSummary && !captainSummary && comment.includes('**new actions taken:**')) {
-            // Extract customer section from new actions
-            const newCustomerMatch = comment.match(/_\*{1,3}customer:_[\s\n]*- call summary and reaction:([\s\S]*?)(?:other actions|$)/i);
-            if (newCustomerMatch && newCustomerMatch[1] && !/no\s*call|not\s*yet/i.test(newCustomerMatch[1])) {
-                customerSummary = newCustomerMatch[1].trim();
+        if (!firstComment) return { customerSummary, customerAction, captainSummary, captainAction, captainRating, tenure, trips, customerRating };
 
-                // Extract customer action from new actions
-                const newCustomerActionMatch = comment.match(/other actions:([\s\S]*?)(?:requested for pair blocking|$)/i);
-                if (newCustomerActionMatch && newCustomerActionMatch[1]) {
-                    customerAction = newCustomerActionMatch[1].trim();
+        // Extract Captain Profile data
+        const captainProfileMatch = firstComment.match(/\*{1,3}\s*captain profile\s*\*{0,3}/is);
+        if (captainProfileMatch) {
+            // Extract Trips (MONTHLY / TOTAL TRIPS)
+            const tripsMatch = firstComment.match(/trips:\s*(\d+\s*\/\s*\d+)/i);
+            if (tripsMatch) {
+                trips = tripsMatch[1].trim();
+            }
+
+            // Extract Tenure
+            const tenureMatch = firstComment.match(/tenure:\s*\n?\s*-?\s*\(?\s*(\d+\s*-\s*\d+)\s*\)?/is);
+            if (tenureMatch) {
+                tenure = `( ${tenureMatch[1].trim()} )`;
+            }
+
+            // Extract Rating (Captain history rating)
+            const ratingMatch = firstComment.match(/rating:\s*([\d.]+\s*\/\s*[\d.]+)/i);
+            if (ratingMatch) {
+                captainRating = ratingMatch[1].trim();
+            }
+        }
+
+        // Extract Customer Profile data
+        const customerProfileMatch = firstComment.match(/\*{1,3}\s*customer profile\s*\*{0,3}/is);
+        if (customerProfileMatch) {
+            // Extract Rating of past trips (Customer history rating)
+            const customerRatingMatch = firstComment.match(/rating of past trips:\s*([\d.]+)/i);
+            if (customerRatingMatch) {
+                customerRating = customerRatingMatch[1].trim();
+            }
+        }
+
+        const lowerFirst = firstComment.toLowerCase();
+
+        // Extract customer data from first comment
+        const customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
+
+        if (customerSectionMatch) {
+            const custSummary = customerSectionMatch[1].trim();
+            const custAction = customerSectionMatch[2].trim();
+
+            if (!/^(no\s*call|not\s*yet)$/i.test(custSummary)) {
+                customerSummary = custSummary;
+                customerAction = custAction;
+            }
+        }
+
+        // Extract captain data from first comment
+        const captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n|$)/is);
+
+        if (captainSectionMatch) {
+            const captSummary = captainSectionMatch[1].trim();
+            const captAction = captainSectionMatch[2].trim();
+
+            if (!/^(no\s*call|not\s*yet)$/i.test(captSummary)) {
+                captainSummary = captSummary;
+                captainAction = captAction;
+            }
+        }
+
+        // If customer or captain data is missing, look for the last "new actions taken" comment
+        if (!customerSummary || !captainSummary) {
+            let lastNewActionsComment = null;
+            for (let i = comments.length - 1; i >= 0; i--) {
+                const comment = comments[i];
+                if (comment && comment.body) {
+                    const lowerBody = comment.body.toLowerCase();
+                    if (lowerBody.includes('new actions taken')) {
+                        lastNewActionsComment = comment.body;
+                        break;
+                    }
                 }
             }
 
-            // Extract captain section from new actions
-            const newCaptainMatch = comment.match(/_\*{1,3}captain:_[\s\n]*- call summary and reaction:([\s\S]*?)(?:other actions|$)/i);
-            if (newCaptainMatch && newCaptainMatch[1] && !/no\s*call|not\s*yet/i.test(newCaptainMatch[1])) {
-                captainSummary = newCaptainMatch[1].trim();
+            if (lastNewActionsComment) {
+                // Extract captain data from new actions comment if not already found
+                if (!captainSummary) {
+                    const newCaptainMatch = lastNewActionsComment.match(/_\*{1,3}\s*captain:\s*\*{0,3}_\s*\n\s*-\s*call summary and reaction:\s*(.*?)\s*\n\s*-\s*other actions:\s*(.*?)(?=\n\s*_\*{1,3}\s*customer:|$)/is);
 
-                // Extract captain action from new actions
-                const newCaptainActionMatch = comment.match(/other actions:([\s\S]*?)(?:_\*{1,3}customer:|$)/is);
-                if (newCaptainActionMatch && newCaptainActionMatch[1]) {
-                    captainAction = newCaptainActionMatch[1].trim();
+                    if (newCaptainMatch) {
+                        const captSummary = newCaptainMatch[1].trim();
+                        const captAction = newCaptainMatch[2].trim();
+
+                        if (!/^(no\s*call|not\s*yet|as above)$/i.test(captSummary)) {
+                            captainSummary = captSummary;
+                            captainAction = captAction;
+                        }
+                    }
+                }
+
+                // Extract customer data from new actions comment if not already found
+                if (!customerSummary) {
+                    const newCustomerMatch = lastNewActionsComment.match(/_\*{1,3}\s*customer:\s*\*{0,3}_\s*\n\s*-\s*call summary and reaction:\s*(.*?)\s*\n\s*-\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
+
+                    if (newCustomerMatch) {
+                        const custSummary = newCustomerMatch[1].trim();
+                        const custAction = newCustomerMatch[2].trim();
+
+                        if (!/^(no\s*call|not\s*yet|as above)$/i.test(custSummary)) {
+                            customerSummary = custSummary;
+                            customerAction = custAction;
+                        }
+                    }
                 }
             }
         }
@@ -830,33 +880,57 @@
             customerSummary,
             customerAction,
             captainSummary,
-            captainAction
+            captainAction,
+            captainRating,
+            tenure,
+            trips,
+            customerRating
         };
     }
 
     function updateTemplateWithDetails(template, details) {
-        // Create the replacement content with exact formatting
-        let replacement = [
-            '<b data-stringify-type="bold">Customer investigation summary:</b>',
-            details.customerSummary || '',
-            'Follow Up:',
-            '<b data-stringify-type="bold">Action with customer: </b>' + (details.customerAction || ''),
-            '<b data-stringify-type="bold">Captain investigation summary:</b>',
-            details.captainSummary || '',
-            '<b data-stringify-type="bold">Action with captain: </b>' + (details.captainAction || '')
-        ].join('\n');
+        // Replace Captain and Customer profile data in the template
+        template = template.replace('Captain history rating: ', 'Captain history rating: ' + escapeHtml(details.captainRating || ''));
+        template = template.replace('Tenure : ', 'Tenure : ' + escapeHtml(details.tenure || ''));
+        template = template.replace('MONTHLY / TOTAL TRIPS: ', 'MONTHLY / TOTAL TRIPS: ' + escapeHtml(details.trips || ''));
+        template = template.replace('Customer history rating: ', 'Customer history rating: ' + escapeHtml(details.customerRating || ''));
 
-        // Find the section to replace
-        const startMarker = '<b data-stringify-type="bold">Customer investigation summary:</b>';
-        const endMarker = '******************************************************************************';
+        // Build the replacement HTML using <p> tags
+        let replacementParts = [];
 
-        const startIndex = template.indexOf(startMarker);
-        const endIndex = template.indexOf(endMarker, startIndex);
+        replacementParts.push('<p><strong>Customer investigation summary:</strong></p>');
+
+        if (details.customerSummary) {
+            replacementParts.push('<p>' + escapeHtml(details.customerSummary) + '</p>');
+        }
+
+        replacementParts.push('<p>Follow Up:</p>');
+        replacementParts.push('<p><strong>Action with customer: </strong>' + escapeHtml(details.customerAction || '') + '</p>');
+        replacementParts.push('<p><strong>Captain investigation summary:</strong></p>');
+
+        if (details.captainSummary) {
+            replacementParts.push('<p>' + escapeHtml(details.captainSummary) + '</p>');
+        }
+
+        replacementParts.push('<p><strong>Action with captain: </strong>' + escapeHtml(details.captainAction || '') + '</p>');
+        replacementParts.push('<p>******************************************************************************</p>');
+
+        const replacement = replacementParts.join('');
+
+        // Find the section to replace in the template
+        const startPattern = /<b data-stringify-type="bold">Customer investigation summary:<\/b>/;
+        const endPattern = /\*{80}/;
+
+        const startMatch = template.match(startPattern);
+        if (!startMatch) return template;
+
+        const startIndex = template.indexOf(startMatch[0]);
+        const endIndex = template.indexOf('******************************************************************************', startIndex);
 
         if (startIndex !== -1 && endIndex !== -1) {
             const beforeSection = template.substring(0, startIndex);
-            const afterSection = template.substring(endIndex);
-            return beforeSection + replacement + '\n' + afterSection;
+            const afterEndMarker = template.substring(endIndex + '******************************************************************************'.length);
+            return beforeSection + replacement + afterEndMarker;
         }
 
         return template;
@@ -865,76 +939,119 @@
     fetchBtn.onclick = fetchTicket;
     ticketInput.addEventListener('keydown', e => { if (e.key === 'Enter') fetchTicket(); });
 
-    const BUTTON_ID = 'manager-escalation-button';
+    // Slash command handler for /eTicketNumber
+    function setupSlashCommandListener() {
+        const composer = findComposerElement();
+        if (!composer) return;
 
-    function ensureSlackButton() {
-        const container = document.querySelector('.c-texty_buttons');
-        if (!container) {
-            return false;
-        }
+        // Mark that we've already attached a listener to prevent duplicates
+        if (composer.dataset.slashListenerAttached) return;
+        composer.dataset.slashListenerAttached = 'true';
 
-        if (container.querySelector(`#${BUTTON_ID}`)) {
-            return true;
-        }
+        composer.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                const text = composer.textContent || composer.innerText || '';
+                const match = text.match(/\/e(\d+)/);
 
-        const button = document.createElement('button');
-        button.id = BUTTON_ID;
-        button.type = 'button';
-        button.className = 'c-button-unstyled c-icon_button c-icon_button--size_small c-wysiwyg_container__button c-icon_button--default';
-        button.setAttribute('aria-label', 'Manager escalation helper');
-        button.setAttribute('data-qa', 'manager_escalation_button');
-        button.setAttribute('data-sk', 'tooltip_parent');
-        button.setAttribute('title', 'Manager escalation helper');
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        svg.setAttribute('fill', 'rgba(29, 28, 29, 0.7)');
-        svg.setAttribute('stroke', 'rgba(29, 28, 29, 0.7)');
-        svg.setAttribute('stroke-width', '0.00016');
-        svg.setAttribute('height', '18');
-        svg.setAttribute('width', '18');
-        svg.setAttribute('viewBox', '0 0 16 16');
-        svg.setAttribute('version', '1.2');
-        svg.setAttribute('baseProfile', 'tiny');
-        svg.setAttribute('aria-hidden', 'true');
-        svg.setAttribute('focusable', 'false');
-        svg.style.display = 'block';
-        svg.style.transform = 'translateY(1px)';
+                if (match) {
+                    event.preventDefault();
+                    event.stopPropagation();
 
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', `M5.781,1.363c0-0.567,0.46-1.027,1.027-1.027c0.567,0,1.027,0.46,1.027,1.027c0,0.567-0.46,1.027-1.027,1.027
-      C6.241,2.39,5.781,1.93,5.781,1.363z M15.75,3.415c0,1.19-1.03,2.015-1.759,2.015c-0.668,0-1.513,0-1.513,0
-      c-0.225,0-0.298,0.036-0.429,0.152L5.924,11.69c-0.494,0.465-1.092,0.654-1.586,0.654c-0.494,0-2.092,0-2.092,0
-      c-1.287,0-1.996-1.138-1.996-2.039s0.709-1.963,1.891-1.963c0,0,1.174,0,1.175,0c0.356,0,0.378-0.008,0.559-0.189l1.921-1.921H5.792
-      v-2.64c0-1.364,2.033-1.379,2.033,0v0.647l0,0h0v0l2.21-2.208c0.379-0.379,1.014-0.581,1.508-0.581h2.388
-      C14.712,1.453,15.75,2.238,15.75,3.415z M14.712,3.4c0-0.349-0.352-0.933-0.875-0.933h-2.149c-0.439,0-0.694,0.032-0.952,0.29
-      L4.459,9.034c-0.232,0.232-0.5,0.349-0.907,0.349H2.156c-0.455,0-0.894,0.326-0.894,0.906c0,0.581,0.461,1.023,0.984,1.023h2.036
-      c0.407,0,0.724-0.099,0.973-0.349l6.173-6.173c0.315-0.315,0.557-0.392,1.104-0.392h1.292C14.462,4.399,14.712,3.749,14.712,3.4z`);
+                    const ticketId = match[1];
 
-        svg.appendChild(path);
-        button.appendChild(svg);
+                    // Clear the composer
+                    composer.textContent = '';
 
-        button.addEventListener('click', () => {
-            openDrawer();
-        });
-
-        const slashButton = container.querySelector('[data-qa="slash_commands_composer_button"]');
-        if (slashButton) {
-            slashButton.insertAdjacentElement('afterend', button);
-        } else {
-            container.appendChild(button);
-        }
-        return true;
+                    // Trigger the fetch with the ticket ID
+                    triggerSlashCommandFetch(ticketId);
+                }
+            }
+        }, true);
     }
 
-    const observer = new MutationObserver(() => {
-        if (ensureSlackButton()) {
-            observer.disconnect();
-        }
-        if (!document.body.contains(drawer)) {
-            document.addEventListener('keydown', handleGlobalShortcut, true);
-        }
-    });
+    async function triggerSlashCommandFetch(ticketId) {
+        try {
+            // Fetch ticket details
+            const [ticketResp, commentsResp] = await Promise.all([
+                fetch(`https://gocareem.zendesk.com/api/v2/tickets/${ticketId}.json`, {
+                    credentials: 'include'
+                }),
+                fetch(`https://gocareem.zendesk.com/api/v2/tickets/${ticketId}/comments.json`, {
+                    credentials: 'include'
+                })
+            ]);
 
-    observer.observe(document.body, { childList: true, subtree: true });
-    ensureSlackButton();
+            if (!ticketResp.ok) {
+                throw new Error(`HTTP ${ticketResp.status} - ${ticketResp.statusText}`);
+            }
+
+            const ticketData = await ticketResp.json();
+            const ticket = ticketData && ticketData.ticket;
+
+            if (!ticket) {
+                throw new Error('Ticket payload missing.');
+            }
+
+            // Process comments if available
+            let investigationDetails = {
+                customerSummary: '',
+                customerAction: '',
+                captainSummary: '',
+                captainAction: ''
+            };
+
+            if (commentsResp.ok) {
+                const commentsData = await commentsResp.json();
+                const comments = commentsData.comments || [];
+                investigationDetails = parseCommentsForDetails(comments);
+            }
+
+            const rawCountry = getCustomFieldValue(ticket, COUNTRY_FIELD_ID);
+            const rawCity = getCustomFieldValue(ticket, CITY_FIELD_ID);
+            const rawBookingId = getCustomFieldValue(ticket, BOOKING_ID_FIELD_ID);
+            const incidentTypeValue = getCustomFieldValue(ticket, INCIDENT_TYPE_FIELD_ID);
+
+            const country = normalizeCountryValue(rawCountry) || 'N/A';
+            const city = normalizeCityValue(rawCity) || 'N/A';
+            const bookingId = rawBookingId ? String(rawBookingId).trim() : 'N/A';
+            const zendeskId = (ticket.id != null ? String(ticket.id) : ticketId) || 'N/A';
+            const dateReportReceived = formatTicketDate(ticket.created_at) || 'N/A';
+            const timeReportReceived = formatTicketTime(ticket.created_at) || 'N/A';
+            const caseStatus = ticket.status ? String(ticket.status).toUpperCase() : 'N/A';
+            const incidentType = (await resolveIncidentTypeName(incidentTypeValue)) || 'N/A';
+
+            let templateHtml = buildTemplate({
+                city,
+                country,
+                bookingId,
+                zendeskId,
+                dateReportReceived,
+                timeReportReceived,
+                caseStatus,
+                incidentType
+            });
+
+            // Update template with investigation details
+            templateHtml = updateTemplateWithDetails(templateHtml, investigationDetails);
+
+            insertTemplateIntoComposer(templateHtml);
+        } catch (err) {
+            console.error('Slash command error:', err);
+            const composer = findComposerElement();
+            if (composer) {
+                composer.textContent = `Error: ${err.message}`;
+            }
+        }
+    }
+
+    // Set up slash command listener with retry and monitoring
+    setInterval(() => {
+        setupSlashCommandListener();
+    }, 2000);
+
+    // Initial setup
+    setTimeout(() => {
+        setupSlashCommandListener();
+    }, 1000);
 
 })();
