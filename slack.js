@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Slackdesk
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  View Zendesk ticket JSON data from Slack, using Zendesk session automatically
 // @author       You
 // @match        https://app.slack.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      gocareem.zendesk.com
+// @connect      solutions.careempartner.com
 // ==/UserScript==
 
 (function() {
@@ -18,13 +19,13 @@
     const INCIDENT_TYPE_FIELD_ID = 360000457487;
     const INCIDENT_TYPE_FIELD_ENDPOINT = `https://gocareem.zendesk.com/api/v2/ticket_fields/${INCIDENT_TYPE_FIELD_ID}.json`;
     const REPORT_TIME_OFFSET_HOURS = 3;
+    const CAREEM_PARTNER_EMAIL = "shirin.obeidat@extensya.com";
 
     let incidentTypeOptionsCache = null;
     let incidentTypeOptionsPromise = null;
 
+    const BASE_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><div class="p-rich_text_section"><b data-stringify-type="bold">Incident Category: [Critical]</b><br aria-hidden="true"><b data-stringify-type="bold">Date report received: </b>{{DATE_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Time report received: </b>{{TIME_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Date of incident: </b>{{DATE_OF_INCIDENT}}<br aria-hidden="true"><b data-stringify-type="bold">Time of incident: </b>{{TIME_OF_INCIDENT}}<br aria-hidden="true"><b data-stringify-type="bold">Case status:&nbsp; </b>{{CASE_STATUS}}<br aria-hidden="true"><b data-stringify-type="bold">L4+ classification: No</b><br aria-hidden="true"><b data-stringify-type="bold">Key incident details:</b><br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Incident type: </b>{{INCIDENT_TYPE}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">City: </b>{{CITY}}<b data-stringify-type="bold">, Country: </b>{{COUNTRY}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Booking ID: </b>{{BOOKING_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Zendesk ticket ID: </b>{{ZENDESK_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">L4+ classification</b>: No<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><b data-stringify-type="bold">Reason</b>: N/A</li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Captain history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Tenure : </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">MONTHLY / TOTAL TRIPS: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Captain safety history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0">Non Critical: </li></ul></li><li data-stringify-indent="1" data-stringify-border="0">Not SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul></li><li data-stringify-indent="0" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Customer history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">Past 6 months: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Customer history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"><b data-stringify-type="bold">Customer investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>Follow Up:<span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with customer: </b><br aria-hidden="true"><b data-stringify-type="bold">Captain investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with captain: </b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>******************************************************************************</div></div>';
 
-
-    const BASE_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><div class="p-rich_text_section"><b data-stringify-type="bold">Incident Category: [Critical]</b><br aria-hidden="true"><b data-stringify-type="bold">Date report received: </b>{{DATE_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Time report received: </b>{{TIME_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Date of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Time of incident: </b><br aria-hidden="true"><b data-stringify-type="bold">Case status:&nbsp; </b>{{CASE_STATUS}}<br aria-hidden="true"><b data-stringify-type="bold">L4+ classification: No</b><br aria-hidden="true"><b data-stringify-type="bold">Key incident details:</b><br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Incident type: </b>{{INCIDENT_TYPE}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">City: </b>{{CITY}}<b data-stringify-type="bold">, Country: </b>{{COUNTRY}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Booking ID: </b>{{BOOKING_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Zendesk ticket ID: </b>{{ZENDESK_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">L4+ classification</b>: No<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><b data-stringify-type="bold">Reason</b>: N/A</li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Captain history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Tenure : </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">MONTHLY / TOTAL TRIPS: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Captain safety history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0">Non Critical: </li></ul></li><li data-stringify-indent="1" data-stringify-border="0">Not SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul></li><li data-stringify-indent="0" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Customer history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">Past 6 months: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Customer history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"><b data-stringify-type="bold">Customer investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>Follow Up:<span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with customer: </b><br aria-hidden="true"><b data-stringify-type="bold">Captain investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with captain: </b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>******************************************************************************</div></div>';
     function escapeHtml(value) {
         if (value == null) {
             return '';
@@ -138,6 +139,8 @@
                                zendeskId,
                                dateReportReceived,
                                timeReportReceived,
+                               dateOfIncident,
+                               timeOfIncident,
                                caseStatus,
                                incidentType
                            }) {
@@ -148,6 +151,8 @@
             '{{ZENDESK_ID}}': escapeHtml(zendeskId || 'N/A'),
             '{{DATE_REPORT_RECEIVED}}': escapeHtml(dateReportReceived || 'N/A'),
             '{{TIME_REPORT_RECEIVED}}': escapeHtml(timeReportReceived || 'N/A'),
+            '{{DATE_OF_INCIDENT}}': escapeHtml(dateOfIncident || 'N/A'),
+            '{{TIME_OF_INCIDENT}}': escapeHtml(timeOfIncident || 'N/A'),
             '{{CASE_STATUS}}': escapeHtml(caseStatus || 'N/A'),
             '{{INCIDENT_TYPE}}': escapeHtml(incidentType || 'N/A')
         };
@@ -218,6 +223,77 @@
             console.warn('Unable to resolve incident type name:', err);
         }
         return 'N/A';
+    }
+
+    async function fetchBookingTimestamp(bookingId) {
+        if (!bookingId || bookingId === 'N/A') {
+            return null;
+        }
+
+        try {
+            const url = `https://solutions.careempartner.com/trip/overview/details.json?bookingId=${bookingId}`;
+            console.log(`[Careem Partner] Fetching booking data from: ${url}`);
+
+            // Use GM_xmlhttpRequest to bypass CORS
+            const response = await new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: url,
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    onload: (response) => resolve(response),
+                    onerror: (response) => reject(new Error('Network error')),
+                    ontimeout: () => reject(new Error('Request timeout'))
+                });
+            });
+
+            console.log(`[Careem Partner] Response status: ${response.status}`);
+            console.log(`[Careem Partner] Response headers:`, response.responseHeaders);
+
+            // Check if we got JSON or HTML
+            const contentType = response.responseHeaders.toLowerCase();
+            const isJson = contentType.includes('application/json');
+            const isHtml = contentType.includes('text/html');
+
+            if (isHtml) {
+                console.log('[Careem Partner] Received HTML response (login required)');
+                console.log('='.repeat(80));
+                console.log(response.responseText.substring(0, 1000));
+                console.log('='.repeat(80));
+
+                throw new Error('Authentication required. Please manually sign in to solutions.careempartner.com with email: ' + CAREEM_PARTNER_EMAIL + ' in a separate browser tab, then try again.');
+            }
+
+            if (response.status !== 200) {
+                throw new Error(`HTTP ${response.status} - ${response.statusText}`);
+            }
+
+            const data = JSON.parse(response.responseText);
+            console.log('[Careem Partner] Booking data:', data);
+
+            // Check for bookedTimestamp in multiple possible locations
+            let bookedTimestamp = null;
+
+            if (data && data.data && data.data.booking && data.data.booking.bookedTimestamp) {
+                bookedTimestamp = data.data.booking.bookedTimestamp;
+            } else if (data && data.booking && data.booking.bookedTimestamp) {
+                bookedTimestamp = data.booking.bookedTimestamp;
+            } else if (data && data.bookedTimestamp) {
+                bookedTimestamp = data.bookedTimestamp;
+            }
+
+            if (bookedTimestamp) {
+                console.log('[Careem Partner] Found bookedTimestamp:', bookedTimestamp);
+                return bookedTimestamp;
+            } else {
+                console.warn('[Careem Partner] bookedTimestamp not found in response');
+                return null;
+            }
+        } catch (err) {
+            console.error('[Careem Partner] Error fetching booking timestamp:', err);
+            return null;
+        }
     }
 
     function findComposerElement() {
@@ -509,7 +585,7 @@
             </div>
             <button type="button" class="c-button-unstyled me-close" aria-label="Close manager escalation helper" data-role="close">×</button>
         </div>
-        <p class="me-subtitle">Stay signed in to <strong>gocareem.zendesk.com</strong> so the ticket details can be fetched automatically.</p>
+        <p class="me-subtitle">Stay signed in to <strong>gocareem.zendesk.com</strong> and <strong>solutions.careempartner.com</strong> so the ticket details can be fetched automatically.</p>
         <div class="me-field">
             <label class="me-label" for="manager-escalation-ticket">Zendesk ticket ID</label>
             <div class="me-input-row">
@@ -521,7 +597,7 @@
             <button type="button" class="me-secondary" data-role="close-secondary">Close</button>
         </div>
         <div class="me-status" data-role="status" data-status="idle"></div>
-        <div class="me-shortcut-hint">Shortcut: <code>Alt + E</code> or <code>Alt + ث</code></div>
+        <div class="me-shortcut-hint">Shortcut: <code>Alt + E</code> or <code>Alt + ع</code></div>
     `;
 
     document.body.appendChild(drawer);
@@ -646,7 +722,7 @@
             return;
         }
         const key = (event.key || '').toLowerCase();
-        if (key === 'e' || key === 'ث') {
+        if (key === 'e' || key === 'ع') {
             event.preventDefault();
             openDrawer();
         }
@@ -716,6 +792,20 @@
             const caseStatus = ticket.status ? String(ticket.status).toUpperCase() : 'N/A';
             const incidentType = (await resolveIncidentTypeName(incidentTypeValue)) || 'N/A';
 
+            // Fetch booking timestamp
+            let dateOfIncident = 'N/A';
+            let timeOfIncident = 'N/A';
+
+            if (bookingId && bookingId !== 'N/A') {
+                setStatus('Fetching booking timestamp...', 'loading');
+                const bookedTimestamp = await fetchBookingTimestamp(bookingId);
+
+                if (bookedTimestamp) {
+                    dateOfIncident = formatTicketDate(bookedTimestamp) || 'N/A';
+                    timeOfIncident = formatTicketTime(bookedTimestamp) || 'N/A';
+                }
+            }
+
             let templateHtml = buildTemplate({
                 city,
                 country,
@@ -723,6 +813,8 @@
                 zendeskId,
                 dateReportReceived,
                 timeReportReceived,
+                dateOfIncident,
+                timeOfIncident,
                 caseStatus,
                 incidentType
             });
@@ -1020,6 +1112,19 @@
             const caseStatus = ticket.status ? String(ticket.status).toUpperCase() : 'N/A';
             const incidentType = (await resolveIncidentTypeName(incidentTypeValue)) || 'N/A';
 
+            // Fetch booking timestamp
+            let dateOfIncident = 'N/A';
+            let timeOfIncident = 'N/A';
+
+            if (bookingId && bookingId !== 'N/A') {
+                const bookedTimestamp = await fetchBookingTimestamp(bookingId);
+
+                if (bookedTimestamp) {
+                    dateOfIncident = formatTicketDate(bookedTimestamp) || 'N/A';
+                    timeOfIncident = formatTicketTime(bookedTimestamp) || 'N/A';
+                }
+            }
+
             let templateHtml = buildTemplate({
                 city,
                 country,
@@ -1027,6 +1132,8 @@
                 zendeskId,
                 dateReportReceived,
                 timeReportReceived,
+                dateOfIncident,
+                timeOfIncident,
                 caseStatus,
                 incidentType
             });
