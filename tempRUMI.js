@@ -5806,7 +5806,9 @@ Safety & Security Operations Team
         '37862': 'Husam Ahmad Ibrahim Alnajy',
         '32951': 'Bader Alzoubi',
         '47962': 'Ammar Ibrahim Mohammad Bani hamad',
-        '47968': 'Mohanad Bani Mostafa'
+        '47968': 'Mohanad Bani Mostafa',
+        '48413': 'Fawzi Abdel Wahab',
+        '48463': 'Mohammed Karout'
     };
 
     // Storage key for selected user
