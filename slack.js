@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Slackdesk
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  View Zendesk ticket JSON data from Slack, using Zendesk session automatically
 // @author       You
 // @match        https://app.slack.com/*
@@ -19,18 +19,14 @@
     const INCIDENT_TYPE_FIELD_ID = 360000457487;
     const INCIDENT_TYPE_FIELD_ENDPOINT = `https://gocareem.zendesk.com/api/v2/ticket_fields/${INCIDENT_TYPE_FIELD_ID}.json`;
     const REPORT_TIME_OFFSET_HOURS = 3;
-    // Prompt for Careem Partner email on each script load (no persistence)
-    const CAREEM_PARTNER_EMAIL = (function() {
-        const input = prompt('Enter Careem Partner email to sign in to solutions.careempartner.com:', '');
-        return input ? String(input).trim() : '';
-    })();
+    const CAREEM_PARTNER_EMAIL = "shirin.obeidat@extensya.com";
 
     let incidentTypeOptionsCache = null;
     let incidentTypeOptionsPromise = null;
 
     const BASE_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><div class="p-rich_text_section"><b data-stringify-type="bold">Incident Category: [Critical]</b><br aria-hidden="true"><b data-stringify-type="bold">Date report received: </b>{{DATE_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Time report received: </b>{{TIME_REPORT_RECEIVED}}<br aria-hidden="true"><b data-stringify-type="bold">Date of incident: </b>{{DATE_OF_INCIDENT}}<br aria-hidden="true"><b data-stringify-type="bold">Time of incident: </b>{{TIME_OF_INCIDENT}}<br aria-hidden="true"><b data-stringify-type="bold">Case status:&nbsp; </b>{{CASE_STATUS}}<br aria-hidden="true"><b data-stringify-type="bold">L4+ classification: No</b><br aria-hidden="true"><b data-stringify-type="bold">Key incident details:</b><br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Incident type: </b>{{INCIDENT_TYPE}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">City: </b>{{CITY}}<b data-stringify-type="bold">, Country: </b>{{COUNTRY}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Booking ID: </b>{{BOOKING_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">Zendesk ticket ID: </b>{{ZENDESK_ID}}</li><li data-stringify-indent="0" data-stringify-border="0"><b data-stringify-type="bold">L4+ classification</b>: No<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><b data-stringify-type="bold">Reason</b>: N/A</li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Captain history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Tenure : </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">MONTHLY / TOTAL TRIPS: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Captain safety history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0">Non Critical: </li></ul></li><li data-stringify-indent="1" data-stringify-border="0">Not SSOC related:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="2" data-border="0"><li data-stringify-indent="2" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul></li><li data-stringify-indent="0" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"></div><ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="0" data-border="0"><li data-stringify-indent="0" data-stringify-border="0">Customer history rating: </li><li data-stringify-indent="0" data-stringify-border="0">Trip count:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0">Past 6 months: </li></ul></li><li data-stringify-indent="0" data-stringify-border="0">Customer history:<ul data-stringify-type="unordered-list" data-list-tree="true" class="p-rich_text_list p-rich_text_list__bullet p-rich_text_list--nested" data-indent="1" data-border="0"><li data-stringify-indent="1" data-stringify-border="0"><span data-stringify-type="text">&nbsp;</span></li></ul></li></ul><div class="p-rich_text_section">.........................................................................<br aria-hidden="true"><b data-stringify-type="bold">Customer investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>Follow Up:<span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with customer: </b><br aria-hidden="true"><b data-stringify-type="bold">Captain investigation summary:</b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span><b data-stringify-type="bold">Action with captain: </b><span aria-label="&nbsp;" class="c-mrkdwn__br" data-stringify-type="paragraph-break"></span>******************************************************************************</div></div>';
 
-    const MOT_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><p><ts-mention data-id="U03KAGQHWAE" data-label="@Rahaf Alasal" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Rahaf Alasal</ts-mention> <ts-mention data-id="UR9AU9C9M" data-label="@Saja Altaany" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Saja Altaany</ts-mention> <ts-mention data-id="U2FTT26CR" data-label="@farida.hussein" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@farida.hussein</ts-mention> <ts-mention data-id="U030EUV2Z97" data-label="@Safa Ali" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Safa Ali</ts-mention> <ts-mention data-id="U01SST1FKPC" data-label="@SHR" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@SHR</ts-mention></p><p><br></p><p><strong>Incident Classification: </strong>{{INCIDENT_TYPE}}</p><p><strong>Date of Incident: </strong>{{DATE_OF_INCIDENT}}</p><p><strong>Time of Incident: </strong>{{TIME_OF_INCIDENT}}</p><p><strong>Date Report Received: </strong>{{DATE_OF_INCIDENT}}</p><p><strong>Time Report Received: </strong></p><p><br></p><p><strong>Customer Information if applicable</strong></p><p>Name: {{CUSTOMER_NAME}}</p><p>Customer ID: {{CUSTOMER_ID}}</p><p>Contact: {{CUSTOMER_CONTACT}}</p><p><strong>Captain Information</strong></p><p>Name: {{CAPTAIN_NAME}}</p><p>Captain ID: {{CAPTAIN_ID}}</p><p>Contact: {{CAPTAIN_CONTACT}}</p><p>Safety History: </p><p><br></p><p><strong>Trip &amp; Operational Details</strong></p><p>Vertical: {{VERTICAL}}</p><p>City: {{CITY}}</p><p>Country: {{COUNTRY}}</p><p>Booking ID: {{BOOKING_ID}}</p><p>Order ID: {{ORDER_ID}}</p><p>Zendesk Ticket ID: {{ZENDESK_ID}}</p><p><br></p><p><strong>Incident Details</strong></p><p>Incident Type: {{INCIDENT_TYPE}}</p><p>Key Details: {{KEY_DETAILS}}</p><p>Other Actions: {{OTHER_ACTIONS}}</p><p><br></p><p><strong>Follow-up Actions</strong></p><p>L1 &amp; L2 MoT Accident: Safety in-app message sent to Captain?</p><p>No</p><p>L2 MoT Accident: In-ride Insurance message sent to Captain?</p><p>No</p><p>L3 or L4 Incidents: S&amp;S team called?</p><p>No</p><p>L3 or L4 Incidents – Email sent to <a href="mailto:safetysecurity@careem.com" rel="noopener noreferrer" target="_blank">safetysecurity@careem.com</a>?</p><p>No</p><p><br></p><p>Additional Notes: none</p></div>';
+    const MOT_TEMPLATE_HTML = '<div class="p-rich_text_block" dir="auto"><p><ts-mention data-id="U03KAGQHWAE" data-label="@Rahaf Alasal" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Rahaf Alasal</ts-mention> <ts-mention data-id="UR9AU9C9M" data-label="@Saja Altaany" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Saja Altaany</ts-mention> <ts-mention data-id="U2FTT26CR" data-label="@farida.hussein" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@farida.hussein</ts-mention> <ts-mention data-id="U030EUV2Z97" data-label="@Safa Ali" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@Safa Ali</ts-mention> <ts-mention data-id="U01SST1FKPC" data-label="@SHR" spellcheck="false" class="c-member_slug c-member_slug--link ts_tip_texty" dir="ltr">@SHR</ts-mention></p><p><br></p><p><strong>Incident Classification: </strong>{{INCIDENT_CLASSIFICATION}}</p><p><strong>Date of Incident: </strong>{{DATE_OF_INCIDENT}}</p><p><strong>Time of Incident: </strong>{{TIME_OF_INCIDENT}}</p><p><strong>Date Report Received: </strong>{{DATE_OF_INCIDENT}}</p><p><strong>Time Report Received: <img data-id=":attention:" data-title=":attention:" data-stringify-text=":attention:" class="emoji" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="attention emoji" style="background-image: url(https://emoji.slack-edge.com/T0K1Z5308/attention/286bfcb407ed76d6.gif);"></strong></p><p><br></p><p><strong>Customer Information if applicable</strong></p><p>Name: {{CUSTOMER_NAME}}</p><p>Customer ID: {{CUSTOMER_ID}}</p><p>Contact: {{CUSTOMER_CONTACT}}</p><p><strong>Captain Information</strong></p><p>Name: {{CAPTAIN_NAME}}</p><p>Captain ID: {{CAPTAIN_ID}}</p><p>Contact: {{CAPTAIN_CONTACT}}</p><p>Safety History: <img data-id=":attention:" data-title=":attention:" data-stringify-text=":attention:" class="emoji" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="attention emoji" style="background-image: url(https://emoji.slack-edge.com/T0K1Z5308/attention/286bfcb407ed76d6.gif);"></p><p><br></p><p><strong>Trip &amp; Operational Details</strong></p><p>Vertical: {{VERTICAL}}</p><p>City: {{CITY}}</p><p>Country: {{COUNTRY}}</p><p>Booking ID: {{BOOKING_ID}}</p><p>Order ID: {{ORDER_ID}}</p><p>Zendesk Ticket ID: {{ZENDESK_ID}}</p><p><br></p><p><strong>Incident Details</strong></p><p>Incident Type: {{INCIDENT_TYPE}}</p><p>Key Details: {{KEY_DETAILS}}</p><p>Other Actions: {{OTHER_ACTIONS}}</p><p><br></p><p><strong>Follow-up Actions</strong></p><p>L1 &amp; L2 MoT Accident: Safety in-app message sent to Captain?</p><p>No</p><p>L2 MoT Accident: In-ride Insurance message sent to Captain?</p><p>No</p><p>L3 or L4 Incidents: S&amp;S team called?</p><p>No</p><p>L3 or L4 Incidents – Email sent to <a href="mailto:safetysecurity@careem.com" rel="noopener noreferrer" target="_blank">safetysecurity@careem.com</a>?</p><p>No</p><p><br></p><p>Additional Notes: none</p></div>';
 
     function escapeHtml(value) {
         if (value == null) {
@@ -178,6 +174,7 @@
                                dateOfIncident,
                                timeOfIncident,
                                incidentType,
+                               incidentClassification,
                                customerName,
                                customerId,
                                customerContact,
@@ -191,6 +188,7 @@
                            }) {
         const replacements = {
             '{{INCIDENT_TYPE}}': escapeHtml(incidentType || ''),
+            '{{INCIDENT_CLASSIFICATION}}': escapeHtml(incidentClassification || ''),
             '{{DATE_OF_INCIDENT}}': escapeHtml(dateOfIncident || ''),
             '{{TIME_OF_INCIDENT}}': escapeHtml(timeOfIncident || ''),
             '{{CUSTOMER_NAME}}': escapeHtml(customerName || ''),
@@ -273,6 +271,22 @@
         return '';
     }
 
+    function extractIncidentClassification(incidentType) {
+        if (!incidentType) {
+            return '';
+        }
+        // Extract the last part after the last "__" which should be L1, L2, L3, or L4
+        const parts = incidentType.split('__');
+        if (parts.length > 0) {
+            const lastPart = parts[parts.length - 1].trim();
+            // Check if it matches L1, L2, L3, L4 pattern
+            if (/^L[1-4]$/i.test(lastPart)) {
+                return lastPart.toUpperCase();
+            }
+        }
+        return '';
+    }
+
     async function resolveIncidentTypeName(value) {
         if (!value) {
             return 'N/A';
@@ -287,40 +301,6 @@
             console.warn('Unable to resolve incident type name:', err);
         }
         return 'N/A';
-    }
-
-    function extractIncidentClassification(incidentTypeName) {
-        if (!incidentTypeName) return '';
-        const str = String(incidentTypeName);
-        // Prefer last segment after double underscores
-        const parts = str.split(/__+/);
-        let last = parts[parts.length - 1].trim();
-        if (!last) {
-            const m = str.match(/(L\d+[A-Za-z0-9]*)\s*$/);
-            last = m ? m[1] : '';
-        }
-        return last || '';
-    }
-
-    function setIncidentClassificationInHtml(html, classification) {
-        if (!classification) return html;
-        const safe = escapeHtml(classification);
-        // Pattern 1: Incident Classification: </strong>VALUE
-        html = html.replace(/(Incident Classification:\s*<\/strong>\s*)[^<]*/gi, `$1${safe}`);
-        // Pattern 2: Incident Classification: VALUE</p>
-        html = html.replace(/(Incident Classification:\s*)([^<]*)(<\/p>)/gi, `$1${safe}$3`);
-        return html;
-    }
-
-    function addAttentionPlaceholdersForBase(html) {
-        const attentionTime = '<p><strong>Time Report Received: <img data-id=":attention:" data-title=":attention:" data-stringify-text=":attention:" class="emoji" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="attention emoji" style="background-image: url(https://emoji.slack-edge.com/T0K1Z5308/attention/286bfcb407ed76d6.gif);"></strong></p>';
-        const attentionSafety = '<p>Safety History: <img data-id=":attention:" data-title=":attention:" data-stringify-text=":attention:" class="emoji" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="attention emoji" style="background-image: url(https://emoji.slack-edge.com/T0K1Z5308/attention/286bfcb407ed76d6.gif);"></p>';
-        const injection = attentionTime + attentionSafety;
-        const blockOpen = /(<div class="p-rich_text_block"[^>]*>)/i;
-        if (blockOpen.test(html)) {
-            return html.replace(blockOpen, `$1${injection}`);
-        }
-        return injection + html;
     }
 
     async function fetchBookingTimestamp(bookingId) {
@@ -1004,10 +984,6 @@
 
             // Update template with investigation details
             templateHtml = updateTemplateWithDetails(templateHtml, investigationDetails);
-            // Set Incident Classification (L1/L2 from incident type) and add attention placeholders
-            const incidentClassification = extractIncidentClassification(incidentType);
-            templateHtml = setIncidentClassificationInHtml(templateHtml, incidentClassification);
-            templateHtml = addAttentionPlaceholdersForBase(templateHtml);
 
             if (insertTemplateIntoComposer(templateHtml)) {
                 setStatus('✅ Escalation template inserted into Slack composer. Review before sending.', 'success');
@@ -1040,7 +1016,8 @@
             if (!comment || !comment.body) continue;
             const lowerBody = comment.body.toLowerCase();
             if (lowerBody.includes('kindly refer to the ticket below') ||
-                lowerBody.includes('please be informed that we placed a call indicating the following details')) {
+                lowerBody.includes('please be informed that we') ||
+                lowerBody.includes('please be informed that we received a call')) {
                 firstComment = comment.body;
                 break;
             }
@@ -1064,7 +1041,7 @@
             }
 
             // Extract Rating (Captain history rating)
-            const ratingMatch = firstComment.match(/rating:\s*([\d.]+\s*\/\s*[\d.]+)/i);
+            const ratingMatch = firstComment.match(/rating:\s*([\d.]+\s*\/?\s*[\d.]*)/i);
             if (ratingMatch) {
                 captainRating = ratingMatch[1].trim();
             }
@@ -1080,31 +1057,43 @@
             }
         }
 
-        const lowerFirst = firstComment.toLowerCase();
+        // Try multiple patterns for captain data extraction
 
-        // Extract customer data from first comment
-        const customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
+        // Pattern 1: Numbered format (1., 2.)
+        let captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
 
-        if (customerSectionMatch) {
-            const custSummary = customerSectionMatch[1].trim();
-            const custAction = customerSectionMatch[2].trim();
-
-            if (!/^(no\s*call|not\s*yet)$/i.test(custSummary)) {
-                customerSummary = custSummary;
-                customerAction = custAction;
-            }
+        // Pattern 2: Plain text format (Call Summary and reaction:)
+        if (!captainSectionMatch) {
+            captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*call summary and reaction:\s*(.*?)\s*\n\s*other actions:\s*(.*?)(?=\n\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
         }
-
-        // Extract captain data from first comment
-        const captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n|$)/is);
 
         if (captainSectionMatch) {
             const captSummary = captainSectionMatch[1].trim();
             const captAction = captainSectionMatch[2].trim();
 
-            if (!/^(no\s*call|not\s*yet)$/i.test(captSummary)) {
+            if (!/^(no\s*call|not\s*yet|no customer involved)$/i.test(captSummary)) {
                 captainSummary = captSummary;
                 captainAction = captAction;
+            }
+        }
+
+        // Try multiple patterns for customer data extraction
+
+        // Pattern 1: Numbered format (1., 2.)
+        let customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
+
+        // Pattern 2: Plain text format (Call Summary and reaction:)
+        if (!customerSectionMatch) {
+            customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*call summary and reaction:\s*(.*?)\s*\n\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
+        }
+
+        if (customerSectionMatch) {
+            const custSummary = customerSectionMatch[1].trim();
+            const custAction = customerSectionMatch[2].trim();
+
+            if (!/^(no\s*call|not\s*yet|no customer involved)$/i.test(custSummary)) {
+                customerSummary = custSummary;
+                customerAction = custAction;
             }
         }
 
@@ -1364,11 +1353,10 @@
                     ? bookingData.booking.notesToDriver
                     : '';
                 const orderId = extractOrderId(notesToDriver);
-                // Key Details should summarize the captain call and the action taken with the captain (never the customer)
-                const keyDetails = [investigationDetails.captainSummary, investigationDetails.captainAction]
-                    .filter(Boolean)
-                    .join(' ');
-                // Other Actions should reflect only the action taken with the captain
+                const incidentClassification = extractIncidentClassification(incidentType);
+
+                // Always use captain summary and actions for Key Details and Other Actions
+                const keyDetails = investigationDetails.captainSummary || '';
                 const otherActions = investigationDetails.captainAction || '';
 
                 templateHtml = buildMotTemplate({
@@ -1379,6 +1367,7 @@
                     dateOfIncident,
                     timeOfIncident,
                     incidentType,
+                    incidentClassification,
                     customerName,
                     customerId,
                     customerContact,
@@ -1390,9 +1379,6 @@
                     keyDetails,
                     otherActions
                 });
-                // Apply Incident Classification (L1/L2...) in MOT template as well
-                const incidentClassification = extractIncidentClassification(incidentType);
-                templateHtml = setIncidentClassificationInHtml(templateHtml, incidentClassification);
             } else {
                 // Build regular template
                 templateHtml = buildTemplate({
