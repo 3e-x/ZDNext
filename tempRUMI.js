@@ -5019,7 +5019,7 @@ Safety & Security Operations Team
         // Handle keyboard events: Ctrl+V, Enter, and Escape
         textInput.addEventListener('keydown', async (event) => {
             // Handle Ctrl+V paste
-            if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+            if ((event.ctrlKey || event.metaKey) && (event.key === 'v' || event.key === 'V' || event.key === 'ر')) {
                 // Small delay to ensure paste is processed
                 setTimeout(async () => {
                     const pastedText = textInput.value.trim();
@@ -5246,7 +5246,7 @@ Safety & Security Operations Team
                 // Paste-to-submit (Ctrl+V), also support Enter. Esc cancels
                 ti.addEventListener('keydown', async (ke) => {
                     // Handle Ctrl/Cmd + V
-                    if ((ke.ctrlKey || ke.metaKey) && ke.key === 'v') {
+                    if ((ke.ctrlKey || ke.metaKey) && (ke.key === 'v' || ke.key === 'V' || ke.key === 'ر')) {
                         setTimeout(async () => {
                             const pastedId = ti.value.trim();
                             ti.remove();
@@ -10489,11 +10489,11 @@ Safety & Security Operations Team
             if (e.altKey && !e.ctrlKey && !e.shiftKey) {
                 let status = null;
 
-                if (e.key === 'o' || e.key === 'O') {
+                if (e.key === 'o' || e.key === 'O' || e.key === 'خ') {
                     status = 'Open';
-                } else if (e.key === 'p' || e.key === 'P') {
+                } else if (e.key === 'p' || e.key === 'P' || e.key === 'ح') {
                     status = 'Pending';
-                } else if (e.key === 's' || e.key === 'S') {
+                } else if (e.key === 's' || e.key === 'S' || e.key === 'س') {
                     status = 'Solved';
                 }
 
