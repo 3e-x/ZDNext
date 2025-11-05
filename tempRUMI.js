@@ -10407,6 +10407,8 @@ Safety & Security Operations Team
                 handleTicketView();
                 // Check for views page whenever DOM changes
                 handleViewsPage();
+                // Re-attach PQMS dashboard handler if Zendesk icon was re-rendered
+                createRUMIEnhancementOverlayButton();
                 // Note: RUMI Enhancement system loads immediately now, no need for delayed init
             }, 200);
         });
