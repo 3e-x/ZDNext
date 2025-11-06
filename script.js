@@ -4919,14 +4919,14 @@ ${blockHistoryText}
         return '';
     }
 
-    // Parse incident type from Reason field using the pattern: Customer - RUMI Safety - [Incident Type]
+    // Parse incident type from Reason field using the pattern: RUMI Safety - [Incident Type]
     function parseIncidentTypeFromReason(reasonValue) {
         if (!reasonValue) return '';
 
         console.log(`🔍 Parsing incident type from reason: "${reasonValue}"`);
 
-        // Check if the reason contains the pattern "Customer - RUMI Safety"
-        const pattern = /Customer\s*-\s*RUMI\s*Safety\s*-\s*(.+)/i;
+        // Check if the reason contains the pattern "RUMI Safety"
+        const pattern = /RUMI\s*Safety\s*-\s*(.+)/i;
         const match = reasonValue.match(pattern);
 
         if (match && match[1]) {
