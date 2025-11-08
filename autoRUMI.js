@@ -37,7 +37,7 @@
     const GROUP_IDS = {
         CARE: 20705088,
         HALA_RIDES: 360003368353,
-        CASABLANCA: 360011852054
+        MOROCCO: 360011852054
     };
 
     const TARGET_VIEWS = [
@@ -313,7 +313,7 @@
 
             // Routing actions should always process - they can repeat every time ticket comes into view
             // This ensures tickets with routing phrases get routed continuously until conditions change
-            if (['care', 'hala', 'casablanca'].includes(actionType)) {
+            if (['care', 'hala', 'morocco'].includes(actionType)) {
                 // Clear any stale idempotency data for routing actions
                 this.clearProcessedData(ticketId);
                 return true;
@@ -515,7 +515,7 @@
                     if (!alreadyCorrect) {
                         await this.applyChanges(ticketId, result.payload);
                         // Don't mark routing actions as processed - they should process repeatedly
-                        if (!['care', 'hala', 'casablanca'].includes(result.action)) {
+                        if (!['care', 'hala', 'morocco'].includes(result.action)) {
                             RUMIIdempotency.setProcessedData(ticketId, {
                                 commentId: latestCommentId,
                                 actionType: result.action
@@ -744,7 +744,7 @@
                     if (!alreadyCorrect) {
                         await this.applyChanges(ticketId, result.payload);
                         // Don't mark routing actions as processed - they should process repeatedly
-                        if (!['care', 'hala', 'casablanca'].includes(result.action)) {
+                        if (!['care', 'hala', 'morocco'].includes(result.action)) {
                             RUMIIdempotency.setProcessedData(ticketId, {
                                 commentId: latestCommentId,
                                 actionType: result.action
@@ -824,20 +824,20 @@
                 RUMILogger.debug('Processor', 'RTA action type disabled in settings', { ticketId: ticket.id });
             }
 
-            // Casablanca routing
-            if (settings.actionTypes.casablanca && ticket.tags && ticket.tags.includes('casablanca')) {
-                const payload = { ticket: { group_id: GROUP_IDS.CASABLANCA } };
+            // Morocco routing
+            if (settings.actionTypes.morocco && ticket.tags && ticket.tags.includes('morocco')) {
+                const payload = { ticket: { group_id: GROUP_IDS.MOROCCO } };
                 // If ticket is pending or solved, change to open
                 if (ticket.status === 'pending' || ticket.status === 'solved') {
                     payload.ticket.status = 'open';
                 }
                 return {
-                    action: 'casablanca',
-                    trigger: 'Tag: casablanca',
+                    action: 'morocco',
+                    trigger: 'Tag: morocco',
                     payload: payload
                 };
-            } else if (!settings.actionTypes.casablanca && ticket.tags && ticket.tags.includes('casablanca')) {
-                RUMILogger.debug('Processor', 'Casablanca action type disabled in settings', { ticketId: ticket.id });
+            } else if (!settings.actionTypes.morocco && ticket.tags && ticket.tags.includes('morocco')) {
+                RUMILogger.debug('Processor', 'Morocco action type disabled in settings', { ticketId: ticket.id });
             }
 
             // Care routing checks require care action type to be enabled
@@ -1376,7 +1376,7 @@
 
         static async checkCommentForTriggers(comment, settings) {
             // Check if a comment contains any trigger phrases and return the result
-            // PRIORITY ORDER: Routing triggers (Care, Casablanca, RTA) MUST be checked first, as they take priority over all other triggers
+            // PRIORITY ORDER: Routing triggers (Care, Morocco, RTA) MUST be checked first, as they take priority over all other triggers
             const normalized = RUMICommentProcessor.normalizeForMatching(comment.html_body);
 
             // Check care routing triggers FIRST (highest priority)
@@ -1558,7 +1558,7 @@
                 solved: 0,
                 care: 0,
                 hala: 0,
-                casablanca: 0,
+                morocco: 0,
                 errors: 0
             });
         }
@@ -1571,7 +1571,7 @@
             else if (action === 'solved') stats.solved++;
             else if (action === 'care') stats.care++;
             else if (action === 'hala') stats.hala++;
-            else if (action === 'casablanca') stats.casablanca++;
+            else if (action === 'morocco') stats.morocco++;
             else if (action === 'error') stats.errors++;
 
             this.set('processing_stats', stats);
@@ -1589,7 +1589,7 @@
                 solved: 0,
                 care: 0,
                 hala: 0,
-                casablanca: 0,
+                morocco: 0,
                 errors: 0
             });
         }
@@ -1602,7 +1602,7 @@
             else if (action === 'solved') stats.solved++;
             else if (action === 'care') stats.care++;
             else if (action === 'hala') stats.hala++;
-            else if (action === 'casablanca') stats.casablanca++;
+            else if (action === 'morocco') stats.morocco++;
             else if (action === 'error') stats.errors++;
 
             this.set('manual_processing_stats', stats);
@@ -1766,7 +1766,7 @@
                     pending: true,
                     care: true,
                     rta: true,
-                    casablanca: true
+                    morocco: true
                 },
                 triggerPhrases: {
                     pending: {},
@@ -1803,7 +1803,7 @@
                     pending: true,
                     care: true,
                     rta: true,
-                    casablanca: true
+                    morocco: true
                 },
                 triggerPhrases: {
                     pending: {},
@@ -3605,19 +3605,19 @@
         .rumi-counter-solved { border-color: #5c6970; }
         .rumi-counter-care { border-color: #EF4444; }
         .rumi-counter-hala { border-color: #8B5CF6; }
-        .rumi-counter-casablanca { border-color: #06B6D4; }
+        .rumi-counter-morocco { border-color: #06B6D4; }
 
         [data-theme="light"] .rumi-counter-pending:hover { border-color: #1f73b7; background: #E3F2FD; }
         [data-theme="light"] .rumi-counter-solved:hover { border-color: #5c6970; background: #F5F5F5; }
         [data-theme="light"] .rumi-counter-care:hover { border-color: #EF4444; background: #FEF2F2; }
         [data-theme="light"] .rumi-counter-hala:hover { border-color: #8B5CF6; background: #F5F3FF; }
-        [data-theme="light"] .rumi-counter-casablanca:hover { border-color: #06B6D4; background: #ECFEFF; }
+        [data-theme="light"] .rumi-counter-morocco:hover { border-color: #06B6D4; background: #ECFEFF; }
 
         [data-theme="dark"] .rumi-counter-pending:hover { border-color: #1f73b7; background: rgba(31, 115, 183, 0.1); }
         [data-theme="dark"] .rumi-counter-solved:hover { border-color: #5c6970; background: rgba(92, 105, 112, 0.1); }
         [data-theme="dark"] .rumi-counter-care:hover { border-color: #EF4444; background: rgba(239, 68, 68, 0.1); }
         [data-theme="dark"] .rumi-counter-hala:hover { border-color: #8B5CF6; background: rgba(139, 92, 246, 0.1); }
-        [data-theme="dark"] .rumi-counter-casablanca:hover { border-color: #06B6D4; background: rgba(6, 182, 212, 0.1); }
+        [data-theme="dark"] .rumi-counter-morocco:hover { border-color: #06B6D4; background: rgba(6, 182, 212, 0.1); }
 
         .rumi-tabs-nav {
             display: flex;
@@ -4237,12 +4237,12 @@
             color: #151a1e;
         }
 
-        [data-theme="light"] .rumi-badge-casablanca {
+        [data-theme="light"] .rumi-badge-morocco {
             background: #0891B2;
             color: #FFFFFF;
         }
 
-        [data-theme="dark"] .rumi-badge-casablanca {
+        [data-theme="dark"] .rumi-badge-morocco {
             background: #22D3EE;
             color: #151a1e;
         }
@@ -5219,9 +5219,9 @@
                             <div class="rumi-counter-value" id="rumi-counter-hala">0</div>
                             <div class="rumi-counter-label">Hala/RTA</div>
                         </div>
-                        <div class="rumi-counter-card rumi-counter-casablanca">
-                            <div class="rumi-counter-value" id="rumi-counter-casablanca">0</div>
-                            <div class="rumi-counter-label">Casablanca</div>
+                        <div class="rumi-counter-card rumi-counter-morocco">
+                            <div class="rumi-counter-value" id="rumi-counter-morocco">0</div>
+                            <div class="rumi-counter-label">Morocco</div>
                         </div>
                     </div>
                     <button id="rumi-reset-counters" class="rumi-btn rumi-btn-secondary" style="width:100%; margin-top:8px; font-size:11px; padding:4px 8px;">
@@ -5311,7 +5311,7 @@
                         <button class="rumi-tab-btn" data-auto-tab="solved">Solved (0)</button>
                         <button class="rumi-tab-btn" data-auto-tab="care">Care (0)</button>
                         <button class="rumi-tab-btn" data-auto-tab="hala">Hala/RTA (0)</button>
-                        <button class="rumi-tab-btn" data-auto-tab="casablanca">Casablanca (0)</button>
+                        <button class="rumi-tab-btn" data-auto-tab="morocco">Morocco (0)</button>
                     </div>
 
                     <!-- Tab Content -->
@@ -5446,8 +5446,8 @@
                             </div>
                         </div>
 
-                        <!-- Casablanca Routed Tickets -->
-                        <div id="rumi-tab-casablanca" class="rumi-tab-panel">
+                        <!-- Morocco Routed Tickets -->
+                        <div id="rumi-tab-morocco" class="rumi-tab-panel">
                             <div class="rumi-table-container">
                                 <table class="rumi-table">
                                     <thead>
@@ -5467,7 +5467,7 @@
                                             <th>Updated?</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="rumi-table-casablanca"></tbody>
+                                    <tbody id="rumi-table-morocco"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -5561,9 +5561,9 @@
                             <div class="rumi-counter-value" id="rumi-manual-counter-hala">0</div>
                             <div class="rumi-counter-label">Hala/RTA</div>
                         </div>
-                        <div class="rumi-counter-card rumi-counter-casablanca">
-                            <div class="rumi-counter-value" id="rumi-manual-counter-casablanca">0</div>
-                            <div class="rumi-counter-label">Casablanca</div>
+                        <div class="rumi-counter-card rumi-counter-morocco">
+                            <div class="rumi-counter-value" id="rumi-manual-counter-morocco">0</div>
+                            <div class="rumi-counter-label">Morocco</div>
                         </div>
                     </div>
                     <button id="rumi-reset-manual-counters" class="rumi-btn rumi-btn-secondary" style="width:100%; margin-top:8px; font-size:11px; padding:4px 8px;">
@@ -5613,7 +5613,7 @@
                         <button class="rumi-tab-btn" data-manual-tab="manual-solved">Solved (0)</button>
                         <button class="rumi-tab-btn" data-manual-tab="manual-care">Care (0)</button>
                         <button class="rumi-tab-btn" data-manual-tab="manual-hala">Hala/RTA (0)</button>
-                        <button class="rumi-tab-btn" data-manual-tab="manual-casablanca">Casablanca (0)</button>
+                        <button class="rumi-tab-btn" data-manual-tab="manual-morocco">Morocco (0)</button>
                         <button class="rumi-tab-btn" data-manual-tab="manual-unprocessed">Unprocessed (0)</button>
                     </div>
 
@@ -5749,8 +5749,8 @@
                                             </div>
                                         </div>
 
-                                        <!-- Manual Casablanca Routed Tickets -->
-                                        <div id="rumi-manual-tab-casablanca" class="rumi-tab-panel">
+                                        <!-- Manual Morocco Routed Tickets -->
+                                        <div id="rumi-manual-tab-morocco" class="rumi-tab-panel">
                                             <div class="rumi-table-container">
                                                 <table class="rumi-table">
                                                     <thead>
@@ -5770,7 +5770,7 @@
                                                             <th>Updated?</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody id="rumi-manual-table-casablanca"></tbody>
+                                                    <tbody id="rumi-manual-table-morocco"></tbody>
                                                 </table>
                                             </div>
                                         </div>
@@ -6611,7 +6611,7 @@
             document.getElementById('rumi-counter-solved').textContent = stats.solved;
             document.getElementById('rumi-counter-care').textContent = stats.care;
             document.getElementById('rumi-counter-hala').textContent = stats.hala;
-            document.getElementById('rumi-counter-casablanca').textContent = stats.casablanca;
+            document.getElementById('rumi-counter-morocco').textContent = stats.morocco;
 
             // Update tab counts
             const tickets = RUMIStorage.getProcessedTickets();
@@ -6621,7 +6621,7 @@
                 solved: tickets.filter(t => t.action === 'solved').length,
                 care: tickets.filter(t => t.action === 'care').length,
                 hala: tickets.filter(t => t.action === 'hala').length,
-                casablanca: tickets.filter(t => t.action === 'casablanca').length
+                morocco: tickets.filter(t => t.action === 'morocco').length
             };
 
             document.querySelector('[data-auto-tab="all"]').textContent = `All Processed (${counts.all})`;
@@ -6629,7 +6629,7 @@
             document.querySelector('[data-auto-tab="solved"]').textContent = `Solved (${counts.solved})`;
             document.querySelector('[data-auto-tab="care"]').textContent = `Care (${counts.care})`;
             document.querySelector('[data-auto-tab="hala"]').textContent = `Hala/RTA (${counts.hala})`;
-            document.querySelector('[data-auto-tab="casablanca"]').textContent = `Casablanca (${counts.casablanca})`;
+            document.querySelector('[data-auto-tab="morocco"]').textContent = `Morocco (${counts.morocco})`;
         }
 
         static updateManualCounters() {
@@ -6639,7 +6639,7 @@
             document.getElementById('rumi-manual-counter-solved').textContent = stats.solved;
             document.getElementById('rumi-manual-counter-care').textContent = stats.care;
             document.getElementById('rumi-manual-counter-hala').textContent = stats.hala;
-            document.getElementById('rumi-manual-counter-casablanca').textContent = stats.casablanca;
+            document.getElementById('rumi-manual-counter-morocco').textContent = stats.morocco;
 
             // Update manual tab counts
             const tickets = RUMIStorage.getManualProcessedTickets();
@@ -6649,7 +6649,7 @@
                 solved: tickets.filter(t => t.action === 'solved').length,
                 care: tickets.filter(t => t.action === 'care').length,
                 hala: tickets.filter(t => t.action === 'hala').length,
-                casablanca: tickets.filter(t => t.action === 'casablanca').length,
+                morocco: tickets.filter(t => t.action === 'morocco').length,
                 unprocessed: tickets.filter(t => t.action === 'none').length
             };
 
@@ -6658,7 +6658,7 @@
             document.querySelector('[data-manual-tab="manual-solved"]').textContent = `Solved (${counts.solved})`;
             document.querySelector('[data-manual-tab="manual-care"]').textContent = `Care (${counts.care})`;
             document.querySelector('[data-manual-tab="manual-hala"]').textContent = `Hala/RTA (${counts.hala})`;
-            document.querySelector('[data-manual-tab="manual-casablanca"]').textContent = `Casablanca (${counts.casablanca})`;
+            document.querySelector('[data-manual-tab="manual-morocco"]').textContent = `Morocco (${counts.morocco})`;
             document.querySelector('[data-manual-tab="manual-unprocessed"]').textContent = `Unprocessed (${counts.unprocessed})`;
         }
 
@@ -6773,7 +6773,7 @@
             });
 
             // Update automatic tab panels
-            document.querySelectorAll('#rumi-tab-all, #rumi-tab-pending, #rumi-tab-solved, #rumi-tab-care, #rumi-tab-hala, #rumi-tab-casablanca').forEach(panel => {
+            document.querySelectorAll('#rumi-tab-all, #rumi-tab-pending, #rumi-tab-solved, #rumi-tab-care, #rumi-tab-hala, #rumi-tab-morocco').forEach(panel => {
                 panel.classList.toggle('active', panel.id === `rumi-tab-${tabName}`);
             });
 
@@ -6791,7 +6791,7 @@
             });
 
             const panelId = `rumi-${tabName.replace('manual-', 'manual-tab-')}`;
-            document.querySelectorAll('#rumi-manual-tab-all, #rumi-manual-tab-pending, #rumi-manual-tab-solved, #rumi-manual-tab-care, #rumi-manual-tab-hala, #rumi-manual-tab-casablanca, #rumi-manual-tab-unprocessed').forEach(panel => {
+            document.querySelectorAll('#rumi-manual-tab-all, #rumi-manual-tab-pending, #rumi-manual-tab-solved, #rumi-manual-tab-care, #rumi-manual-tab-hala, #rumi-manual-tab-morocco, #rumi-manual-tab-unprocessed').forEach(panel => {
                 panel.classList.toggle('active', panel.id === panelId);
             });
 
@@ -6829,8 +6829,8 @@
                 case 'hala':
                     filteredTickets = tickets.filter(t => t.action === 'hala');
                     break;
-                case 'casablanca':
-                    filteredTickets = tickets.filter(t => t.action === 'casablanca');
+                case 'morocco':
+                    filteredTickets = tickets.filter(t => t.action === 'morocco');
                     break;
                 default: // 'all'
                     filteredTickets = tickets;
@@ -6869,8 +6869,8 @@
                 case 'manual-hala':
                     filteredTickets = tickets.filter(t => t.action === 'hala');
                     break;
-                case 'manual-casablanca':
-                    filteredTickets = tickets.filter(t => t.action === 'casablanca');
+                case 'manual-morocco':
+                    filteredTickets = tickets.filter(t => t.action === 'morocco');
                     break;
                 case 'manual-unprocessed':
                     filteredTickets = tickets.filter(t => t.action === 'none');
@@ -7202,7 +7202,7 @@
                     'solved': 'Solved',
                     'care': 'Care',
                     'hala': 'Hala/RTA',
-                    'casablanca': 'Casablanca'
+                    'morocco': 'Morocco'
                 };
                 tabButton.textContent = `${tabLabels[tabType]} (${count})`;
             }
@@ -7218,7 +7218,7 @@
                     'manual-solved': 'Solved',
                     'manual-care': 'Care',
                     'manual-hala': 'Hala/RTA',
-                    'manual-casablanca': 'Casablanca',
+                    'manual-morocco': 'Morocco',
                     'manual-unprocessed': 'Unprocessed'
                 };
                 tabButton.textContent = `${tabLabels[tabType]} (${count})`;
@@ -7590,7 +7590,7 @@
                 12: 'alreadyCorrect'
             };
 
-            ['all', 'pending', 'solved', 'care', 'hala', 'casablanca'].forEach(type => {
+            ['all', 'pending', 'solved', 'care', 'hala', 'morocco'].forEach(type => {
                 const typeTickets = type === 'all' ? autoTickets : autoTickets.filter(t => t.action === type);
                 this.setupTableFiltersAndSorting(`rumi-table-${type}`, 'automatic', autoColumnMap, autoTickets);
             });
@@ -7612,7 +7612,7 @@
                 12: 'alreadyCorrect'
             };
 
-            ['manual-all', 'manual-pending', 'manual-solved', 'manual-care', 'manual-hala', 'manual-casablanca', 'manual-unprocessed'].forEach(type => {
+            ['manual-all', 'manual-pending', 'manual-solved', 'manual-care', 'manual-hala', 'manual-morocco', 'manual-unprocessed'].forEach(type => {
                 const tableId = type === 'manual-all' ? 'rumi-manual-table-all' : `rumi-${type.replace('manual-', 'manual-table-')}`;
                 this.setupTableFiltersAndSorting(tableId, 'manual', manualColumnMap, manualTickets);
             });
@@ -8896,7 +8896,7 @@
                 pending: 'Pending',
                 care: 'Care',
                 rta: 'RTA/HALA',
-                casablanca: 'Casablanca'
+                morocco: 'Morocco'
             };
 
             return Object.entries(actionTypes).map(([key, enabled]) => `
@@ -9428,37 +9428,37 @@
             lastNodeId = 'check-hala';
             currentRow++;
 
-            // PRIORITY 6: Check Casablanca tag
-            const hasCasablancaTag = ticket.tags && ticket.tags.includes('casablanca');
+            // PRIORITY 6: Check Morocco tag
+            const hasMoroccoTag = ticket.tags && ticket.tags.includes('morocco');
             this.addNode({
-                id: 'check-casablanca',
-                label: '⑥ Casablanca Tag?',
+                id: 'check-morocco',
+                label: '⑥ Morocco Tag?',
                 type: 'tag-routing',
                 x: xPos,
                 y: yPos + (currentRow * rowHeight),
                 width: nodeWidth,
                 height: nodeHeight,
-                description: hasCasablancaTag ? '● Tag: casablanca' : '○ No Casablanca tag',
+                description: hasMoroccoTag ? '● Tag: morocco' : '○ No Morocco tag',
                 enabled: true
             });
-            this.addConnection(lastNodeId, 'check-casablanca', 'No Hala tag');
+            this.addConnection(lastNodeId, 'check-morocco', 'No Hala tag');
 
-            if (hasCasablancaTag) {
+            if (hasMoroccoTag) {
                 xPos += columnSpacing;
                 this.addNode({
-                    id: 'action-casablanca',
-                    label: '→ ROUTE TO CASABLANCA',
+                    id: 'action-morocco',
+                    label: '→ ROUTE TO MOROCCO',
                     type: 'action',
                     x: xPos,
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth + 20,
                     height: nodeHeight,
-                    description: 'REASON: Casablanca tag present\nTAG: casablanca\nACTION: group_id = 360011852054\nRULE: Tag-based routing'
+                    description: 'REASON: Morocco tag present\nTAG: morocco\nACTION: group_id = 360011852054\nRULE: Tag-based routing'
                 });
-                this.addConnection('check-casablanca', 'action-casablanca', 'HAS TAG');
+                this.addConnection('check-morocco', 'action-morocco', 'HAS TAG');
                 return;
             }
-            lastNodeId = 'check-casablanca';
+            lastNodeId = 'check-morocco';
             currentRow++;
 
             // PRIORITY 7: Check subject-based Care routing (noActivityDetails)
@@ -9481,7 +9481,7 @@
                     `○ Subject: ${hasNoActivitySubject ? 'Match' : 'No match'}\nStatus: ${ticket.status}\nPrivate comments: ${hasPrivateComments ? 'Yes' : 'No'}`,
                 enabled: true
             });
-            this.addConnection(lastNodeId, 'check-subject-care', 'No Casablanca');
+            this.addConnection(lastNodeId, 'check-subject-care', 'No Morocco');
 
             if (subjectCareTriggers) {
                 xPos += columnSpacing;
