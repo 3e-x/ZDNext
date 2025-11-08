@@ -36,7 +36,7 @@
 
     const GROUP_IDS = {
         CARE: 20705088,
-        HALA_RIDES: 360003368353,
+        HALA_RIDES: 360003368393,
         CASABLANCA: 360011852054
     };
 
@@ -9420,7 +9420,7 @@
                     y: yPos + (currentRow * rowHeight),
                     width: nodeWidth,
                     height: nodeHeight,
-                    description: 'REASON: Hala tag present\nTAG: ghc_provider_hala-rides\nACTION: group_id = 360003368353\nRULE: Tag-based routing'
+                    description: 'REASON: Hala tag present\nTAG: ghc_provider_hala-rides\nACTION: group_id = 360003368393\nRULE: Tag-based routing'
                 });
                 this.addConnection('check-hala', 'action-hala', 'HAS TAG');
                 return;
