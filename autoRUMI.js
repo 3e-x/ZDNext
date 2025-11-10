@@ -825,7 +825,8 @@
             }
 
             // Casablanca routing
-            if (settings.actionTypes.casablanca && ticket.tags && ticket.tags.includes('morocco')) {
+          if (settings.actionTypes.casablanca && ticket.tags && 
+    (ticket.tags.includes('morocco') || ticket.tags.includes('tc_morocco'))) {
                 const payload = { ticket: { group_id: GROUP_IDS.CASABLANCA } };
                 // If ticket is pending or solved, change to open
                 if (ticket.status === 'pending' || ticket.status === 'solved') {
