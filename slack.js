@@ -339,7 +339,7 @@
                 console.log('='.repeat(80));
                 console.log(response.responseText.substring(0, 1000));
                 console.log('='.repeat(80));
-
+                
                 throw new Error('Authentication required. Please manually sign in to solutions.careempartner.com with email: ' + CAREEM_PARTNER_EMAIL + ' in a separate browser tab, then try again.');
             }
 
@@ -352,7 +352,7 @@
 
             // Check for bookedTimestamp in multiple possible locations
             let bookedTimestamp = null;
-
+            
             if (data && data.data && data.data.booking && data.data.booking.bookedTimestamp) {
                 bookedTimestamp = data.data.booking.bookedTimestamp;
             } else if (data && data.booking && data.booking.bookedTimestamp) {
@@ -410,7 +410,7 @@
                 console.log('='.repeat(80));
                 console.log(response.responseText.substring(0, 1000));
                 console.log('='.repeat(80));
-
+                
                 throw new Error('Authentication required. Please manually sign in to solutions.careempartner.com with email: ' + CAREEM_PARTNER_EMAIL + ' in a separate browser tab, then try again.');
             }
 
@@ -437,13 +437,13 @@
 
     async function fetchBookingTimestamp(bookingId) {
         const bookingData = await fetchBookingData(bookingId);
-
+        
         if (!bookingData) {
             return null;
         }
 
         let bookedTimestamp = null;
-
+        
         if (bookingData.booking && bookingData.booking.bookedTimestamp) {
             bookedTimestamp = bookingData.booking.bookedTimestamp;
         } else if (bookingData.bookedTimestamp) {
@@ -958,11 +958,11 @@
             // Fetch booking timestamp
             let dateOfIncident = 'N/A';
             let timeOfIncident = 'N/A';
-
+            
             if (bookingId && bookingId !== 'N/A') {
                 setStatus('Fetching booking timestamp...', 'loading');
                 const bookedTimestamp = await fetchBookingTimestamp(bookingId);
-
+                
                 if (bookedTimestamp) {
                     dateOfIncident = formatTicketDate(bookedTimestamp) || 'N/A';
                     timeOfIncident = formatTicketTime(bookedTimestamp) || 'N/A';
@@ -1058,18 +1058,22 @@
         }
 
         // Try multiple patterns for captain data extraction
-
+        
         // Pattern 1: Numbered format (1., 2.)
-        let captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
-
+        let captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*-?\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
+        
         // Pattern 2: Plain text format (Call Summary and reaction:)
         if (!captainSectionMatch) {
-            captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*call summary and reaction:\s*(.*?)\s*\n\s*other actions:\s*(.*?)(?=\n\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
+            captainSectionMatch = firstComment.match(/\*{1,3}\s*captain:\s*\*{0,3}\s*\n\s*call summary and reaction:\s*(.*?)\s*\n\s*other actions:\s*(.*?)(?=\n\n|\n\s*-?\s*\*{1,3}\s*customer:|\n\s*requested for pair blocking|$)/is);
         }
 
         if (captainSectionMatch) {
-            const captSummary = captainSectionMatch[1].trim();
-            const captAction = captainSectionMatch[2].trim();
+            let captSummary = captainSectionMatch[1].trim();
+            let captAction = captainSectionMatch[2].trim();
+            
+            // Remove any trailing customer section that might have been captured
+            captAction = captAction.replace(/\n\s*-?\s*\*{1,3}\s*customer:.*/is, '').trim();
+            captAction = captAction.replace(/\s*\d+\.\s*$/s, '').trim(); // Remove trailing "2." or similar
 
             if (!/^(no\s*call|not\s*yet|no customer involved)$/i.test(captSummary)) {
                 captainSummary = captSummary;
@@ -1078,10 +1082,10 @@
         }
 
         // Try multiple patterns for customer data extraction
-
+        
         // Pattern 1: Numbered format (1., 2.)
         let customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*1\.\s*call summary and reaction:\s*(.*?)\s*\n\s*2\.\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
-
+        
         // Pattern 2: Plain text format (Call Summary and reaction:)
         if (!customerSectionMatch) {
             customerSectionMatch = firstComment.match(/\*{1,3}\s*customer:\s*\*{0,3}\s*\n\s*call summary and reaction:\s*(.*?)\s*\n\s*other actions:\s*(.*?)(?=\n\s*requested for pair blocking|$)/is);
@@ -1220,7 +1224,7 @@
             if (event.key === 'Enter' && !event.shiftKey) {
                 const text = composer.textContent || composer.innerText || '';
                 console.log('[Slash Command] Checking text:', text);
-
+                
                 // Check for /e{ticketid}
                 const eMatch = text.match(/\/e(\d+)/);
                 // Check for /m{ticketid}
@@ -1231,7 +1235,7 @@
                     event.stopPropagation();
 
                     let ticketId, isMotTemplate;
-
+                    
                     if (eMatch) {
                         ticketId = eMatch[1];
                         isMotTemplate = false;
@@ -1307,10 +1311,10 @@
             let dateOfIncident = 'N/A';
             let timeOfIncident = 'N/A';
             let bookingData = null;
-
+            
             if (bookingId && bookingId !== 'N/A') {
                 bookingData = await fetchBookingData(bookingId);
-
+                
                 if (bookingData && bookingData.booking && bookingData.booking.bookedTimestamp) {
                     const bookedTimestamp = bookingData.booking.bookedTimestamp;
                     dateOfIncident = formatTicketDate(bookedTimestamp) || 'N/A';
@@ -1354,7 +1358,7 @@
                     : '';
                 const orderId = extractOrderId(notesToDriver);
                 const incidentClassification = extractIncidentClassification(incidentType);
-
+                
                 // Always use captain summary and actions for Key Details and Other Actions
                 const keyDetails = investigationDetails.captainSummary || '';
                 const otherActions = investigationDetails.captainAction || '';
