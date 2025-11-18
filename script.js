@@ -6776,9 +6776,9 @@ Safety & Security Operations Team`;
         // Add to beginning of array
         history.unshift(submission);
 
-        // Keep only last 100 submissions
-        if (history.length > 100) {
-            history.splice(100);
+        // Keep only last 500 submissions
+        if (history.length > 500) {
+            history.splice(500);
         }
 
         localStorage.setItem(PQMS_HISTORY_STORAGE_KEY, JSON.stringify(history));
