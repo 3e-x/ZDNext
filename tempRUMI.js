@@ -5809,7 +5809,8 @@ Safety & Security Operations Team
         '47968': 'Mohanad Bani Mostafa',
         '48413': 'Fawzi Abdel Wahab',
         '48463': 'Mohammed Karout',
-        '48414': 'Rabee Almahmoud'
+        '48414': 'Rabee Almahmoud',
+        '45719': 'Nour Khaled Yousef Rawashdeh'
     };
 
     // Storage key for selected user
