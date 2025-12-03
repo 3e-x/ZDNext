@@ -9979,28 +9979,42 @@ Safety & Security Operations Team
     }
 
     function parseSsocVoiceComment(commentBody) {
-        if (!commentBody) return { phoneNumber: null, tripId: null };
+    if (!commentBody) return { phoneNumber: null, tripId: null };
 
-        let phoneNumber = null;
-        let tripId = null;
+    let phoneNumber = null;
+    let tripId = null;
 
-        // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f)
-        const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+    // Convert comment to lowercase for case-insensitive UUID matching
+    const commentBodyLower = commentBody.toLowerCase();
 
-        // Phone number regex patterns
-        const phone12Regex = /\d{12}/;
-        const phone11KwtRegex = /\b965\d{8}\b/;
+    // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f) - now matching against lowercase version
+    const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-        // Search for phone number: prefer 12 digits; fallback to 11 digits starting with 965
-        let phoneMatch = commentBody.match(phone12Regex);
-        if (!phoneMatch) phoneMatch = commentBody.match(phone11KwtRegex);
-        if (phoneMatch) {
-            phoneNumber = phoneMatch[0];
-            console.log('🔍 DEBUG: Extracted phone number from comment body:', phoneNumber);
-        } else {
-            console.log('🔍 DEBUG: No 12-digit or 11-digit starting with 965 phone found in comment body');
-        }
+    // Phone number regex patterns
+    const phone12Regex = /\d{12}/;
+    const phone11KwtRegex = /\b965\d{8}\b/;
 
+    // Search for phone number: prefer 12 digits; fallback to 11 digits starting with 965
+    let phoneMatch = commentBody.match(phone12Regex);
+    if (!phoneMatch) phoneMatch = commentBody.match(phone11KwtRegex);
+    if (phoneMatch) {
+        phoneNumber = phoneMatch[0];
+        console.log('🔍 DEBUG: Extracted phone number from comment body:', phoneNumber);
+    } else {
+        console.log('🔍 DEBUG: No 12-digit or 11-digit starting with 965 phone found in comment body');
+    }
+
+    // Search for UUID in the lowercase version of the comment body
+    const uuidMatch = commentBodyLower.match(uuidRegex);
+    if (uuidMatch) {
+        tripId = uuidMatch[0];
+        console.log('🔍 DEBUG: Extracted UUID from comment body:', tripId);
+    } else {
+        console.log('🔍 DEBUG: No UUID found in comment body');
+    }
+
+    return { phoneNumber, tripId };
+}
         // Search for UUID anywhere in the comment body
         const uuidMatch = commentBody.match(uuidRegex);
         if (uuidMatch) {
