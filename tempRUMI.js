@@ -9978,7 +9978,7 @@ Safety & Security Operations Team
         return btoa(binary);
     }
 
-    function parseSsocVoiceComment(commentBody.toLowerCase()) {
+    function parseSsocVoiceComment(commentBody) {
         if (!commentBody) return { phoneNumber: null, tripId: null };
 
         let phoneNumber = null;
