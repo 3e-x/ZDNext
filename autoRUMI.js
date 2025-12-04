@@ -125,7 +125,7 @@
             "https://blissnxt.uberinternal.com",
             "https://uber.lighthouse-cloud.com",
             "https://apps.mypurecloud.ie",
-            "https://jira.uberinternal.com"
+            "https://jira.uberinternal.com",
             "call attempt",
             "first call",
             "second call",
