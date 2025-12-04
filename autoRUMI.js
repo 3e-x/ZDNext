@@ -47,7 +47,8 @@
         'SSOC - Egypt Open',
         'SSOC - Pending - Urgent',
         'SSOC - GCC & EM Pending',
-        'SSOC - Egypt Pending'
+        'SSOC - Egypt Pending',
+        'SSOC_JOD_from ZD only'
     ];
 
     // ============================================================================
