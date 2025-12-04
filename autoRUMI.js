@@ -40,6 +40,23 @@
         CASABLANCA: 360011852054
     };
 
+    // PQMS User Database (OPS ID -> Full Name)
+    const PQMS_USERS = {
+        '45724': 'Alabbas Ibrahim Abdo Dabajeh',
+        '22529': 'Diya Jalal Abdel Hadi Mallah',
+        '42727': 'Omar Mohammad Amin Yousef Hazaymeh',
+        '40268': 'Nader Mohammad Qasim Abujalil',
+        '37862': 'Husam Ahmad Ibrahim Alnajy',
+        '32951': 'Bader Alzoubi',
+        '47962': 'Ammar Ibrahim Mohammad Bani hamad',
+        '47968': 'Mohanad Bani Mostafa',
+        '48413': 'Fawzi Abdel Wahab',
+        '48463': 'Mohammed Karout',
+        '48414': 'Rabee Almahmoud',
+        '45719': 'Nour Khaled Yousef Rawashdeh',
+        '48475': 'mohammad bataineh'
+    };
+
     const TARGET_VIEWS = [
         'SSOC - Open - Urgent',
         'SSOC - GCC & EM Open',
@@ -528,6 +545,11 @@
                             });
                         }
                         RUMILogger.info('PROCESSOR', 'Applied changes', { ticketId, action: result.action });
+
+                        // Auto-submit solved tickets to PQMS
+                        if (result.action === 'solved') {
+                            RUMIPQMS.submitSolvedTicket(ticketId, ticketData.subject, previousGroupName);
+                        }
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
                     }
@@ -758,6 +780,11 @@
                         }
                         const prefix = isManual ? '[MANUAL]' : '';
                         RUMILogger.info('PROCESSOR', `${prefix} Applied changes`, { ticketId, action: result.action });
+
+                        // Auto-submit solved tickets to PQMS
+                        if (result.action === 'solved') {
+                            RUMIPQMS.submitSolvedTicket(ticketId, ticketData.subject, previousGroupName);
+                        }
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
                     }
@@ -2071,6 +2098,181 @@
 
         static setCurrentUser(user) {
             this.set('current_user', user);
+        }
+
+        // PQMS Integration Storage
+        static getPQMSUser() {
+            const saved = this.get('pqms_selected_user', null);
+            if (saved && PQMS_USERS[saved.opsId]) {
+                return saved;
+            }
+            return null;
+        }
+
+        static setPQMSUser(opsId, name) {
+            if (opsId && name) {
+                this.set('pqms_selected_user', { opsId, name });
+            }
+        }
+
+        static clearPQMSUser() {
+            this.remove('pqms_selected_user');
+        }
+
+        static getPQMSSubmissions() {
+            return this.get('pqms_submissions', []);
+        }
+
+        static addPQMSSubmission(ticketId, ticketSubject, groupName) {
+            const submissions = this.getPQMSSubmissions();
+            const user = this.getPQMSUser();
+            
+            submissions.push({
+                ticketId: ticketId.toString(),
+                ticketSubject: ticketSubject || 'N/A',
+                groupName: groupName || 'N/A',
+                submittedBy: user?.name || 'Unknown',
+                timestamp: new Date().toISOString()
+            });
+
+            // Keep last 2000 submissions
+            if (submissions.length > 2000) {
+                submissions.splice(0, submissions.length - 2000);
+            }
+
+            this.set('pqms_submissions', submissions);
+        }
+
+        static isTicketSubmittedToPQMS(ticketId) {
+            const submissions = this.getPQMSSubmissions();
+            return submissions.some(s => s.ticketId === ticketId.toString());
+        }
+
+        static getPQMSSubmissionCount() {
+            return this.getPQMSSubmissions().length;
+        }
+    }
+
+    // ============================================================================
+    // PQMS AUTOMATIC SUBMISSION
+    // ============================================================================
+
+    class RUMIPQMS {
+        static isSubmitting = false;
+
+        static async submitSolvedTicket(ticketId, ticketSubject, groupName) {
+            // Prevent duplicate submissions
+            if (this.isSubmitting) {
+                RUMILogger.debug('PQMS', 'Submission already in progress, skipping', { ticketId });
+                return false;
+            }
+
+            try {
+                // Validation 1: Check if PQMS user is selected
+                const selectedUser = RUMIStorage.getPQMSUser();
+                if (!selectedUser || !selectedUser.opsId || !selectedUser.name) {
+                    RUMILogger.debug('PQMS', 'No PQMS user selected, skipping submission', { ticketId });
+                    return false;
+                }
+
+                // Validation 2: Check if ticket was already submitted
+                if (RUMIStorage.isTicketSubmittedToPQMS(ticketId)) {
+                    RUMILogger.debug('PQMS', 'Ticket already submitted to PQMS, skipping', { ticketId });
+                    return false;
+                }
+
+                // Validation 3: Verify OPS ID exists in database
+                if (!PQMS_USERS[selectedUser.opsId]) {
+                    RUMILogger.warn('PQMS', 'OPS ID not found in database', { opsId: selectedUser.opsId });
+                    return false;
+                }
+
+                // Validation 4: Verify Name matches
+                const expectedName = PQMS_USERS[selectedUser.opsId];
+                if (selectedUser.name !== expectedName) {
+                    RUMILogger.warn('PQMS', 'Name mismatch for OPS ID', { opsId: selectedUser.opsId, expected: expectedName, got: selectedUser.name });
+                    return false;
+                }
+
+                // Set flag to prevent duplicate submissions
+                this.isSubmitting = true;
+
+                // Prepare the parameters exactly as the PQMS system expects
+                const params = new URLSearchParams({
+                    'Ticket_ID': ticketId.toString(),
+                    'SSOC_Reason': 'Felt Unsafe',
+                    'Ticket_Type': 'Non - Critical',
+                    'Ticket_Status': 'Solved',
+                    'Attempts': 'NA',
+                    'Escelated': '',
+                    'Follow_Up': '',
+                    'Comments': '',
+                    'username': selectedUser.opsId,
+                    'name': selectedUser.name
+                });
+
+                const url = `https://pqms05.extensya.com/Careem/ticket/submit_SSOC_ticket.php?${params.toString()}`;
+
+                // Use hidden iframe to submit (CORS workaround)
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+
+                // Set up load handler
+                let loadTimeout;
+                const loadPromise = new Promise((resolve, reject) => {
+                    iframe.onload = () => {
+                        clearTimeout(loadTimeout);
+                        resolve();
+                    };
+                    iframe.onerror = () => {
+                        clearTimeout(loadTimeout);
+                        reject(new Error('Failed to load PQMS endpoint'));
+                    };
+                    loadTimeout = setTimeout(() => {
+                        resolve(); // Resolve anyway after timeout (CORS might prevent detection)
+                    }, 10000);
+                });
+
+                document.body.appendChild(iframe);
+                iframe.src = url;
+
+                try {
+                    await loadPromise;
+                    RUMILogger.info('PQMS', 'Ticket submitted to PQMS', { ticketId, opsId: selectedUser.opsId });
+                    
+                    // Save submission to storage
+                    RUMIStorage.addPQMSSubmission(ticketId, ticketSubject, groupName);
+                    
+                    return true;
+                } catch (loadError) {
+                    // Even if we can't detect success, the request was sent
+                    RUMILogger.info('PQMS', 'Ticket sent to PQMS (response hidden by CORS)', { ticketId });
+                    
+                    // Still save to storage
+                    RUMIStorage.addPQMSSubmission(ticketId, ticketSubject, groupName);
+                    
+                    return true;
+                } finally {
+                    // Remove iframe after a short delay
+                    setTimeout(() => {
+                        if (iframe && iframe.parentNode) {
+                            iframe.parentNode.removeChild(iframe);
+                        }
+                    }, 1000);
+                }
+
+            } catch (error) {
+                RUMILogger.error('PQMS', 'Failed to submit ticket to PQMS', { ticketId, error: error.message });
+                return false;
+            } finally {
+                // Reset flag after a short delay
+                setTimeout(() => {
+                    this.isSubmitting = false;
+                }, 500);
+            }
         }
     }
 
@@ -5420,6 +5622,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-all"></tbody>
@@ -5446,6 +5650,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-pending"></tbody>
@@ -5472,6 +5678,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-solved"></tbody>
@@ -5498,6 +5706,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-care"></tbody>
@@ -5524,6 +5734,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-hala"></tbody>
@@ -5550,6 +5762,8 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
+                                            <th>PQMS</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-casablanca"></tbody>
@@ -5723,6 +5937,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-all"></tbody>
@@ -5749,6 +5965,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-pending"></tbody>
@@ -5775,6 +5993,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-solved"></tbody>
@@ -5801,6 +6021,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-care"></tbody>
@@ -5827,6 +6049,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-hala"></tbody>
@@ -5853,6 +6077,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-casablanca"></tbody>
@@ -5879,6 +6105,8 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
+                                                            <th>PQMS</th>
+                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-unprocessed"></tbody>
@@ -7127,7 +7355,7 @@
             const tbody = document.getElementById(`rumi-table-${type}`);
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="15" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -7167,6 +7395,17 @@
                     ? '<span class="rumi-badge rumi-badge-no">NO</span>'
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
+                // Check if ticket was submitted to PQMS
+                const isPQMSSubmitted = RUMIStorage.isTicketSubmittedToPQMS(ticket.ticketId);
+                const pqmsBadge = isPQMSSubmitted
+                    ? '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>'
+                    : '<span style="color: var(--rumi-text-secondary);" title="Not submitted to PQMS">—</span>';
+
+                // Manual PQMS submit button (only show if not already submitted)
+                const pqmsActionBtn = isPQMSSubmitted
+                    ? '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>'
+                    : `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS">PQMS</button>`;
+
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
                 if (ticket.isBlockedPin) {
@@ -7190,9 +7429,40 @@
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
                         <td>${dryRunBadge}</td>
                         <td>${updatedBadge}</td>
+                        <td>${pqmsBadge}</td>
+                        <td>${pqmsActionBtn}</td>
                     </tr>
                 `;
             }).join('');
+
+            // Attach click handlers for PQMS submit buttons
+            tbody.querySelectorAll('.rumi-pqms-submit-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    const ticketId = e.target.dataset.ticketId;
+                    const ticketSubject = e.target.dataset.ticketSubject;
+                    const ticketGroup = e.target.dataset.ticketGroup;
+                    
+                    // Disable button and show loading
+                    e.target.disabled = true;
+                    e.target.textContent = '...';
+                    
+                    const success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    
+                    if (success) {
+                        // Update the row to show checkmark
+                        const row = e.target.closest('tr');
+                        const pqmsCell = row.cells[row.cells.length - 2]; // PQMS column is second to last
+                        pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
+                        e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
+                        this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
+                    } else {
+                        // Re-enable button
+                        e.target.disabled = false;
+                        e.target.textContent = 'PQMS';
+                        this.showToast('Failed to submit to PQMS. Check if PQMS user is selected.', 'error');
+                    }
+                };
+            });
 
             // Update tab count to reflect filtered results
             this.updateTabCount(type, ticketsWithResolvedNames.length);
@@ -7207,7 +7477,7 @@
             }
 
             if (tickets.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="13" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="15" class="rumi-empty-state"><div class="rumi-empty-state-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--rumi-text-secondary);"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="rumi-empty-state-text">No manually processed tickets yet</div></td></tr>';
                 return;
             }
 
@@ -7246,6 +7516,17 @@
                     ? '<span class="rumi-badge rumi-badge-no">NO</span>'
                     : '<span class="rumi-badge rumi-badge-yes">YES</span>';
 
+                // Check if ticket was submitted to PQMS
+                const isPQMSSubmitted = RUMIStorage.isTicketSubmittedToPQMS(ticket.ticketId);
+                const pqmsBadge = isPQMSSubmitted
+                    ? '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>'
+                    : '<span style="color: var(--rumi-text-secondary);" title="Not submitted to PQMS">—</span>';
+
+                // Manual PQMS submit button (only show if not already submitted)
+                const pqmsActionBtn = isPQMSSubmitted
+                    ? '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>'
+                    : `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS">PQMS</button>`;
+
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
                 if (ticket.isBlockedPin) {
@@ -7269,9 +7550,40 @@
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
                         <td>${dryRunBadge}</td>
                         <td>${updatedBadge}</td>
+                        <td>${pqmsBadge}</td>
+                        <td>${pqmsActionBtn}</td>
                     </tr>
                 `;
             }).join('');
+
+            // Attach click handlers for PQMS submit buttons
+            tbody.querySelectorAll('.rumi-pqms-submit-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    const ticketId = e.target.dataset.ticketId;
+                    const ticketSubject = e.target.dataset.ticketSubject;
+                    const ticketGroup = e.target.dataset.ticketGroup;
+                    
+                    // Disable button and show loading
+                    e.target.disabled = true;
+                    e.target.textContent = '...';
+                    
+                    const success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    
+                    if (success) {
+                        // Update the row to show checkmark
+                        const row = e.target.closest('tr');
+                        const pqmsCell = row.cells[row.cells.length - 2]; // PQMS column is second to last
+                        pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
+                        e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
+                        this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
+                    } else {
+                        // Re-enable button
+                        e.target.disabled = false;
+                        e.target.textContent = 'PQMS';
+                        this.showToast('Failed to submit to PQMS. Check if PQMS user is selected.', 'error');
+                    }
+                };
+            });
 
             // Update tab count to reflect filtered results
             this.updateManualTabCount(type, ticketsWithResolvedNames.length);
@@ -8670,6 +8982,16 @@
                     RUMIStorage.setCurrentUser(currentUser);
                 }
 
+                // Get current PQMS user
+                const pqmsUser = RUMIStorage.getPQMSUser();
+                const pqmsSubmissionCount = RUMIStorage.getPQMSSubmissionCount();
+
+                // Generate PQMS user options
+                const pqmsUserOptions = Object.entries(PQMS_USERS).map(([opsId, name]) => {
+                    const isSelected = pqmsUser?.opsId === opsId;
+                    return `<option value="${opsId}" ${isSelected ? 'selected' : ''}>${opsId} - ${this.escapeHtml(name)}</option>`;
+                }).join('');
+
                 // Render with user data
                 container.innerHTML = `
                     <button class="rumi-settings-back-button" id="rumi-settings-back">
@@ -8723,6 +9045,59 @@
                                 <strong>Note:</strong> User information is cached for 1 hour. Refresh the page to update if changes were made.
                             </div>
                         </div>
+
+                        <div class="rumi-settings-section" style="margin-top: 24px;">
+                            <div class="rumi-settings-section-title">
+                                <span>PQMS Integration</span>
+                            </div>
+
+                            <div class="rumi-settings-item">
+                                <div>
+                                    <div class="rumi-settings-item-label">PQMS User (OPS ID)</div>
+                                    <div style="font-size: 12px; color: var(--rumi-text-secondary); margin-top: 4px;">
+                                        Select your OPS ID for automatic PQMS submissions
+                                    </div>
+                                </div>
+                                <select id="rumi-pqms-user-select" class="rumi-select" style="min-width: 280px;">
+                                    <option value="">Select OPS ID...</option>
+                                    ${pqmsUserOptions}
+                                </select>
+                            </div>
+
+                            <div class="rumi-settings-item">
+                                <div>
+                                    <div class="rumi-settings-item-label">Selected User</div>
+                                    <div style="font-size: 12px; color: var(--rumi-text-secondary); margin-top: 4px;">
+                                        Currently selected for PQMS submissions
+                                    </div>
+                                </div>
+                                <div id="rumi-pqms-user-display" style="font-size: 14px; font-weight: 500; color: ${pqmsUser ? 'var(--rumi-accent-green)' : 'var(--rumi-text-secondary)'};">
+                                    ${pqmsUser ? this.escapeHtml(pqmsUser.name) : 'No user selected'}
+                                </div>
+                            </div>
+
+                            <div class="rumi-settings-item">
+                                <div>
+                                    <div class="rumi-settings-item-label">Total Submissions</div>
+                                    <div style="font-size: 12px; color: var(--rumi-text-secondary); margin-top: 4px;">
+                                        Tickets submitted to PQMS
+                                    </div>
+                                </div>
+                                <div style="font-family: monospace; font-size: 14px; color: var(--rumi-accent-green);">
+                                    ${pqmsSubmissionCount}
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 16px; padding: 12px; background: var(--rumi-bg); border-radius: 6px; font-size: 12px; color: var(--rumi-text-secondary);">
+                                <strong>How it works:</strong> When a ticket is set to "Solved" (not dry run), it will automatically be submitted to PQMS with your selected OPS ID. Each ticket is only submitted once.
+                            </div>
+
+                            <div style="margin-top: 12px; display: flex; gap: 8px;">
+                                <button id="rumi-pqms-clear-user" class="rumi-btn-sm" style="background: var(--rumi-bg-secondary); color: var(--rumi-text-secondary);">
+                                    Clear Selection
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
 
@@ -8731,6 +9106,51 @@
                 if (backButton) {
                     backButton.onclick = () => {
                         this.renderSettingsTab();
+                    };
+                }
+
+                // Attach PQMS user select listener
+                const pqmsUserSelect = document.getElementById('rumi-pqms-user-select');
+                if (pqmsUserSelect) {
+                    pqmsUserSelect.onchange = (e) => {
+                        const selectedOpsId = e.target.value;
+                        const userDisplay = document.getElementById('rumi-pqms-user-display');
+                        
+                        if (selectedOpsId && PQMS_USERS[selectedOpsId]) {
+                            const name = PQMS_USERS[selectedOpsId];
+                            RUMIStorage.setPQMSUser(selectedOpsId, name);
+                            if (userDisplay) {
+                                userDisplay.textContent = name;
+                                userDisplay.style.color = 'var(--rumi-accent-green)';
+                            }
+                            this.showToast(`PQMS user set to: ${name}`, 'success');
+                            RUMILogger.info('Settings', 'PQMS user selected', { opsId: selectedOpsId, name });
+                        } else {
+                            RUMIStorage.clearPQMSUser();
+                            if (userDisplay) {
+                                userDisplay.textContent = 'No user selected';
+                                userDisplay.style.color = 'var(--rumi-text-secondary)';
+                            }
+                        }
+                    };
+                }
+
+                // Attach clear PQMS user button listener
+                const clearPqmsBtn = document.getElementById('rumi-pqms-clear-user');
+                if (clearPqmsBtn) {
+                    clearPqmsBtn.onclick = () => {
+                        RUMIStorage.clearPQMSUser();
+                        const userDisplay = document.getElementById('rumi-pqms-user-display');
+                        const userSelect = document.getElementById('rumi-pqms-user-select');
+                        if (userDisplay) {
+                            userDisplay.textContent = 'No user selected';
+                            userDisplay.style.color = 'var(--rumi-text-secondary)';
+                        }
+                        if (userSelect) {
+                            userSelect.value = '';
+                        }
+                        this.showToast('PQMS user cleared', 'info');
+                        RUMILogger.info('Settings', 'PQMS user cleared');
                     };
                 }
 
