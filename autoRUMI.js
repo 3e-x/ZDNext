@@ -831,7 +831,7 @@
             }
 
             // Casablanca routing
-         if (settings.actionTypes.casablanca && ticket.tags && (ticket.tags.includes('morocco') || ticket.tags.includes('tc_morocco') || ticket.tags.includes('__dc_country___morocco__'))) {
+            if (settings.actionTypes.casablanca && ticket.tags && (ticket.tags.includes('morocco') || ticket.tags.includes('tc_morocco') || ticket.tags.includes('__dc_country___morocco__'))) {
                 const payload = { ticket: { group_id: GROUP_IDS.CASABLANCA } };
                 // If ticket is pending or solved, change to open
                 if (ticket.status === 'pending' || ticket.status === 'solved') {
@@ -1036,6 +1036,85 @@
                     requiredPhrases: ['careeminboundphone', 'incident type', 'customer language', 'customer words']
                 });
                 return { action: 'none' };
+            }
+
+            // NEW RULE: Check for end user comment chain preceded by specific user comment with required phrases
+
+            // Find the start of the end-user chain at the end
+            let firstEndUserCommentIndex = comments.length - 1;
+            let isChainValid = false;
+
+            // We need to verify the last comment is indeed by an end user to start the chain
+            if (firstEndUserCommentIndex >= 0) {
+                const lastCommentRole = await this.getUserRole(comments[firstEndUserCommentIndex].author_id);
+                if (lastCommentRole.isEndUser) {
+                    isChainValid = true;
+                }
+            }
+
+            if (isChainValid) {
+                // Trace back as long as it is an end user
+                while (firstEndUserCommentIndex >= 0) {
+                    const c = comments[firstEndUserCommentIndex];
+                    const role = await this.getUserRole(c.author_id);
+
+                    if (!role.isEndUser) {
+                        // Found a non-end-user comment (Agent, Bot, etc.)
+                        // This is the comment BEFORE the chain
+                        break;
+                    }
+                    firstEndUserCommentIndex--;
+                }
+
+                // firstEndUserCommentIndex is now the index of the comment BEFORE the end user chain
+                // Check if this comment exists and matches criteria
+                if (firstEndUserCommentIndex >= 0) {
+                    const commentBeforeChain = comments[firstEndUserCommentIndex];
+
+                    // Check if comment before is by user 35067366305043
+                    if (commentBeforeChain.author_id.toString() === '35067366305043') {
+
+                        const requiredPhrases = [
+                            'careeminboundphone',
+                            'incident type',
+                            'customer language',
+                            'customer words'
+                        ];
+
+                        const normalizedBeforeComment = RUMICommentProcessor.normalizeForMatching(commentBeforeChain.html_body);
+
+                        let hasPhrase = false;
+                        for (const phrase of requiredPhrases) {
+                            if (normalizedBeforeComment.includes(phrase.toLowerCase())) {
+                                hasPhrase = true;
+                                break;
+                            }
+                        }
+
+                        if (hasPhrase) {
+                            const viewId = RUMIUI.viewsMap.get(viewName);
+                            const specialViewIds = ['360069695114', '360000843468'];
+                            const shouldSetPriorityNormal = viewId && specialViewIds.includes(String(viewId)) && ticket.priority !== 'normal';
+
+                            const payload = {
+                                ticket: {
+                                    status: 'pending',
+                                    assignee_id: CONFIG.CAREEM_CARE_ID
+                                }
+                            };
+
+                            if (shouldSetPriorityNormal) {
+                                payload.ticket.priority = 'normal';
+                            }
+
+                            return {
+                                action: 'pending',
+                                trigger: 'End user chain preceded by required phrases from user 35067366305043',
+                                payload: payload
+                            };
+                        }
+                    }
+                }
             }
 
             // Pending status - USE trace-back logic (different from care routing)
