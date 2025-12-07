@@ -4010,9 +4010,11 @@
         }
 
         .rumi-table {
-            width: 100%;
+            width: auto;
+            min-width: 100%;
             border-collapse: collapse;
             font-size: 12px;
+            table-layout: auto;
         }
 
         .rumi-table thead {
@@ -4349,130 +4351,108 @@
         .rumi-table th,
         .rumi-table td {
             white-space: nowrap;
+            width: auto;
+            padding-left: 12px;
+            padding-right: 12px;
         }
 
         /* Column width controls for processed tickets tables */
-        /* Column 1: Row Number */
+        /* Column 1: PQMS Status */
         .rumi-table th:nth-child(1),
         .rumi-table td:nth-child(1) {
-            width: 50px;
-            min-width: 50px;
-            max-width: 50px;
             text-align: center;
+            padding-left: 8px;
+            padding-right: 8px;
         }
 
-        /* Column 2: Ticket ID */
+        /* Column 2: PQMS Action */
         .rumi-table th:nth-child(2),
         .rumi-table td:nth-child(2) {
-            width: 100px;
-            min-width: 100px;
-            max-width: 100px;
+            text-align: center;
+            padding-left: 8px;
+            padding-right: 8px;
         }
 
-        /* Column 3: Subject */
+        /* Column 3: Row Number */
         .rumi-table th:nth-child(3),
         .rumi-table td:nth-child(3) {
-            width: 350px;
-            min-width: 350px;
+            text-align: center;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        /* Column 4: Ticket ID */
+        .rumi-table th:nth-child(4),
+        .rumi-table td:nth-child(4) {
+        }
+
+        /* Column 5: Subject - allow wrapping for long subjects */
+        .rumi-table th:nth-child(5),
+        .rumi-table td:nth-child(5) {
             max-width: 350px;
             white-space: normal;
             word-wrap: break-word;
         }
 
-        /* Column 4: View */
-        .rumi-table th:nth-child(4),
-        .rumi-table td:nth-child(4) {
-            width: 150px;
-            min-width: 150px;
-            max-width: 150px;
-        }
-
-        /* Column 5: Action */
-        .rumi-table th:nth-child(5),
-        .rumi-table td:nth-child(5) {
-            width: 120px;
-            min-width: 120px;
-            max-width: 120px;
-            white-space: normal;
-            word-wrap: break-word;
-        }
-
-        /* Column 6: Trigger */
+        /* Column 6: View */
         .rumi-table th:nth-child(6),
         .rumi-table td:nth-child(6) {
-            width: 200px;
-            min-width: 200px;
-            max-width: 200px;
-            white-space: normal;
-            word-wrap: break-word;
         }
 
-        /* Column 7: Previous Status */
+        /* Column 7: Action */
         .rumi-table th:nth-child(7),
         .rumi-table td:nth-child(7) {
-            width: 100px;
-            min-width: 100px;
-            max-width: 100px;
         }
 
-        /* Column 8: New Status */
+        /* Column 8: Trigger - allow wrapping for long triggers */
         .rumi-table th:nth-child(8),
         .rumi-table td:nth-child(8) {
-            width: 100px;
-            min-width: 100px;
-            max-width: 100px;
+            max-width: 250px;
+            white-space: normal;
+            word-wrap: break-word;
         }
 
-        /* Column 9: Previous Group */
+        /* Column 9: Previous Status */
         .rumi-table th:nth-child(9),
         .rumi-table td:nth-child(9) {
-            width: 150px;
-            min-width: 150px;
-            max-width: 150px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            overflow: hidden;
         }
 
-        /* Column 10: New Group */
+        /* Column 10: New Status */
         .rumi-table th:nth-child(10),
         .rumi-table td:nth-child(10) {
-            width: 150px;
-            min-width: 150px;
-            max-width: 150px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            overflow: hidden;
         }
 
-        /* Column 11: Processed At */
+        /* Column 11: Previous Group */
         .rumi-table th:nth-child(11),
         .rumi-table td:nth-child(11) {
-            width: 160px;
-            min-width: 160px;
-            max-width: 160px;
+            max-width: 180px;
             white-space: normal;
             word-wrap: break-word;
-            overflow-wrap: break-word;
-            overflow: hidden;
         }
 
-        /* Column 12: Dry Run */
+        /* Column 12: New Group */
         .rumi-table th:nth-child(12),
         .rumi-table td:nth-child(12) {
-            width: 80px;
-            min-width: 80px;
-            max-width: 80px;
+            max-width: 180px;
+            white-space: normal;
+            word-wrap: break-word;
         }
 
-        /* Column 13: Updated? */
+        /* Column 13: Processed At */
         .rumi-table th:nth-child(13),
         .rumi-table td:nth-child(13) {
-            width: 90px;
-            min-width: 90px;
-            max-width: 90px;
+        }
+
+        /* Column 14: Dry Run */
+        .rumi-table th:nth-child(14),
+        .rumi-table td:nth-child(14) {
+            text-align: center;
+        }
+
+        /* Column 15: Updated? */
+        .rumi-table th:nth-child(15),
+        .rumi-table td:nth-child(15) {
+            text-align: center;
         }
 
         [data-theme="light"] .rumi-table tbody tr.rumi-dry-run {
