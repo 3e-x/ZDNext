@@ -5661,6 +5661,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5674,8 +5676,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-all"></tbody>
@@ -5689,6 +5689,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5702,8 +5704,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-pending"></tbody>
@@ -5717,6 +5717,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5730,8 +5732,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-solved"></tbody>
@@ -5745,6 +5745,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5758,8 +5760,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-care"></tbody>
@@ -5773,6 +5773,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5786,8 +5788,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-hala"></tbody>
@@ -5801,6 +5801,8 @@
                                 <table class="rumi-table">
                                     <thead>
                                         <tr>
+                                            <th>PQMS</th>
+                                            <th>Submit</th>
                                             <th>#</th>
                                             <th>Ticket ID</th>
                                             <th>Subject</th>
@@ -5814,8 +5816,6 @@
                                             <th>Processed At</th>
                                             <th>Dry Run</th>
                                             <th>Updated?</th>
-                                            <th>PQMS</th>
-                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="rumi-table-casablanca"></tbody>
@@ -5976,6 +5976,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -5989,8 +5991,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-all"></tbody>
@@ -6004,6 +6004,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6017,8 +6019,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-pending"></tbody>
@@ -6032,6 +6032,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6045,8 +6047,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-solved"></tbody>
@@ -6060,6 +6060,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6073,8 +6075,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-care"></tbody>
@@ -6088,6 +6088,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6101,8 +6103,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-hala"></tbody>
@@ -6116,6 +6116,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6129,8 +6131,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-casablanca"></tbody>
@@ -6144,6 +6144,8 @@
                                                 <table class="rumi-table">
                                                     <thead>
                                                         <tr>
+                                                            <th>PQMS</th>
+                                                            <th>Submit</th>
                                                             <th>#</th>
                                                             <th>Ticket ID</th>
                                                             <th>Subject</th>
@@ -6157,8 +6159,6 @@
                                                             <th>Processed At</th>
                                                             <th>Dry Run</th>
                                                             <th>Updated?</th>
-                                                            <th>PQMS</th>
-                                                            <th></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="rumi-manual-table-unprocessed"></tbody>
@@ -7468,6 +7468,8 @@
 
                 return `
                     <tr class="${rowClass}">
+                        <td>${pqmsBadge}</td>
+                        <td>${pqmsActionBtn}</td>
                         <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
@@ -7481,8 +7483,6 @@
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
                         <td>${dryRunBadge}</td>
                         <td>${updatedBadge}</td>
-                        <td>${pqmsBadge}</td>
-                        <td>${pqmsActionBtn}</td>
                     </tr>
                 `;
             }).join('');
@@ -7503,7 +7503,7 @@
                     if (success) {
                         // Update the row to show checkmark
                         const row = e.target.closest('tr');
-                        const pqmsCell = row.cells[row.cells.length - 2]; // PQMS column is second to last
+                        const pqmsCell = row.cells[0]; // PQMS column is first
                         pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
                         e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
                         this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
@@ -7589,6 +7589,8 @@
 
                 return `
                     <tr class="${rowClass}">
+                        <td>${pqmsBadge}</td>
+                        <td>${pqmsActionBtn}</td>
                         <td>${rowNumber}</td>
                         <td><a href="/agent/tickets/${ticket.ticketId}" target="_blank">${ticket.ticketId}</a></td>
                         <td style="max-width: 300px; word-wrap: break-word; white-space: normal;">${this.escapeHtml(ticket.subject || 'N/A')}</td>
@@ -7602,8 +7604,6 @@
                         <td>${new Date(ticket.timestamp).toLocaleString()}</td>
                         <td>${dryRunBadge}</td>
                         <td>${updatedBadge}</td>
-                        <td>${pqmsBadge}</td>
-                        <td>${pqmsActionBtn}</td>
                     </tr>
                 `;
             }).join('');
@@ -7624,7 +7624,7 @@
                     if (success) {
                         // Update the row to show checkmark
                         const row = e.target.closest('tr');
-                        const pqmsCell = row.cells[row.cells.length - 2]; // PQMS column is second to last
+                        const pqmsCell = row.cells[0]; // PQMS column is first
                         pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
                         e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
                         this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
