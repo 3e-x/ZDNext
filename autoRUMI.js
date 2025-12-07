@@ -2326,6 +2326,121 @@
                 }, 500);
             }
         }
+
+        static async submitPendingTicket(ticketId, ticketSubject, groupName) {
+            // Prevent duplicate submissions
+            if (this.isSubmitting) {
+                RUMILogger.debug('PQMS', 'Submission already in progress, skipping', { ticketId });
+                return false;
+            }
+
+            try {
+                // Validation 1: Check if PQMS user is selected
+                const selectedUser = RUMIStorage.getPQMSUser();
+                if (!selectedUser || !selectedUser.opsId || !selectedUser.name) {
+                    RUMILogger.debug('PQMS', 'No PQMS user selected, skipping submission', { ticketId });
+                    return false;
+                }
+
+                // Validation 2: Check if ticket was already submitted
+                if (RUMIStorage.isTicketSubmittedToPQMS(ticketId)) {
+                    RUMILogger.debug('PQMS', 'Ticket already submitted to PQMS, skipping', { ticketId });
+                    return false;
+                }
+
+                // Validation 3: Verify OPS ID exists in database
+                if (!PQMS_USERS[selectedUser.opsId]) {
+                    RUMILogger.warn('PQMS', 'OPS ID not found in database', { opsId: selectedUser.opsId });
+                    return false;
+                }
+
+                // Validation 4: Verify Name matches
+                const expectedName = PQMS_USERS[selectedUser.opsId];
+                if (selectedUser.name !== expectedName) {
+                    RUMILogger.warn('PQMS', 'Name mismatch for OPS ID', { opsId: selectedUser.opsId, expected: expectedName, got: selectedUser.name });
+                    return false;
+                }
+
+                // Set flag to prevent duplicate submissions
+                this.isSubmitting = true;
+
+                // Prepare the parameters exactly as the PQMS system expects
+                const params = new URLSearchParams({
+                    'Ticket_ID': ticketId.toString(),
+                    'SSOC_Reason': 'Felt Unsafe',
+                    'Ticket_Type': 'Non - Critical',
+                    'Ticket_Status': 'Pending',
+                    'Attempts': 'NA',
+                    'Escelated': '',
+                    'Follow_Up': '',
+                    'Comments': '',
+                    'username': selectedUser.opsId,
+                    'name': selectedUser.name
+                });
+
+                const url = `https://pqms05.extensya.com/Careem/ticket/submit_SSOC_ticket.php?${params.toString()}`;
+
+                // Use hidden iframe to submit (CORS workaround)
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = 'none';
+
+                // Set up load handler
+                let loadTimeout;
+                const loadPromise = new Promise((resolve, reject) => {
+                    iframe.onload = () => {
+                        clearTimeout(loadTimeout);
+                        resolve();
+                    };
+                    iframe.onerror = () => {
+                        clearTimeout(loadTimeout);
+                        reject(new Error('Failed to load PQMS endpoint'));
+                    };
+                    loadTimeout = setTimeout(() => {
+                        resolve(); // Resolve anyway after timeout (CORS might prevent detection)
+                    }, 10000);
+                });
+
+                document.body.appendChild(iframe);
+                iframe.src = url;
+
+                try {
+                    await loadPromise;
+                    RUMILogger.info('PQMS', 'Pending ticket submitted to PQMS', { ticketId, opsId: selectedUser.opsId });
+                    
+                    // Save submission to storage
+                    RUMIStorage.addPQMSSubmission(ticketId, ticketSubject, groupName);
+                    
+                    return true;
+                } catch (loadError) {
+                    // Even if we can't detect success, the request was sent
+                    RUMILogger.info('PQMS', 'Pending ticket sent to PQMS (response hidden by CORS)', { ticketId });
+                    
+                    // Still save to storage
+                    RUMIStorage.addPQMSSubmission(ticketId, ticketSubject, groupName);
+                    
+                    return true;
+                } finally {
+                    // Remove iframe after a short delay
+                    setTimeout(() => {
+                        if (iframe && iframe.parentNode) {
+                            iframe.parentNode.removeChild(iframe);
+                        }
+                    }, 1000);
+                }
+
+            } catch (error) {
+                RUMILogger.error('PQMS', 'Failed to submit pending ticket to PQMS', { ticketId, error: error.message });
+                return false;
+            } finally {
+                // Reset flag after a short delay
+                setTimeout(() => {
+                    this.isSubmitting = false;
+                }, 500);
+            }
+        }
     }
 
     // ============================================================================
