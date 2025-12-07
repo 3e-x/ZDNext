@@ -4883,6 +4883,203 @@ Safety & Security Operations Team
         }
     }
 
+    // ============================================================================
+    // QUICK ASSIGN BUTTONS FUNCTIONALITY
+    // ============================================================================
+
+    // Button configurations: [id, label, groupId, comment (optional)]
+    const QUICK_ASSIGN_BUTTONS = [
+        { id: 'not-safety-related-button', label: 'Not Safety', groupId: 20705088, comment: 'Not safety related' },
+        { id: 'hq-button', label: 'HQ', groupId: 20705088, comment: null },
+        { id: 'mot-ssoc-button', label: 'MOT SSOC', groupId: 25862683237139, comment: null },
+        { id: 'shadow-button', label: 'Shadow', groupId: 34373129086483, comment: null },
+        { id: 'food-button', label: 'Food', groupId: 360016462353, comment: null },
+        { id: 'bike-button', label: 'Bike', groupId: 360007090594, comment: null }
+    ];
+
+    // Generic function to assign ticket to a group with optional comment
+    async function assignToGroup(groupId, groupName, comment = null) {
+        const ticketId = getCurrentTicketId();
+        if (!ticketId) {
+            console.error('❌ No ticket ID found');
+            showExportToast('Error: No ticket ID found');
+            return;
+        }
+
+        try {
+            console.log(`🎯 Assigning ticket ${ticketId} to ${groupName} group (${groupId})`);
+
+            // Get CSRF token
+            const csrfToken = RUMIZendeskAPI.getCSRFToken();
+            if (!csrfToken) {
+                throw new Error('CSRF token not found - authentication may be required');
+            }
+
+            const payload = {
+                ticket: {
+                    group_id: groupId
+                }
+            };
+
+            // Add comment only if provided
+            if (comment) {
+                payload.ticket.comment = {
+                    body: comment,
+                    public: false
+                };
+            }
+
+            const response = await fetch(`/api/v2/tickets/${ticketId}.json`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-Token": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`✅ Successfully assigned ticket ${ticketId} to ${groupName} group`, data);
+            showExportToast(`Assigned to ${groupName}`);
+            return data;
+        } catch (error) {
+            console.error(`❌ Failed to assign ticket ${ticketId} to ${groupName} group:`, error);
+            showExportToast('Error: Failed to assign');
+            throw error;
+        }
+    }
+
+    // Create a quick assign button matching Zendesk Garden design system
+    function createQuickAssignButton(config, isFirst = false) {
+        const button = document.createElement('button');
+        button.setAttribute('type', 'button');
+        button.setAttribute('data-test-id', config.id);
+        button.setAttribute('data-garden-id', 'buttons.button');
+        button.setAttribute('data-garden-version', '9.12.1');
+        button.setAttribute('title', `Double-click to assign to ${config.label}`);
+        button.textContent = config.label;
+
+        // Zendesk Garden design system button styling
+        button.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            background-color: transparent;
+            border: 1px solid #c2c8cc;
+            border-radius: 4px;
+            color: #2f3941;
+            cursor: pointer;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 20px;
+            padding: 7px 14px;
+            margin-left: ${isFirst ? '12px' : '8px'};
+            transition: border-color 0.25s ease-in-out, box-shadow 0.1s ease-in-out, background-color 0.25s ease-in-out, color 0.25s ease-in-out;
+            white-space: nowrap;
+            text-decoration: none;
+            user-select: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        `;
+
+        // Hover effects - Zendesk style
+        button.addEventListener('mouseenter', () => {
+            button.style.borderColor = '#5293c7';
+            button.style.color = '#1f73b7';
+        });
+
+        button.addEventListener('mouseleave', () => {
+            button.style.borderColor = '#c2c8cc';
+            button.style.color = '#2f3941';
+            button.style.boxShadow = 'none';
+        });
+
+        // Focus effects - Zendesk style
+        button.addEventListener('focus', () => {
+            button.style.outline = 'none';
+            button.style.boxShadow = '0 0 0 3px rgba(31, 115, 183, 0.35)';
+        });
+
+        button.addEventListener('blur', () => {
+            button.style.boxShadow = 'none';
+        });
+
+        // Active/pressed state
+        button.addEventListener('mousedown', () => {
+            button.style.borderColor = '#1f73b7';
+            button.style.backgroundColor = 'rgba(31, 115, 183, 0.08)';
+        });
+
+        button.addEventListener('mouseup', () => {
+            button.style.backgroundColor = 'transparent';
+        });
+
+        // Double-click handler
+        button.addEventListener('dblclick', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Disable button while processing
+            button.disabled = true;
+            button.style.opacity = '0.5';
+            button.style.cursor = 'default';
+            const originalText = button.textContent;
+            button.textContent = 'Processing...';
+
+            try {
+                await assignToGroup(config.groupId, config.label, config.comment);
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+                button.textContent = originalText;
+            }
+        });
+
+        return button;
+    }
+
+    // Insert all quick assign buttons into the ticket footer
+    function insertQuickAssignButtons() {
+        // Find all ticket footer sections
+        const footerSections = document.querySelectorAll('[data-test-id="ticket-footer-open-ticket"]');
+
+        footerSections.forEach(footer => {
+            // Check if buttons already exist in this footer (check for first button)
+            if (footer.querySelector('[data-test-id="not-safety-related-button"]')) {
+                return;
+            }
+
+            // Find the right-side buttons container (sc-177ytgv-1 class)
+            // This contains "Stay on ticket" and "Submit" buttons
+            const rightButtonsContainer = footer.querySelector('[class*="sc-177ytgv-1"]');
+            if (!rightButtonsContainer) {
+                return;
+            }
+
+            // Create and insert all buttons in order
+            QUICK_ASSIGN_BUTTONS.forEach((config, index) => {
+                const button = createQuickAssignButton(config, index === 0);
+                footer.insertBefore(button, rightButtonsContainer);
+            });
+
+            console.log('✅ Quick assign buttons inserted into footer');
+        });
+    }
+
+    // Backward compatibility alias
+    function insertNotSafetyRelatedButton() {
+        insertQuickAssignButtons();
+    }
+
     // Function to show simple export toast notification
     function showExportToast(message = 'Exported') {
         // Remove any existing export toast
@@ -9486,6 +9683,7 @@ Safety & Security Operations Team
             insertRumiButton();
             tryAddToggleButton();
             tryInsertApolloButton(); // Insert Apollo button
+            insertNotSafetyRelatedButton(); // Insert Not Safety Related button in footer
 
             // Apply the saved field visibility state
             setTimeout(() => {
@@ -9985,7 +10183,7 @@ Safety & Security Operations Team
         let tripId = null;
 
         const commentBodyLower = commentBody.toLowerCase();
-        
+
         // UUID regex pattern: 8-4-4-4-12 characters (0-9, a-f)
         const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
@@ -10441,6 +10639,7 @@ Safety & Security Operations Team
                 insertRumiButton();
                 tryAddToggleButton();
                 tryInsertApolloButton(); // Insert Apollo button
+                insertNotSafetyRelatedButton(); // Insert Not Safety Related button in footer
 
                 // Apply the saved field visibility state
                 setTimeout(() => {
