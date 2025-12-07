@@ -7579,10 +7579,14 @@
                     ? '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>'
                     : '<span style="color: var(--rumi-text-secondary);" title="Not submitted to PQMS">—</span>';
 
-                // Manual PQMS submit button (only show if not already submitted)
+                // Manual PQMS submit button (only show if not already submitted AND action is solved/pending)
+                const actionLower = (ticket.action || '').toLowerCase();
+                const showPqmsButton = !isPQMSSubmitted && (actionLower === 'solved' || actionLower === 'pending');
                 const pqmsActionBtn = isPQMSSubmitted
                     ? '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>'
-                    : `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS">PQMS</button>`;
+                    : showPqmsButton
+                        ? `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" data-ticket-action="${actionLower}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS as ${actionLower}">PQMS</button>`
+                        : '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
 
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
@@ -7619,12 +7623,19 @@
                     const ticketId = e.target.dataset.ticketId;
                     const ticketSubject = e.target.dataset.ticketSubject;
                     const ticketGroup = e.target.dataset.ticketGroup;
+                    const ticketAction = e.target.dataset.ticketAction;
                     
                     // Disable button and show loading
                     e.target.disabled = true;
                     e.target.textContent = '...';
                     
-                    const success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    // Call appropriate submit function based on action
+                    let success;
+                    if (ticketAction === 'pending') {
+                        success = await RUMIPQMS.submitPendingTicket(ticketId, ticketSubject, ticketGroup);
+                    } else {
+                        success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    }
                     
                     if (success) {
                         // Update the row to show checkmark
@@ -7632,7 +7643,7 @@
                         const pqmsCell = row.cells[0]; // PQMS column is first
                         pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
                         e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
-                        this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
+                        this.showToast(`Ticket ${ticketId} submitted to PQMS as ${ticketAction}`, 'success');
                     } else {
                         // Re-enable button
                         e.target.disabled = false;
@@ -7703,10 +7714,14 @@
                     ? '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>'
                     : '<span style="color: var(--rumi-text-secondary);" title="Not submitted to PQMS">—</span>';
 
-                // Manual PQMS submit button (only show if not already submitted)
+                // Manual PQMS submit button (only show if not already submitted AND action is solved/pending)
+                const actionLower = (ticket.action || '').toLowerCase();
+                const showPqmsButton = !isPQMSSubmitted && (actionLower === 'solved' || actionLower === 'pending');
                 const pqmsActionBtn = isPQMSSubmitted
                     ? '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>'
-                    : `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS">PQMS</button>`;
+                    : showPqmsButton
+                        ? `<button class="rumi-pqms-submit-btn" data-ticket-id="${ticket.ticketId}" data-ticket-subject="${this.escapeHtml(ticket.subject || 'N/A')}" data-ticket-group="${this.escapeHtml(ticket.previousGroupName || 'N/A')}" data-ticket-action="${actionLower}" style="padding: 2px 8px; font-size: 11px; background: #22c55e; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;" title="Submit to PQMS as ${actionLower}">PQMS</button>`
+                        : '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
 
                 // Determine row class: blocked pins get red, dry runs get existing styling
                 let rowClass = '';
@@ -7743,12 +7758,19 @@
                     const ticketId = e.target.dataset.ticketId;
                     const ticketSubject = e.target.dataset.ticketSubject;
                     const ticketGroup = e.target.dataset.ticketGroup;
+                    const ticketAction = e.target.dataset.ticketAction;
                     
                     // Disable button and show loading
                     e.target.disabled = true;
                     e.target.textContent = '...';
                     
-                    const success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    // Call appropriate submit function based on action
+                    let success;
+                    if (ticketAction === 'pending') {
+                        success = await RUMIPQMS.submitPendingTicket(ticketId, ticketSubject, ticketGroup);
+                    } else {
+                        success = await RUMIPQMS.submitSolvedTicket(ticketId, ticketSubject, ticketGroup);
+                    }
                     
                     if (success) {
                         // Update the row to show checkmark
@@ -7756,7 +7778,7 @@
                         const pqmsCell = row.cells[0]; // PQMS column is first
                         pqmsCell.innerHTML = '<span style="color: #22c55e; font-size: 16px;" title="Submitted to PQMS">✓</span>';
                         e.target.parentElement.innerHTML = '<span style="color: var(--rumi-text-secondary); font-size: 11px;">—</span>';
-                        this.showToast(`Ticket ${ticketId} submitted to PQMS`, 'success');
+                        this.showToast(`Ticket ${ticketId} submitted to PQMS as ${ticketAction}`, 'success');
                     } else {
                         // Re-enable button
                         e.target.disabled = false;
