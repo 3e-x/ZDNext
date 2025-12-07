@@ -1730,9 +1730,34 @@
 
         static addProcessedTicket(ticketData) {
             const tickets = this.getProcessedTickets();
+            const now = new Date();
+            const DEDUP_WINDOW_MS = 10000; // 10 seconds
+
+            // Check for duplicate: same ticketId + same action within 10 seconds
+            const isDuplicate = tickets.some(existing => {
+                if (existing.ticketId !== ticketData.ticketId) return false;
+                if (existing.action !== ticketData.action) return false;
+                
+                // Same ticket and same action - check timestamp
+                const existingTime = new Date(existing.timestamp);
+                const timeDiffMs = now - existingTime;
+                
+                // If within 10 seconds, it's a duplicate
+                return timeDiffMs < DEDUP_WINDOW_MS;
+            });
+
+            if (isDuplicate) {
+                RUMILogger.debug('STORAGE', 'Skipping duplicate ticket entry', {
+                    ticketId: ticketData.ticketId,
+                    action: ticketData.action,
+                    reason: 'Same action within 10 seconds'
+                });
+                return false; // Indicate that ticket was not added
+            }
+
             tickets.push({
                 ...ticketData,
-                timestamp: new Date().toISOString()
+                timestamp: now.toISOString()
             });
 
             // Keep last 1500 processed tickets
@@ -1741,6 +1766,7 @@
             }
 
             this.set('processed_tickets', tickets);
+            return true; // Indicate that ticket was added
         }
 
         static clearProcessedTickets() {
@@ -1754,9 +1780,34 @@
 
         static addManualProcessedTicket(ticketData) {
             const tickets = this.getManualProcessedTickets();
+            const now = new Date();
+            const DEDUP_WINDOW_MS = 10000; // 10 seconds
+
+            // Check for duplicate: same ticketId + same action within 10 seconds
+            const isDuplicate = tickets.some(existing => {
+                if (existing.ticketId !== ticketData.ticketId) return false;
+                if (existing.action !== ticketData.action) return false;
+                
+                // Same ticket and same action - check timestamp
+                const existingTime = new Date(existing.timestamp);
+                const timeDiffMs = now - existingTime;
+                
+                // If within 10 seconds, it's a duplicate
+                return timeDiffMs < DEDUP_WINDOW_MS;
+            });
+
+            if (isDuplicate) {
+                RUMILogger.debug('STORAGE', 'Skipping duplicate manual ticket entry', {
+                    ticketId: ticketData.ticketId,
+                    action: ticketData.action,
+                    reason: 'Same action within 10 seconds'
+                });
+                return false; // Indicate that ticket was not added
+            }
+
             tickets.push({
                 ...ticketData,
-                timestamp: new Date().toISOString()
+                timestamp: now.toISOString()
             });
 
             // Keep last 1500 processed tickets
@@ -1765,6 +1816,7 @@
             }
 
             this.set('manual_processed_tickets', tickets);
+            return true; // Indicate that ticket was added
         }
 
         static clearManualProcessedTickets() {
