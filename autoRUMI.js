@@ -4455,6 +4455,37 @@
             text-align: center;
         }
 
+        /* Column resize handle */
+        .rumi-table th {
+            position: relative;
+        }
+
+        .rumi-table th .rumi-resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+
+        .rumi-table th .rumi-resize-handle:hover,
+        .rumi-table th .rumi-resize-handle.resizing {
+            background: var(--rumi-primary);
+        }
+
+        .rumi-table.resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .rumi-table.resizing * {
+            cursor: col-resize !important;
+            user-select: none !important;
+        }
+
         [data-theme="light"] .rumi-table tbody tr.rumi-dry-run {
             background: #FEF2F2 !important;
         }
@@ -7498,6 +7529,9 @@
 
             // Update tab count to reflect filtered results
             this.updateTabCount(type, ticketsWithResolvedNames.length);
+
+            // Restore column widths after re-render
+            this.applyStoredColumnWidths(`rumi-table-${type}`);
         }
 
         static async renderManualTicketsTable(type, tickets) {
@@ -7619,6 +7653,10 @@
 
             // Update tab count to reflect filtered results
             this.updateManualTabCount(type, ticketsWithResolvedNames.length);
+
+            // Restore column widths after re-render
+            const tbodyId = type === 'manual-all' ? 'rumi-manual-table-all' : `rumi-${type.replace('manual-', 'manual-table-')}`;
+            this.applyStoredColumnWidths(tbodyId);
         }
 
         static updateTabCount(tabType, count) {
@@ -7787,7 +7825,7 @@
             const headers = headerRow.querySelectorAll('th');
             headers.forEach((th, index) => {
                 const columnName = columnMap[index];
-                if (!columnName || columnName === 'note' || columnName === 'rowNumber') return;
+                if (!columnName || columnName === 'note' || columnName === 'rowNumber' || columnName === 'pqms' || columnName === 'pqmsAction') return;
 
                 th.classList.add('sortable');
                 th.style.cursor = 'pointer';
@@ -7846,7 +7884,7 @@
                 const td = document.createElement('td');
                 const columnName = columnMap[index];
 
-                if (!columnName || columnName === 'note' || columnName === 'rowNumber') {
+                if (!columnName || columnName === 'note' || columnName === 'rowNumber' || columnName === 'pqms' || columnName === 'pqmsAction') {
                     filterRow.appendChild(td);
                     return;
                 }
@@ -8004,19 +8042,21 @@
 
             // Automatic processing tables
             const autoColumnMap = {
-                0: 'rowNumber', // Row counter (not filterable)
-                1: 'ticketId',
-                2: 'subject',
-                3: 'viewName',
-                4: 'action',
-                5: 'trigger',
-                6: 'previousStatus',
-                7: 'newStatus',
-                8: 'previousGroupName',
-                9: 'newGroupName',
-                10: 'timestamp',
-                11: 'dryRun',
-                12: 'alreadyCorrect'
+                0: 'pqms', // PQMS status (not filterable)
+                1: 'pqmsAction', // PQMS action button (not filterable)
+                2: 'rowNumber', // Row counter (not filterable)
+                3: 'ticketId',
+                4: 'subject',
+                5: 'viewName',
+                6: 'action',
+                7: 'trigger',
+                8: 'previousStatus',
+                9: 'newStatus',
+                10: 'previousGroupName',
+                11: 'newGroupName',
+                12: 'timestamp',
+                13: 'dryRun',
+                14: 'alreadyCorrect'
             };
 
             ['all', 'pending', 'solved', 'care', 'hala', 'casablanca'].forEach(type => {
@@ -8026,24 +8066,161 @@
 
             // Manual processing tables
             const manualColumnMap = {
-                0: 'rowNumber', // Row counter (not filterable)
-                1: 'ticketId',
-                2: 'subject',
-                3: 'viewName',
-                4: 'action',
-                5: 'trigger',
-                6: 'previousStatus',
-                7: 'newStatus',
-                8: 'previousGroupName',
-                9: 'newGroupName',
-                10: 'timestamp',
-                11: 'dryRun',
-                12: 'alreadyCorrect'
+                0: 'pqms', // PQMS status (not filterable)
+                1: 'pqmsAction', // PQMS action button (not filterable)
+                2: 'rowNumber', // Row counter (not filterable)
+                3: 'ticketId',
+                4: 'subject',
+                5: 'viewName',
+                6: 'action',
+                7: 'trigger',
+                8: 'previousStatus',
+                9: 'newStatus',
+                10: 'previousGroupName',
+                11: 'newGroupName',
+                12: 'timestamp',
+                13: 'dryRun',
+                14: 'alreadyCorrect'
             };
 
             ['manual-all', 'manual-pending', 'manual-solved', 'manual-care', 'manual-hala', 'manual-casablanca', 'manual-unprocessed'].forEach(type => {
                 const tableId = type === 'manual-all' ? 'rumi-manual-table-all' : `rumi-${type.replace('manual-', 'manual-table-')}`;
                 this.setupTableFiltersAndSorting(tableId, 'manual', manualColumnMap, manualTickets);
+            });
+
+            // Enable column resizing for all tables
+            this.enableColumnResizing();
+        }
+
+        // Store column widths for each table
+        static columnWidths = {};
+
+        static enableColumnResizing() {
+            const tables = document.querySelectorAll('.rumi-table');
+            
+            tables.forEach(table => {
+                const thead = table.querySelector('thead');
+                if (!thead) return;
+
+                const headerRow = thead.querySelector('tr:first-child');
+                if (!headerRow) return;
+
+                // Get table identifier from parent tbody id or table itself
+                const tbody = table.querySelector('tbody');
+                const tableId = tbody ? tbody.id : table.id || 'default-table';
+
+                // Initialize storage for this table if needed
+                if (!this.columnWidths[tableId]) {
+                    this.columnWidths[tableId] = {};
+                }
+
+                const headers = headerRow.querySelectorAll('th');
+                
+                headers.forEach((th, index) => {
+                    // Skip if already has resize handle
+                    if (th.querySelector('.rumi-resize-handle')) return;
+                    
+                    // Create resize handle
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.classList.add('rumi-resize-handle');
+                    th.appendChild(resizeHandle);
+
+                    let startX, startWidth, thElement;
+
+                    const onMouseDown = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        thElement = th;
+                        startX = e.pageX;
+                        startWidth = th.offsetWidth;
+                        
+                        resizeHandle.classList.add('resizing');
+                        table.classList.add('resizing');
+                        
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    };
+
+                    const onMouseMove = (e) => {
+                        if (!thElement) return;
+                        
+                        const diff = e.pageX - startX;
+                        const newWidth = Math.max(30, startWidth + diff); // Minimum 30px width
+                        
+                        thElement.style.width = newWidth + 'px';
+                        thElement.style.minWidth = newWidth + 'px';
+                        thElement.style.maxWidth = newWidth + 'px';
+                        
+                        // Store the width
+                        this.columnWidths[tableId][index] = newWidth;
+                        
+                        // Also set the width for corresponding cells in tbody
+                        const currentTbody = table.querySelector('tbody');
+                        if (currentTbody) {
+                            const rows = currentTbody.querySelectorAll('tr');
+                            rows.forEach(row => {
+                                const cell = row.cells[index];
+                                if (cell) {
+                                    cell.style.width = newWidth + 'px';
+                                    cell.style.minWidth = newWidth + 'px';
+                                    cell.style.maxWidth = newWidth + 'px';
+                                }
+                            });
+                        }
+                    };
+
+                    const onMouseUp = () => {
+                        resizeHandle.classList.remove('resizing');
+                        table.classList.remove('resizing');
+                        thElement = null;
+                        
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+
+                    resizeHandle.addEventListener('mousedown', onMouseDown);
+                });
+            });
+        }
+
+        static applyStoredColumnWidths(tbodyId) {
+            const widths = this.columnWidths[tbodyId];
+            if (!widths) return;
+
+            const tbody = document.getElementById(tbodyId);
+            if (!tbody) return;
+
+            const table = tbody.closest('table');
+            if (!table) return;
+
+            // Apply to header cells
+            const thead = table.querySelector('thead');
+            if (thead) {
+                const headerRow = thead.querySelector('tr:first-child');
+                if (headerRow) {
+                    const headers = headerRow.querySelectorAll('th');
+                    headers.forEach((th, index) => {
+                        if (widths[index]) {
+                            th.style.width = widths[index] + 'px';
+                            th.style.minWidth = widths[index] + 'px';
+                            th.style.maxWidth = widths[index] + 'px';
+                        }
+                    });
+                }
+            }
+
+            // Apply to body cells
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                cells.forEach((cell, index) => {
+                    if (widths[index]) {
+                        cell.style.width = widths[index] + 'px';
+                        cell.style.minWidth = widths[index] + 'px';
+                        cell.style.maxWidth = widths[index] + 'px';
+                    }
+                });
             });
         }
 
