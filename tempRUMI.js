@@ -4978,17 +4978,17 @@ Safety & Security Operations Team
             color: #2f3941;
             cursor: pointer;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 400;
-            line-height: 20px;
-            padding: 6px 12px;
+            line-height: 18px;
+            padding: 5px 10px;
             transition: border-color 0.25s ease-in-out, box-shadow 0.1s ease-in-out, background-color 0.25s ease-in-out, color 0.25s ease-in-out;
             white-space: nowrap;
             text-decoration: none;
             user-select: none;
             overflow: hidden;
             text-overflow: ellipsis;
-            min-width: fit-content;
+            flex-shrink: 0;
         `;
 
         // Hover effects - Zendesk style
@@ -5060,9 +5060,9 @@ Safety & Security Operations Team
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-left: 12px;
             padding: 4px 0;
             position: relative;
+            flex-shrink: 0;
         `;
 
         // Create toggle button for expand/collapse
@@ -5114,11 +5114,26 @@ Safety & Security Operations Team
             display: flex;
             align-items: center;
             gap: 6px;
-            flex-wrap: wrap;
-            max-width: 600px;
+            flex-wrap: nowrap;
             padding: 2px 0;
             transition: opacity 0.2s ease-in-out;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
         `;
+        
+        // Hide scrollbar for webkit browsers (add style once)
+        if (!document.getElementById('quick-assign-scrollbar-hide')) {
+            const style = document.createElement('style');
+            style.id = 'quick-assign-scrollbar-hide';
+            style.textContent = `
+                .quick-assign-buttons-wrapper::-webkit-scrollbar {
+                    display: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         // Create all buttons
         QUICK_ASSIGN_BUTTONS.forEach((config) => {
@@ -5177,13 +5192,55 @@ Safety & Security Operations Team
             // Find the right-side buttons container (sc-177ytgv-1 class)
             // This contains "Stay on ticket" and "Submit" buttons
             const rightButtonsContainer = footer.querySelector('[class*="sc-177ytgv-1"]');
-            if (!rightButtonsContainer) {
-                return;
+            
+            // Find the field container (where macros and comment field are)
+            // This is typically on the left side of the footer
+            const fieldContainer = footer.querySelector('[data-garden-id="forms.field"]') ||
+                                   footer.querySelector('[class*="Field"]') ||
+                                   footer.querySelector('[class*="field"]');
+            
+            let insertAfterElement = null;
+            
+            if (fieldContainer) {
+                // Insert after the field container (to the right of macros/comment field)
+                insertAfterElement = fieldContainer;
+            } else {
+                // Fallback: find all children and insert before the right buttons container
+                // This ensures it's on the left side
+                const children = Array.from(footer.children);
+                if (rightButtonsContainer) {
+                    // Insert before right buttons, after the last left-side element
+                    const rightIndex = children.indexOf(rightButtonsContainer);
+                    if (rightIndex > 0) {
+                        insertAfterElement = children[rightIndex - 1];
+                    } else {
+                        // If right container is first, insert at beginning
+                        insertAfterElement = null;
+                    }
+                } else {
+                    // No right container found, insert after first child
+                    insertAfterElement = footer.firstElementChild;
+                }
             }
 
             // Create and insert the container with all buttons
             const container = createQuickAssignContainer();
-            footer.insertBefore(container, rightButtonsContainer);
+            
+            if (insertAfterElement) {
+                // Insert after the found element
+                if (insertAfterElement.nextSibling) {
+                    footer.insertBefore(container, insertAfterElement.nextSibling);
+                } else {
+                    footer.appendChild(container);
+                }
+            } else {
+                // Insert at the beginning (before right buttons if they exist)
+                if (rightButtonsContainer) {
+                    footer.insertBefore(container, rightButtonsContainer);
+                } else {
+                    footer.insertBefore(container, footer.firstChild);
+                }
+            }
 
             console.log('✅ Quick assign buttons container inserted into footer');
         });
