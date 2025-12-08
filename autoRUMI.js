@@ -105,7 +105,7 @@
             "if you feel additional information could be helpful",
             "this contact thread will say \"waiting for your reply\"",
             "any additional information would be beneficial to our investigation",
-            "we'll keep an eye out for your reply",
+            "keep an eye out for your reply",
             "if you feel additional information could be helpful, please reply to this message",
             "in order to be able to further investigate the issue",
             "provide us with more details about what happened",
