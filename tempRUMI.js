@@ -5057,13 +5057,15 @@ Safety & Security Operations Team
         
         // Container styling - matches Zendesk design
         container.style.cssText = `
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 4px 0;
             position: relative;
             flex-shrink: 0;
             flex-grow: 0;
+            vertical-align: middle;
+            min-width: fit-content;
         `;
 
         // Create toggle button for expand/collapse
@@ -5118,11 +5120,12 @@ Safety & Security Operations Team
             gap: 6px;
             flex-wrap: nowrap;
             padding: 2px 0;
-            transition: opacity 0.2s ease-in-out;
+            transition: opacity 0.2s ease-in-out, width 0.2s ease-in-out;
             overflow-x: auto;
             overflow-y: hidden;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            flex-shrink: 0;
         `;
         
         // Hide scrollbar for webkit browsers (add style once)
@@ -5162,13 +5165,23 @@ Safety & Security Operations Team
             if (isExpanded) {
                 buttonsWrapper.style.display = 'flex';
                 buttonsWrapper.style.visibility = 'visible';
+                buttonsWrapper.style.opacity = '1';
                 buttonsWrapper.style.width = 'auto';
+                buttonsWrapper.style.maxWidth = 'none';
+                buttonsWrapper.style.pointerEvents = 'auto';
                 icon.style.transform = 'rotate(0deg)';
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else {
-                buttonsWrapper.style.display = 'none';
+                // Collapse but keep in layout flow to maintain container position
+                buttonsWrapper.style.display = 'flex';
                 buttonsWrapper.style.visibility = 'hidden';
+                buttonsWrapper.style.opacity = '0';
                 buttonsWrapper.style.width = '0';
+                buttonsWrapper.style.maxWidth = '0';
+                buttonsWrapper.style.overflow = 'hidden';
+                buttonsWrapper.style.pointerEvents = 'none';
+                buttonsWrapper.style.margin = '0';
+                buttonsWrapper.style.padding = '0';
                 icon.style.transform = 'rotate(-90deg)';
                 toggleButton.setAttribute('aria-expanded', 'false');
             }
@@ -5232,13 +5245,22 @@ Safety & Security Operations Team
             // Create and insert the container with all buttons
             const container = createQuickAssignContainer();
             
+            // Ensure container stays in position by adding a style to prevent footer from centering it
+            if (!document.getElementById('quick-assign-position-fix')) {
+                const style = document.createElement('style');
+                style.id = 'quick-assign-position-fix';
+                style.textContent = `
+                    [data-test-id="quick-assign-container"] {
+                        order: 0 !important;
+                        margin-right: auto !important;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
             if (insertAfterElement) {
-                // Insert after the found element
-                if (insertAfterElement.nextSibling) {
-                    footer.insertBefore(container, insertAfterElement.nextSibling);
-                } else {
-                    footer.appendChild(container);
-                }
+                // Insert after the found element using insertAdjacentElement for better positioning
+                insertAfterElement.insertAdjacentElement('afterend', container);
             } else {
                 // Insert at the beginning (before right buttons if they exist)
                 if (rightButtonsContainer) {
