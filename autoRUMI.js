@@ -126,6 +126,7 @@
             "keeping an eye out for your reply",
             "awaiting your response",
             "look out for your reply",
+            "we look forward to hearing from you",
 
             // WAITING FOR REPLY STATUS (Arabic)
             "في انتظار ردك",
@@ -151,7 +152,8 @@
             "3rd call",
             "more info",
             "#safety",
-            "#audiomissing"
+            "#audiomissing",
+            "[rumi] careem escalation"
         ];
 
         static SOLVED_TRIGGERS = [
@@ -171,6 +173,7 @@
             "these are the actions we have taken",
             "thanks for your understanding",
             "please note that GIG will follow up regarding the insurance within 2 business days",
+            "Please note that GIG will contact you within the next 2 business days",
             "we have followed up with the partner-driver immediately",
             "we are unable to specify any internal action taken with individual users of the application",
             "happy to hear the issue has been resolved",
@@ -241,7 +244,8 @@
             "ask the rider",
             "inform the rider",
             "captain asks for extra money is no longer a safety case",
-            "not safety related^"
+            "not safety related^",
+            "kindly share the wusool"
         ];
 
         static ESCALATED_BUT_NO_RESPONSE = "i’m truly sorry to hear about what happened during your trip. to assist you better, our team will contact you shortly to get more details about the incident";
