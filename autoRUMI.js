@@ -546,9 +546,11 @@
                         }
                         RUMILogger.info('PROCESSOR', 'Applied changes', { ticketId, action: result.action });
 
-                        // Auto-submit solved tickets to PQMS
+                        // Auto-submit tickets to PQMS
                         if (result.action === 'solved') {
                             RUMIPQMS.submitSolvedTicket(ticketId, ticketData.subject, previousGroupName);
+                        } else if (result.action === 'pending') {
+                            RUMIPQMS.submitPendingTicket(ticketId, ticketData.subject, previousGroupName);
                         }
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
@@ -781,9 +783,11 @@
                         const prefix = isManual ? '[MANUAL]' : '';
                         RUMILogger.info('PROCESSOR', `${prefix} Applied changes`, { ticketId, action: result.action });
 
-                        // Auto-submit solved tickets to PQMS
+                        // Auto-submit tickets to PQMS
                         if (result.action === 'solved') {
                             RUMIPQMS.submitSolvedTicket(ticketId, ticketData.subject, previousGroupName);
+                        } else if (result.action === 'pending') {
+                            RUMIPQMS.submitPendingTicket(ticketId, ticketData.subject, previousGroupName);
                         }
                     } else {
                         RUMILogger.info('PROCESSOR', 'Ticket already in desired state', { ticketId, action: result.action });
@@ -2227,19 +2231,13 @@
                     return false;
                 }
 
-                // Validation 2: Check if ticket was already submitted
-                if (RUMIStorage.isTicketSubmittedToPQMS(ticketId)) {
-                    RUMILogger.debug('PQMS', 'Ticket already submitted to PQMS, skipping', { ticketId });
-                    return false;
-                }
-
-                // Validation 3: Verify OPS ID exists in database
+                // Validation 2: Verify OPS ID exists in database
                 if (!PQMS_USERS[selectedUser.opsId]) {
                     RUMILogger.warn('PQMS', 'OPS ID not found in database', { opsId: selectedUser.opsId });
                     return false;
                 }
 
-                // Validation 4: Verify Name matches
+                // Validation 3: Verify Name matches
                 const expectedName = PQMS_USERS[selectedUser.opsId];
                 if (selectedUser.name !== expectedName) {
                     RUMILogger.warn('PQMS', 'Name mismatch for OPS ID', { opsId: selectedUser.opsId, expected: expectedName, got: selectedUser.name });
@@ -2342,19 +2340,13 @@
                     return false;
                 }
 
-                // Validation 2: Check if ticket was already submitted
-                if (RUMIStorage.isTicketSubmittedToPQMS(ticketId)) {
-                    RUMILogger.debug('PQMS', 'Ticket already submitted to PQMS, skipping', { ticketId });
-                    return false;
-                }
-
-                // Validation 3: Verify OPS ID exists in database
+                // Validation 2: Verify OPS ID exists in database
                 if (!PQMS_USERS[selectedUser.opsId]) {
                     RUMILogger.warn('PQMS', 'OPS ID not found in database', { opsId: selectedUser.opsId });
                     return false;
                 }
 
-                // Validation 4: Verify Name matches
+                // Validation 3: Verify Name matches
                 const expectedName = PQMS_USERS[selectedUser.opsId];
                 if (selectedUser.name !== expectedName) {
                     RUMILogger.warn('PQMS', 'Name mismatch for OPS ID', { opsId: selectedUser.opsId, expected: expectedName, got: selectedUser.name });
