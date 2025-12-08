@@ -49,6 +49,13 @@
         '48414': 'Rabee Almahmoud',
     };
 
+    // Zendesk User ID -> PQMS OPS ID mapping (auto-select PQMS user based on logged-in user)
+    const ZENDESK_TO_PQMS_USER = {
+        '41942034052755': '45724', // Alabbas Ibrahim Abdo Dabajeh
+        '14111281870227': '22529', // Diya Jalal Abdel Hadi Mallah
+        '33072163651987': '37862', // Husam Ahmad Ibrahim Alnajy
+    };
+
     const TARGET_VIEWS = [
         'SSOC - Open - Urgent',
         'SSOC - GCC & EM Open',
@@ -2150,6 +2157,16 @@
 
         // PQMS Integration Storage
         static getPQMSUser() {
+            // Auto-select PQMS user based on logged-in Zendesk user ID
+            const zendeskUserId = RUMIProcessor.currentUserId;
+            if (zendeskUserId) {
+                const opsId = ZENDESK_TO_PQMS_USER[zendeskUserId.toString()];
+                if (opsId && PQMS_USERS[opsId]) {
+                    return { opsId, name: PQMS_USERS[opsId] };
+                }
+            }
+            
+            // Fallback to manually selected user if no auto-mapping exists
             const saved = this.get('pqms_selected_user', null);
             if (saved && PQMS_USERS[saved.opsId]) {
                 return saved;
