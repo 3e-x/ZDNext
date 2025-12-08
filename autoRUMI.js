@@ -44,17 +44,9 @@
     const PQMS_USERS = {
         '45724': 'Alabbas Ibrahim Abdo Dabajeh',
         '22529': 'Diya Jalal Abdel Hadi Mallah',
-        '42727': 'Omar Mohammad Amin Yousef Hazaymeh',
-        '40268': 'Nader Mohammad Qasim Abujalil',
         '37862': 'Husam Ahmad Ibrahim Alnajy',
         '32951': 'Bader Alzoubi',
-        '47962': 'Ammar Ibrahim Mohammad Bani hamad',
-        '47968': 'Mohanad Bani Mostafa',
-        '48413': 'Fawzi Abdel Wahab',
-        '48463': 'Mohammed Karout',
         '48414': 'Rabee Almahmoud',
-        '45719': 'Nour Khaled Yousef Rawashdeh',
-        '48475': 'mohammad bataineh'
     };
 
     const TARGET_VIEWS = [
