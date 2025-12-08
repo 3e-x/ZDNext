@@ -4978,17 +4978,17 @@ Safety & Security Operations Team
             color: #2f3941;
             cursor: pointer;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 400;
             line-height: 20px;
-            padding: 7px 14px;
-            margin-left: ${isFirst ? '12px' : '8px'};
+            padding: 6px 12px;
             transition: border-color 0.25s ease-in-out, box-shadow 0.1s ease-in-out, background-color 0.25s ease-in-out, color 0.25s ease-in-out;
             white-space: nowrap;
             text-decoration: none;
             user-select: none;
             overflow: hidden;
             text-overflow: ellipsis;
+            min-width: fit-content;
         `;
 
         // Hover effects - Zendesk style
@@ -5049,14 +5049,128 @@ Safety & Security Operations Team
         return button;
     }
 
+    // Create a collapsible container for quick assign buttons
+    function createQuickAssignContainer() {
+        const container = document.createElement('div');
+        container.setAttribute('data-test-id', 'quick-assign-container');
+        container.className = 'quick-assign-container';
+        
+        // Container styling - matches Zendesk design
+        container.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 12px;
+            padding: 4px 0;
+            position: relative;
+        `;
+
+        // Create toggle button for expand/collapse
+        const toggleButton = document.createElement('button');
+        toggleButton.setAttribute('type', 'button');
+        toggleButton.setAttribute('data-test-id', 'quick-assign-toggle');
+        toggleButton.setAttribute('aria-label', 'Toggle quick assign buttons');
+        toggleButton.className = 'quick-assign-toggle';
+        toggleButton.innerHTML = `
+            <span class="toggle-icon">▼</span>
+            <span class="toggle-label">Quick Assign</span>
+        `;
+        
+        toggleButton.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background-color: transparent;
+            border: 1px solid #c2c8cc;
+            border-radius: 4px;
+            color: #2f3941;
+            cursor: pointer;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 20px;
+            padding: 6px 12px;
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+        `;
+
+        // Toggle button hover effects
+        toggleButton.addEventListener('mouseenter', () => {
+            toggleButton.style.borderColor = '#5293c7';
+            toggleButton.style.color = '#1f73b7';
+        });
+
+        toggleButton.addEventListener('mouseleave', () => {
+            toggleButton.style.borderColor = '#c2c8cc';
+            toggleButton.style.color = '#2f3941';
+        });
+
+        // Create buttons wrapper
+        const buttonsWrapper = document.createElement('div');
+        buttonsWrapper.setAttribute('data-test-id', 'quick-assign-buttons-wrapper');
+        buttonsWrapper.className = 'quick-assign-buttons-wrapper';
+        
+        buttonsWrapper.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            max-width: 600px;
+            padding: 2px 0;
+            transition: opacity 0.2s ease-in-out;
+        `;
+
+        // Create all buttons
+        QUICK_ASSIGN_BUTTONS.forEach((config) => {
+            const button = createQuickAssignButton(config, false);
+            buttonsWrapper.appendChild(button);
+        });
+
+        // Add smooth transition for icon rotation
+        const icon = toggleButton.querySelector('.toggle-icon');
+        icon.style.cssText = `
+            display: inline-block;
+            transition: transform 0.2s ease-in-out;
+            font-size: 10px;
+        `;
+
+        // Toggle functionality
+        let isExpanded = true;
+        toggleButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            isExpanded = !isExpanded;
+            
+            if (isExpanded) {
+                buttonsWrapper.style.display = 'flex';
+                icon.style.transform = 'rotate(0deg)';
+                toggleButton.setAttribute('aria-expanded', 'true');
+            } else {
+                buttonsWrapper.style.display = 'none';
+                icon.style.transform = 'rotate(-90deg)';
+                toggleButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        // Initially expanded
+        toggleButton.setAttribute('aria-expanded', 'true');
+
+        // Assemble container
+        container.appendChild(toggleButton);
+        container.appendChild(buttonsWrapper);
+
+        return container;
+    }
+
     // Insert all quick assign buttons into the ticket footer
     function insertQuickAssignButtons() {
         // Find all ticket footer sections
         const footerSections = document.querySelectorAll('[data-test-id="ticket-footer-open-ticket"]');
 
         footerSections.forEach(footer => {
-            // Check if buttons already exist in this footer (check for first button)
-            if (footer.querySelector('[data-test-id="not-safety-related-button"]')) {
+            // Check if buttons already exist in this footer
+            if (footer.querySelector('[data-test-id="quick-assign-container"]')) {
                 return;
             }
 
@@ -5067,13 +5181,11 @@ Safety & Security Operations Team
                 return;
             }
 
-            // Create and insert all buttons in order
-            QUICK_ASSIGN_BUTTONS.forEach((config, index) => {
-                const button = createQuickAssignButton(config, index === 0);
-                footer.insertBefore(button, rightButtonsContainer);
-            });
+            // Create and insert the container with all buttons
+            const container = createQuickAssignContainer();
+            footer.insertBefore(container, rightButtonsContainer);
 
-            console.log('✅ Quick assign buttons inserted into footer');
+            console.log('✅ Quick assign buttons container inserted into footer');
         });
     }
 
