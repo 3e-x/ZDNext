@@ -5063,6 +5063,7 @@ Safety & Security Operations Team
             padding: 4px 0;
             position: relative;
             flex-shrink: 0;
+            flex-grow: 0;
         `;
 
         // Create toggle button for expand/collapse
@@ -5092,6 +5093,7 @@ Safety & Security Operations Team
             padding: 6px 12px;
             transition: all 0.2s ease-in-out;
             user-select: none;
+            flex-shrink: 0;
         `;
 
         // Toggle button hover effects
@@ -5159,10 +5161,14 @@ Safety & Security Operations Team
             
             if (isExpanded) {
                 buttonsWrapper.style.display = 'flex';
+                buttonsWrapper.style.visibility = 'visible';
+                buttonsWrapper.style.width = 'auto';
                 icon.style.transform = 'rotate(0deg)';
                 toggleButton.setAttribute('aria-expanded', 'true');
             } else {
                 buttonsWrapper.style.display = 'none';
+                buttonsWrapper.style.visibility = 'hidden';
+                buttonsWrapper.style.width = '0';
                 icon.style.transform = 'rotate(-90deg)';
                 toggleButton.setAttribute('aria-expanded', 'false');
             }
