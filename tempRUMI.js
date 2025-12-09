@@ -4890,13 +4890,13 @@ Safety & Security Operations Team
     // Button configurations: [id, label, groupId, comment (optional)]
     const QUICK_ASSIGN_BUTTONS = [
         { id: 'not-safety-related-button', label: 'Not Safety', groupId: 20705088, comment: 'Not safety related' },
-        { id: 'no-booking-button', label: 'No Booking', groupId: 20705088, comment: 'No Booking ID' },
         { id: 'hq-button', label: 'HQ', groupId: 20705088, comment: null },
         { id: 'mot-ssoc-button', label: 'MOT SSOC', groupId: 25862683237139, comment: null },
         { id: 'shadow-button', label: 'Shadow', groupId: 34373129086483, comment: null },
         { id: 'food-button', label: 'Food', groupId: 360016462353, comment: null },
         { id: 'bike-button', label: 'Bike', groupId: 360007090594, comment: null },
-        { id: 'captain-button', label: 'Captain', groupId: 28216988, comment: null }
+        { id: 'captain-button', label: 'Captain', groupId: 28216988, comment: null },
+        { id: 'no-booking-button', label: 'No Booking', groupId: 20705088, comment: 'No Booking ID' }
     ];
 
     // Generic function to assign ticket to a group with optional comment
