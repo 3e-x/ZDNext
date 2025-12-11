@@ -236,7 +236,6 @@
             "إن سلامة جميع المستخدمين من أهم أولوياتنا",
             "يتم مراجعة الملاحظات وإتخاذ أي إجراءات داخلية ضرورية",
 
-            "Selected issue: null",
             "We will be following up with Partner-driver, to try to ensure the experience you describe can’t happen again.",
             "We will be following up with the driver and taking the appropriate actions",
             "Rest assured that we have taken the necessary internal actions.",
